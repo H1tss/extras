@@ -585,7 +585,7 @@ function Slate:CreateWindow(config)
             BackgroundTransparency = 1
         })
 
-        Create("UIListLayout", {
+        local pageLayout = Create("UIListLayout", {
             Parent = page,
             Padding = UDim.new(0, 12),
             SortOrder = Enum.SortOrder.LayoutOrder
@@ -1442,8 +1442,8 @@ function Slate:CreateWindow(config)
         end
 
         -- Update canvas size
-        page.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-            page.CanvasSize = UDim2.new(0, 0, 0, page.UIListLayout.AbsoluteContentSize.Y + 40)
+        pageLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            page.CanvasSize = UDim2.new(0, 0, 0, pageLayout.AbsoluteContentSize.Y + 40)
         end)
 
         return tab
