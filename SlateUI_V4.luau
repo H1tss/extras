@@ -972,14 +972,14 @@ function Slate:CreateWindow(config)
 
             track.InputBegan:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                    UpdateSlider(input, true)
+                    UpdateSlider(input, false)
                     dragging = true
                 end
             end)
 
             UserInputService.InputChanged:Connect(function(input)
                 if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-                    UpdateSlider(input, true)
+                    UpdateSlider(input, false)
                 end
             end)
 
