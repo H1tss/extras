@@ -610,68 +610,24 @@ function Slate:CreateWindow(config)
         local function SelectTab()
             if self.CurrentTab == tab then return end
 
+            -- Hide old tab
             if self.CurrentTab then
-                Tween(self.CurrentTab.Page, {BackgroundTransparency = 1}, 0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
-                Tween(self.CurrentTab.Button, {BackgroundTransparency = 1}, 0.2)
-                Tween(self.CurrentTab.Button.Icon, {ImageColor3 = Slate.Theme.TextMuted, ImageTransparency = 0.2}, 0.25)
-                Tween(self.CurrentTab.Button.Label, {TextColor3 = Slate.Theme.TextMuted, TextTransparency = 0.2}, 0.25)
-                Tween(self.CurrentTab.Button.Indicator, {BackgroundTransparency = 1}, 0.2)
-
-                delay(0.2, function()
-                    self.CurrentTab.Page.Visible = false
-                end)
+                self.CurrentTab.Page.Visible = false
+                Tween(self.CurrentTab.Button, {BackgroundTransparency = 1}, 0.15)
+                Tween(self.CurrentTab.Button.Icon, {ImageColor3 = Slate.Theme.TextMuted, ImageTransparency = 0.2}, 0.2)
+                Tween(self.CurrentTab.Button.Label, {TextColor3 = Slate.Theme.TextMuted, TextTransparency = 0.2}, 0.2)
+                Tween(self.CurrentTab.Button.Indicator, {BackgroundTransparency = 1}, 0.15)
             end
 
+            -- Show new tab
             self.CurrentTab = tab
             tab.Page.Visible = true
             tab.Page.CanvasPosition = Vector2.new(0, 0)
 
-            Tween(tabBtn, {BackgroundTransparency = 0.92}, 0.25)
-            Tween(tabIcon, {ImageColor3 = Slate.Theme.TextPrimary, ImageTransparency = 0}, 0.3)
-            Tween(tabLabel, {TextColor3 = Slate.Theme.TextPrimary, TextTransparency = 0}, 0.3)
-            Tween(indicator, {BackgroundTransparency = 0}, 0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-            Tween(page, {BackgroundTransparency = 1}, 0.35, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
-
-            -- Staggered element entrance
-            delay(0.1, function()
-                local children = page:GetChildren()
-                local validChildren = {}
-                for _, child in pairs(children) do
-                    if child:IsA("Frame") or child:IsA("TextLabel") or child:IsA("TextButton") then
-                        table.insert(validChildren, child)
-                    end
-                end
-
-                for i, child in ipairs(validChildren) do
-                    if child:IsA("Frame") then
-                        child.BackgroundTransparency = 1
-                        local stroke = child:FindFirstChildOfClass("UIStroke")
-                        if stroke then stroke.Transparency = 1 end
-                    end
-                    if child:FindFirstChild("Title") and child.Title:IsA("TextLabel") then
-                        child.Title.TextTransparency = 1
-                    end
-                    if child:FindFirstChild("Label") and child.Label:IsA("TextLabel") then
-                        child.Label.TextTransparency = 1
-                    end
-
-                    delay((i - 1) * 0.04, function()
-                        if child:IsA("Frame") then
-                            Tween(child, {BackgroundTransparency = 0}, 0.3, Enum.EasingStyle.Quart)
-                            local stroke = child:FindFirstChildOfClass("UIStroke")
-                            if stroke then
-                                Tween(stroke, {Transparency = 0}, 0.3)
-                            end
-                        end
-                        if child:FindFirstChild("Title") and child.Title:IsA("TextLabel") then
-                            Tween(child.Title, {TextTransparency = 0}, 0.25)
-                        end
-                        if child:FindFirstChild("Label") and child.Label:IsA("TextLabel") then
-                            Tween(child.Label, {TextTransparency = 0}, 0.25)
-                        end
-                    end)
-                end
-            end)
+            Tween(tabBtn, {BackgroundTransparency = 0.92}, 0.2)
+            Tween(tabIcon, {ImageColor3 = Slate.Theme.TextPrimary, ImageTransparency = 0}, 0.25)
+            Tween(tabLabel, {TextColor3 = Slate.Theme.TextPrimary, TextTransparency = 0}, 0.25)
+            Tween(indicator, {BackgroundTransparency = 0}, 0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
         end
 
         tabBtn.MouseButton1Click:Connect(SelectTab)
@@ -742,8 +698,8 @@ function Slate:CreateWindow(config)
                 TextSize = 13,
                 AutoButtonColor = false,
                 LayoutOrder = #self.Elements,
-                BackgroundTransparency = 1,
-                TextTransparency = 1
+                BackgroundTransparency = 0,
+                TextTransparency = 0
             })
 
             Create("UICorner", {CornerRadius = Slate.Theme.CornerRadius, Parent = btn})
@@ -791,7 +747,7 @@ function Slate:CreateWindow(config)
                 BorderSizePixel = 0,
                 Size = UDim2.new(1, 0, 0, Slate.Theme.ElementHeight),
                 LayoutOrder = #self.Elements,
-                BackgroundTransparency = 1
+                BackgroundTransparency = 0
             })
 
             Create("UICorner", {CornerRadius = Slate.Theme.CornerRadius, Parent = toggleFrame})
@@ -911,7 +867,7 @@ function Slate:CreateWindow(config)
                 BorderSizePixel = 0,
                 Size = UDim2.new(1, 0, 0, 50),
                 LayoutOrder = #self.Elements,
-                BackgroundTransparency = 1
+                BackgroundTransparency = 0
             })
 
             Create("UICorner", {CornerRadius = Slate.Theme.CornerRadius, Parent = sliderFrame})
@@ -1081,7 +1037,7 @@ function Slate:CreateWindow(config)
                 Size = UDim2.new(1, 0, 0, Slate.Theme.ElementHeight),
                 ClipsDescendants = true,
                 LayoutOrder = #self.Elements,
-                BackgroundTransparency = 1
+                BackgroundTransparency = 0
             })
 
             Create("UICorner", {CornerRadius = Slate.Theme.CornerRadius, Parent = dropdownFrame})
@@ -1299,7 +1255,7 @@ function Slate:CreateWindow(config)
                 BorderSizePixel = 0,
                 Size = UDim2.new(1, 0, 0, Slate.Theme.ElementHeight),
                 LayoutOrder = #self.Elements,
-                BackgroundTransparency = 1
+                BackgroundTransparency = 0
             })
 
             Create("UICorner", {CornerRadius = Slate.Theme.CornerRadius, Parent = inputFrame})
@@ -1377,7 +1333,7 @@ function Slate:CreateWindow(config)
                 TextXAlignment = Enum.TextXAlignment.Left,
                 TextWrapped = true,
                 LayoutOrder = #self.Elements,
-                TextTransparency = 1
+                TextTransparency = 0
             })
 
             table.insert(self.Elements, label)
@@ -1395,7 +1351,7 @@ function Slate:CreateWindow(config)
                 BorderSizePixel = 0,
                 Size = UDim2.new(1, 0, 0, 100),
                 LayoutOrder = #self.Elements,
-                BackgroundTransparency = 1
+                BackgroundTransparency = 0
             })
 
             Create("UICorner", {CornerRadius = Slate.Theme.CornerRadius, Parent = card})
@@ -1411,7 +1367,7 @@ function Slate:CreateWindow(config)
                 TextColor3 = Slate.Theme.TextPrimary,
                 TextSize = 16,
                 TextXAlignment = Enum.TextXAlignment.Left,
-                TextTransparency = 1
+                TextTransparency = 0
             })
 
             if subtitle ~= "" then
@@ -1425,7 +1381,7 @@ function Slate:CreateWindow(config)
                     TextColor3 = Slate.Theme.TextMuted,
                     TextSize = 12,
                     TextXAlignment = Enum.TextXAlignment.Left,
-                    TextTransparency = 1
+                    TextTransparency = 0
                 })
             end
 
