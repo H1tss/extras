@@ -543,7 +543,7 @@ function Slate:CreateWindow(config)
             Size = UDim2.new(0, 18, 0, 18),
             Image = iconId or "rbxassetid://7733960983",
             ImageColor3 = Slate.Theme.TextMuted,
-            ImageTransparency = 1
+            ImageTransparency = 0.2
         })
 
         local tabLabel = Create("TextLabel", {
@@ -557,7 +557,7 @@ function Slate:CreateWindow(config)
             TextColor3 = Slate.Theme.TextMuted,
             TextSize = 13,
             TextXAlignment = Enum.TextXAlignment.Left,
-            TextTransparency = 1
+            TextTransparency = 0.2
         })
 
         local indicator = Create("Frame", {
