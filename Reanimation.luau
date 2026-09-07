@@ -30,14 +30,14 @@ do
 	local function showLoadingScreen()
 		local player = game.Players.LocalPlayer
 		local playerGui = player:WaitForChild("PlayerGui")
-		local old = playerGui:FindFirstChild("MagicalLoadingScreen")
+		local old = playerGui:FindFirstChild("N0irLoadingScreen")
 		if old then old:Destroy() end
 
 		local placeName = getRealGameName()
 		local placeId = tostring(game.PlaceId or 0)
 
 		local gui = Instance.new("ScreenGui")
-		gui.Name = "MagicalLoadingScreen"
+		gui.Name = "N0irLoadingScreen"
 		gui.IgnoreGuiInset = true
 		gui.ResetOnSpawn = false
 		gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
