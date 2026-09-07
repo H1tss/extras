@@ -474,6 +474,7 @@ _G._HaloRightArmPointerEnabled = false
 _G._HaloLeftArmPointerEnabled = false
 _G._HaloRightArmStretching = false
 _G._HaloLeftArmStretching = false
+_G._HaloPointerStretchAmount = _G._HaloPointerStretchAmount or 1.0
 _G._HaloTorsoStretcherEnabled = false
 _G._HaloLimbsTorsoCamControl = false
 _G._HaloHeadTrackerEnabled = false
@@ -770,6 +771,10 @@ do
             };
             original_transforms = {};
             constraints = {};
+            -- Part-name keyed pose snapshot for smooth state crossfades
+            blend_from = nil;   -- { [partName] = CFrame }
+            blend_t = 0;        -- 0..1 progress
+            blend_dur = 0.18;
         };
     };
 
@@ -814,7 +819,18 @@ do
             return;
         end;
 
-        API.stop_animation();
+        -- Keep blend snapshot when coming from a state transition
+        if halo.animation.blend_from and not halo.animation.state.is_playing then
+            -- already stopped for transition — just clear constraint maps
+            table.clear(halo.animation.original_transforms);
+            table.clear(halo.animation.constraints);
+            if halo.connections.animation_hb then
+                halo.connections.animation_hb:Disconnect();
+                halo.connections.animation_hb = nil;
+            end;
+        else
+            API.stop_animation();
+        end;
 
         local clone_humanoid = clone:FindFirstChildWhichIsA("Humanoid");
         local clone_animate = clone:FindFirstChild("Animate");
@@ -896,21 +912,22 @@ do
 
         local constraints = {};
         local orig_transforms = {};
+        local bindCache = anim.bind_transforms;
         for _, desc in ipairs(clone:GetDescendants()) do
             if desc:IsA("AnimationConstraint") then
                 local att = desc.Attachment1;
                 if att and att.Parent then
                     constraints[att.Parent.Name] = desc;
-                    orig_transforms[desc] = desc.Transform;
+                    orig_transforms[desc] = (bindCache and bindCache[desc]) or CFrame.new();
                 end;
                 constraints[desc.Name] = desc;
-                orig_transforms[desc] = desc.Transform;
+                orig_transforms[desc] = (bindCache and bindCache[desc]) or CFrame.new();
             elseif desc:IsA("Motor6D") or desc:IsA("Motor") then
                 if desc.Part1 then
                     constraints[desc.Part1.Name] = desc;
                 end;
                 constraints[desc.Name] = desc;
-                orig_transforms[desc] = desc.Transform;
+                orig_transforms[desc] = (bindCache and bindCache[desc]) or CFrame.new();
             end;
         end;
 
@@ -990,12 +1007,29 @@ do
             local time_in_frame = elapsed - current_frame.Time;
             local alpha = math.clamp(frame_duration > 0 and time_in_frame / frame_duration or 0, 0, 1);
 
+            -- Smooth state crossfade (Idle↔Walk↔Run): part-name keyed
+            local bf = anim.blend_from;
+            local bAlpha = 1;
+            if bf then
+                anim.blend_t = math.clamp((anim.blend_t or 0) + deltaTime / (anim.blend_dur or 0.18), 0, 1);
+                local t = anim.blend_t;
+                bAlpha = t * t * (3 - 2 * t); -- smoothstep
+                if t >= 1 then
+                    anim.blend_from = nil;
+                    anim.blend_t = 0;
+                    bf = nil;
+                end;
+            end;
+
             if current_frame.Data then
                 for partName, pose_cframe in pairs(current_frame.Data) do
                     local constraint = constraints[partName];
                     if constraint and constraint.Parent then
                         local next_pose = next_frame.Data and next_frame.Data[partName];
                         local targetCF = next_pose and pose_cframe:Lerp(next_pose, alpha) or pose_cframe;
+                        if bf and bf[partName] then
+                            targetCF = bf[partName]:Lerp(targetCF, bAlpha);
+                        end;
                         pcall(function()
                             constraint.Transform = targetCF;
                         end);
@@ -1099,8 +1133,13 @@ do
                     if elbowConstraint then elbowConstraint.Transform = CFrame.new() end
                     local wristConstraint = anim.constraints[handName]
                     if wristConstraint then wristConstraint.Transform = CFrame.new() end
-                    if isLeft then _G._HaloLeftArmPointerNeedsReset = false
-                    else _G._HaloRightArmPointerNeedsReset = false end
+                    if isLeft then
+                        _G._HaloLeftArmPointerNeedsReset = false
+                        if _G._HaloArmPointerSmoothed then _G._HaloArmPointerSmoothed.Left = nil end
+                    else
+                        _G._HaloRightArmPointerNeedsReset = false
+                        if _G._HaloArmPointerSmoothed then _G._HaloArmPointerSmoothed.Right = nil end
+                    end
                 end
 
                 local shoulderWorldCF = nil
@@ -1167,8 +1206,13 @@ do
                     shoulderResult = bindTransform
                 end
 
-                shoulderConstraint.Transform = shoulderResult
-
+                local armKey = isLeft and "Left" or "Right"
+                _G._HaloArmPointerSmoothed = _G._HaloArmPointerSmoothed or {}
+                local prevArm = _G._HaloArmPointerSmoothed[armKey]
+                local smoothAmt = tonumber(_G._HaloArmPointerSmooth) or 0.15
+                local smoothedArm = (prevArm and prevArm:Lerp(shoulderResult, smoothAmt)) or shoulderResult
+                _G._HaloArmPointerSmoothed[armKey] = smoothedArm
+                shoulderConstraint.Transform = smoothedArm
                 local elbowConstraint = anim.constraints[lowerName]
                 if elbowConstraint then elbowConstraint.Transform = CFrame.new() end
                 local wristConstraint = anim.constraints[handName]
@@ -1200,15 +1244,16 @@ do
 
             -- 1. Arm Pointers
             if _G._HaloRightArmPointerEnabled then
-                local isStretching = _G._HaloRightArmStretching or false
-                pointArm("RightUpperArm", "RightLowerArm", "RightHand", isStretching and stretchAmt or 1.0)
+                -- Pointer stretch only (Ctrl+Wheel / Arm Stretcher Pointers) — not general Arm Stretch
+                local pStretch = tonumber(_G._HaloPointerStretchAmount) or 1.0
+                pointArm("RightUpperArm", "RightLowerArm", "RightHand", pStretch)
             elseif not _G._HaloLeftArmPointerEnabled and not _G._HaloRightArmPointerEnabled and _G._HaloRightArmStretching and stretchAmt ~= 1.0 then
                 stretchArmOnly("RightLowerArm", "RightHand", stretchAmt)
             end
 
             if _G._HaloLeftArmPointerEnabled then
-                local isStretching = _G._HaloLeftArmStretching or false
-                pointArm("LeftUpperArm", "LeftLowerArm", "LeftHand", isStretching and stretchAmt or 1.0)
+                local pStretch = tonumber(_G._HaloPointerStretchAmount) or 1.0
+                pointArm("LeftUpperArm", "LeftLowerArm", "LeftHand", pStretch)
             elseif not _G._HaloRightArmPointerEnabled and not _G._HaloLeftArmPointerEnabled and _G._HaloLeftArmStretching and stretchAmt ~= 1.0 then
                 stretchArmOnly("LeftLowerArm", "LeftHand", stretchAmt)
             end
@@ -1502,6 +1547,8 @@ do
 
         table.clear(halo.animation.original_transforms);
         table.clear(halo.animation.constraints);
+        halo.animation.blend_from = nil;
+        halo.animation.blend_t = 0;
         halo.animation.state = {
             is_playing = false;
             current_url = nil;
@@ -1516,24 +1563,29 @@ do
         end;
     end;
 
-    -- Lightweight stop used between state transitions — disconnects the animation
-    -- heartbeat and clears state WITHOUT snapping bones back to bind pose.
-    -- The next animation will overwrite the constraint transforms on its first tick.
+    -- Lightweight stop for state transitions (Idle→Walk→Run).
+    -- Keeps the LIVE pose on the bones and snapshots it by part name so the
+    -- next clip can cross-fade in. Never snaps back to bind pose.
     API.stop_animation_for_transition = function()
         if not halo.animation.state.is_playing then return end;
         local stopped_url = halo.animation.state.current_url;
+
+        -- Snapshot live transforms keyed by part name (survives constraint rebuild)
+        local snap = {};
+        for partName, constraint in pairs(halo.animation.constraints) do
+            if type(partName) == "string" and constraint and constraint.Parent then
+                pcall(function()
+                    snap[partName] = constraint.Transform;
+                end);
+            end;
+        end;
+
         if halo.connections.animation_hb then
             halo.connections.animation_hb:Disconnect();
             halo.connections.animation_hb = nil;
         end;
-        -- Restore original transforms so the next animation starts from bind pose.
-        -- Without this, the new animation captures stale pose data as "original",
-        -- causing arms to glitch when state animations transition (e.g. Idle->Walk).
-        for constraint, orig_transform in pairs(halo.animation.original_transforms) do
-            if constraint and constraint.Parent then
-                constraint.Transform = orig_transform;
-            end;
-        end;
+
+        -- Do NOT restore bind pose — leave bones where they are
         table.clear(halo.animation.original_transforms);
         table.clear(halo.animation.constraints);
         halo.animation.state = {
@@ -1544,6 +1596,13 @@ do
             total_duration = 0;
             elapsed_time = 0;
         };
+
+        if next(snap) then
+            halo.animation.blend_from = snap;
+            halo.animation.blend_t = 0;
+            halo.animation.blend_dur = 0.18;
+        end;
+
         if halo.callbacks.on_stop then
             pcall(halo.callbacks.on_stop, stopped_url);
         end;
@@ -2021,7 +2080,16 @@ do
             return;
         end;
 
-        API.stop_animation();
+        if halo.animation.blend_from and not halo.animation.state.is_playing then
+            table.clear(halo.animation.original_transforms);
+            table.clear(halo.animation.constraints);
+            if halo.connections.animation_hb then
+                halo.connections.animation_hb:Disconnect();
+                halo.connections.animation_hb = nil;
+            end;
+        else
+            API.stop_animation();
+        end;
 
         local clone_humanoid = clone:FindFirstChildOfClass("Humanoid");
         if clone_humanoid then
@@ -2169,6 +2237,19 @@ do
             local alpha = (frame_duration > 0) and (anim.state.elapsed_time - current_frame.Time) / frame_duration or 0;
             alpha = math.clamp(alpha, 0, 1);
 
+            local bf = anim.blend_from;
+            local bAlpha = 1;
+            if bf then
+                anim.blend_t = math.clamp((anim.blend_t or 0) + deltaTime / (anim.blend_dur or 0.18), 0, 1);
+                local t = anim.blend_t;
+                bAlpha = t * t * (3 - 2 * t);
+                if t >= 1 then
+                    anim.blend_from = nil;
+                    anim.blend_t = 0;
+                    bf = nil;
+                end;
+            end;
+
             for partName, pose_cframe in pairs(current_frame.Data) do
                 local constraint = anim.constraints[partName];
                 if constraint and constraint.Parent and anim.original_transforms[constraint] then
@@ -2178,6 +2259,9 @@ do
                         interpolated_transform = pose_cframe:Lerp(next_pose_cframe, alpha);
                     else
                         interpolated_transform = pose_cframe;
+                    end;
+                    if bf and bf[partName] then
+                        interpolated_transform = bf[partName]:Lerp(interpolated_transform, bAlpha);
                     end;
                     constraint.Transform = interpolated_transform;
                 end;
@@ -2279,8 +2363,13 @@ do
                     if elbowConstraint then elbowConstraint.Transform = CFrame.new() end
                     local wristConstraint = anim.constraints[handName]
                     if wristConstraint then wristConstraint.Transform = CFrame.new() end
-                    if isLeft then _G._HaloLeftArmPointerNeedsReset = false
-                    else _G._HaloRightArmPointerNeedsReset = false end
+                    if isLeft then
+                        _G._HaloLeftArmPointerNeedsReset = false
+                        if _G._HaloArmPointerSmoothed then _G._HaloArmPointerSmoothed.Left = nil end
+                    else
+                        _G._HaloRightArmPointerNeedsReset = false
+                        if _G._HaloArmPointerSmoothed then _G._HaloArmPointerSmoothed.Right = nil end
+                    end
                 end
 
                 local shoulderWorldCF = nil
@@ -2347,8 +2436,13 @@ do
                     shoulderResult = bindTransform
                 end
 
-                shoulderConstraint.Transform = shoulderResult
-
+                local armKey = isLeft and "Left" or "Right"
+                _G._HaloArmPointerSmoothed = _G._HaloArmPointerSmoothed or {}
+                local prevArm = _G._HaloArmPointerSmoothed[armKey]
+                local smoothAmt = tonumber(_G._HaloArmPointerSmooth) or 0.15
+                local smoothedArm = (prevArm and prevArm:Lerp(shoulderResult, smoothAmt)) or shoulderResult
+                _G._HaloArmPointerSmoothed[armKey] = smoothedArm
+                shoulderConstraint.Transform = smoothedArm
                 local elbowConstraint = anim.constraints[lowerName]
                 if elbowConstraint then elbowConstraint.Transform = CFrame.new() end
                 local wristConstraint = anim.constraints[handName]
@@ -2380,15 +2474,16 @@ do
 
             -- 1. Arm Pointers
             if _G._HaloRightArmPointerEnabled then
-                local isStretching = _G._HaloRightArmStretching or false
-                pointArm("RightUpperArm", "RightLowerArm", "RightHand", isStretching and stretchAmt or 1.0)
+                -- Pointer stretch only (Ctrl+Wheel / Arm Stretcher Pointers) — not general Arm Stretch
+                local pStretch = tonumber(_G._HaloPointerStretchAmount) or 1.0
+                pointArm("RightUpperArm", "RightLowerArm", "RightHand", pStretch)
             elseif not _G._HaloLeftArmPointerEnabled and not _G._HaloRightArmPointerEnabled and _G._HaloRightArmStretching and stretchAmt ~= 1.0 then
                 stretchArmOnly("RightLowerArm", "RightHand", stretchAmt)
             end
 
             if _G._HaloLeftArmPointerEnabled then
-                local isStretching = _G._HaloLeftArmStretching or false
-                pointArm("LeftUpperArm", "LeftLowerArm", "LeftHand", isStretching and stretchAmt or 1.0)
+                local pStretch = tonumber(_G._HaloPointerStretchAmount) or 1.0
+                pointArm("LeftUpperArm", "LeftLowerArm", "LeftHand", pStretch)
             elseif not _G._HaloRightArmPointerEnabled and not _G._HaloLeftArmPointerEnabled and _G._HaloLeftArmStretching and stretchAmt ~= 1.0 then
                 stretchArmOnly("LeftLowerArm", "LeftHand", stretchAmt)
             end
@@ -5861,7 +5956,7 @@ end
 -- ============================================
 do
 local animCopierFrame = Instance.new("Frame"); animCopierFrame.Parent = TestingPanel
-animCopierFrame.Size = UDim2.new(1,0,0,310)
+animCopierFrame.Size = UDim2.new(1,0,0,360)
 animCopierFrame.BackgroundColor3 = C.bg1
 animCopierFrame.BackgroundTransparency = 0.4
 animCopierFrame.BorderSizePixel = 0
@@ -5954,15 +6049,46 @@ do
     local s = Instance.new("UIStroke"); s.Color = C.border; s.Transparency = 0.4; s.Thickness = 1; s.Parent = acDistHandle
 end
 
+-- Height (up/down) slider
+local acHeightLbl = Instance.new("TextLabel", animCopierFrame)
+acHeightLbl.BackgroundTransparency = 1; acHeightLbl.Position = UDim2.new(0,10,0,200)
+acHeightLbl.Size = UDim2.new(0,200,0,16); acHeightLbl.Font = Enum.Font.GothamBold
+acHeightLbl.Text = "Height: 0.0 studs"; acHeightLbl.TextColor3 = C.text2
+acHeightLbl.TextSize = 9; acHeightLbl.TextXAlignment = Enum.TextXAlignment.Left; acHeightLbl.ZIndex = 33
+
+local acHeightTrack = Instance.new("Frame", animCopierFrame)
+acHeightTrack.BackgroundColor3 = C.bg2; acHeightTrack.BackgroundTransparency = 0.3
+acHeightTrack.BorderSizePixel = 0; acHeightTrack.Position = UDim2.new(0,10,0,218)
+acHeightTrack.Size = UDim2.new(1,-20,0,8); acHeightTrack.ZIndex = 33
+do
+    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1,0); c.Parent = acHeightTrack
+    local s = Instance.new("UIStroke"); s.Color = C.border; s.Transparency = 0.7; s.Thickness = 1; s.Parent = acHeightTrack
+end
+
+local acHeightFill = Instance.new("Frame", acHeightTrack)
+acHeightFill.BackgroundColor3 = C.accent; acHeightFill.BackgroundTransparency = 0.1
+acHeightFill.BorderSizePixel = 0; acHeightFill.Size = UDim2.new(0.5,0,1,0)
+do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1,0); c.Parent = acHeightFill end
+
+local acHeightHandle = Instance.new("Frame", acHeightTrack)
+acHeightHandle.AnchorPoint = Vector2.new(0.5,0.5)
+acHeightHandle.BackgroundColor3 = C.accent; acHeightHandle.BackgroundTransparency = 0
+acHeightHandle.BorderSizePixel = 0; acHeightHandle.Position = UDim2.new(0.5,0,0.5,0)
+acHeightHandle.Size = UDim2.new(0,12,0,12)
+do
+    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1,0); c.Parent = acHeightHandle
+    local s = Instance.new("UIStroke"); s.Color = C.border; s.Transparency = 0.4; s.Thickness = 1; s.Parent = acHeightHandle
+end
+
 -- Side selector
 local acSideLbl = Instance.new("TextLabel", animCopierFrame)
-acSideLbl.BackgroundTransparency = 1; acSideLbl.Position = UDim2.new(0,10,0,200)
+acSideLbl.BackgroundTransparency = 1; acSideLbl.Position = UDim2.new(0,10,0,236)
 acSideLbl.Size = UDim2.new(0,40,0,14); acSideLbl.Font = Enum.Font.Gotham
 acSideLbl.Text = "Side:"; acSideLbl.TextColor3 = C.text3
 acSideLbl.TextSize = 9; acSideLbl.TextXAlignment = Enum.TextXAlignment.Left; acSideLbl.ZIndex = 33
 
 local acSideLeft = Instance.new("TextButton", animCopierFrame)
-acSideLeft.Position = UDim2.new(0,45,0,200); acSideLeft.Size = UDim2.new(0,40,0,16)
+acSideLeft.Position = UDim2.new(0,45,0,236); acSideLeft.Size = UDim2.new(0,40,0,16)
 acSideLeft.BackgroundColor3 = C.accent; acSideLeft.BackgroundTransparency = 0.1
 acSideLeft.BorderSizePixel = 0; acSideLeft.Font = Enum.Font.GothamBold
 acSideLeft.Text = "Left"; acSideLeft.TextColor3 = Color3.fromRGB(0,0,0)
@@ -5970,7 +6096,7 @@ acSideLeft.TextSize = 8; acSideLeft.ZIndex = 33; acSideLeft.AutoButtonColor = fa
 do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,4); c.Parent = acSideLeft end
 
 local acSideRight = Instance.new("TextButton", animCopierFrame)
-acSideRight.Position = UDim2.new(0,89,0,200); acSideRight.Size = UDim2.new(0,40,0,16)
+acSideRight.Position = UDim2.new(0,89,0,236); acSideRight.Size = UDim2.new(0,40,0,16)
 acSideRight.BackgroundColor3 = C.bg2; acSideRight.BackgroundTransparency = 0.3
 acSideRight.BorderSizePixel = 0; acSideRight.Font = Enum.Font.GothamBold
 acSideRight.Text = "Right"; acSideRight.TextColor3 = C.text2
@@ -5979,14 +6105,14 @@ do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,4); c.Parent 
 
 -- Match Facing toggle (TikTok-friendly: rotate body to their look dir, keep side offset)
 local acFaceLbl = Instance.new("TextLabel", animCopierFrame)
-acFaceLbl.BackgroundTransparency = 1; acFaceLbl.Position = UDim2.new(0,140,0,200)
+acFaceLbl.BackgroundTransparency = 1; acFaceLbl.Position = UDim2.new(0,140,0,236)
 acFaceLbl.Size = UDim2.new(0,70,0,14); acFaceLbl.Font = Enum.Font.Gotham
 acFaceLbl.Text = "Face only:"; acFaceLbl.TextColor3 = C.text3
 acFaceLbl.TextSize = 9; acFaceLbl.TextXAlignment = Enum.TextXAlignment.Left; acFaceLbl.ZIndex = 33
 
 local acFaceBg = Instance.new("Frame", animCopierFrame)
 acFaceBg.Size = UDim2.new(0, 36, 0, 18)
-acFaceBg.Position = UDim2.new(0, 210, 0, 198)
+acFaceBg.Position = UDim2.new(0, 210, 0, 234)
 acFaceBg.BackgroundColor3 = C.green
 acFaceBg.BorderSizePixel = 0
 acFaceBg.ZIndex = 33
@@ -6006,14 +6132,14 @@ acFaceBtn.ZIndex = 35
 
 -- Status label
 local acStatus = Instance.new("TextLabel", animCopierFrame)
-acStatus.BackgroundTransparency = 1; acStatus.Position = UDim2.new(0,10,0,228)
+acStatus.BackgroundTransparency = 1; acStatus.Position = UDim2.new(0,10,0,264)
 acStatus.Size = UDim2.new(1,-20,0,28); acStatus.Font = Enum.Font.Gotham
 acStatus.Text = "OFF - Select a player and toggle ON"; acStatus.TextColor3 = C.text3
 acStatus.TextSize = 9; acStatus.TextXAlignment = Enum.TextXAlignment.Left
 acStatus.TextWrapped = true; acStatus.ZIndex = 33
 
 local acNoclipLbl = Instance.new("TextLabel", animCopierFrame)
-acNoclipLbl.BackgroundTransparency = 1; acNoclipLbl.Position = UDim2.new(0,10,0,260)
+acNoclipLbl.BackgroundTransparency = 1; acNoclipLbl.Position = UDim2.new(0,10,0,298)
 acNoclipLbl.Size = UDim2.new(1,-20,0,14); acNoclipLbl.Font = Enum.Font.Gotham
 acNoclipLbl.Text = "Noclip: Auto-enabled when copying"; acNoclipLbl.TextColor3 = C.green
 acNoclipLbl.TextSize = 9; acNoclipLbl.TextXAlignment = Enum.TextXAlignment.Left; acNoclipLbl.ZIndex = 33
@@ -6024,6 +6150,7 @@ acNoclipLbl.TextSize = 9; acNoclipLbl.TextXAlignment = Enum.TextXAlignment.Left;
 local acEnabled = false
 local acSelectedPlayer = nil
 local acDistance = 2.0
+local acHeight = 0.0 -- up/down offset from target HRP Y
 local acSide = 1
 local acMatchFacing = true
 local acFaceSmooth = nil
@@ -6102,10 +6229,25 @@ local function acSetDistance(val)
     acDistHandle.Position = UDim2.new(pct, 0, 0.5, 0)
     acDistLbl.Text = "Distance: " .. string.format("%.1f", acDistance) .. " studs"
     if acEnabled and acSelectedPlayer then
-        acStatus.Text = "COPYING " .. acSelectedPlayer.Name .. " | Dist: " .. string.format("%.1f", acDistance) .. " studs"
+        acStatus.Text = "COPYING " .. acSelectedPlayer.Name .. " | Dist: " .. string.format("%.1f", acDistance) .. " | H: " .. string.format("%+.1f", acHeight)
     end
 end
 acSetDistance(2.0)
+
+-- Height range: -10 .. +10 studs relative to target HRP Y
+local acDraggingHeight = false
+local function acSetHeight(val)
+    acHeight = math.clamp(math.floor(val * 10 + 0.5) / 10, -10.0, 10.0)
+    local pct = (acHeight + 10.0) / 20.0
+    acHeightFill.Size = UDim2.new(pct, 0, 1, 0)
+    acHeightHandle.Position = UDim2.new(pct, 0, 0.5, 0)
+    local sign = acHeight >= 0 and "+" or ""
+    acHeightLbl.Text = "Height: " .. sign .. string.format("%.1f", acHeight) .. " studs"
+    if acEnabled and acSelectedPlayer then
+        acStatus.Text = "COPYING " .. acSelectedPlayer.Name .. " | Dist: " .. string.format("%.1f", acDistance) .. " | H: " .. string.format("%+.1f", acHeight)
+    end
+end
+acSetHeight(0.0)
 
 acSearchBox:GetPropertyChangedSignal("Text"):Connect(function()
     acUpdatePlayerList(acSearchBox.Text)
@@ -6120,13 +6262,29 @@ acDistTrack.InputBegan:Connect(function(inp)
         acSetDistance(0.1 + pct * 200)
     end
 end)
+acHeightTrack.InputBegan:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+        acDraggingHeight = true
+        local pct = math.clamp((inp.Position.X - acHeightTrack.AbsolutePosition.X) / acHeightTrack.AbsoluteSize.X, 0, 1)
+        acSetHeight(-10.0 + pct * 20.0)
+    end
+end)
 UserInputService.InputEnded:Connect(function(inp)
-    if inp.UserInputType == Enum.UserInputType.MouseButton1 and acDragging then acDragging = false end
+    if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+        if acDragging then acDragging = false end
+        if acDraggingHeight then acDraggingHeight = false end
+    end
 end)
 UserInputService.InputChanged:Connect(function(inp)
-    if acDragging and inp.UserInputType == Enum.UserInputType.MouseMovement then
-        local pct = math.clamp((inp.Position.X - acDistTrack.AbsolutePosition.X) / acDistTrack.AbsoluteSize.X, 0, 1)
-        acSetDistance(0.1 + pct * 200)
+    if inp.UserInputType == Enum.UserInputType.MouseMovement then
+        if acDragging then
+            local pct = math.clamp((inp.Position.X - acDistTrack.AbsolutePosition.X) / acDistTrack.AbsoluteSize.X, 0, 1)
+            acSetDistance(0.1 + pct * 200)
+        end
+        if acDraggingHeight then
+            local pct = math.clamp((inp.Position.X - acHeightTrack.AbsolutePosition.X) / acHeightTrack.AbsoluteSize.X, 0, 1)
+            acSetHeight(-10.0 + pct * 20.0)
+        end
     end
 end)
 
@@ -6224,10 +6382,20 @@ local function acStartCopying()
     if acConn then acConn:Disconnect(); acConn = nil end
 
     local clone = ReanimateAPI and ReanimateAPI.get_clone and ReanimateAPI.get_clone(plr)
+    -- Stop custom / state animations so they don't overwrite the copied pose
+    pcall(function()
+        if stopStateSystem then stopStateSystem() end
+    end)
+    pcall(function()
+        if ReanimateAPI and ReanimateAPI.stop_animation then ReanimateAPI.stop_animation() end
+    end)
     acFreezeClone(clone)
 
-    -- Joint-transform copy: keeps YOUR limb lengths, mirrors THEIR joint rotations.
-    -- Avoids floating/disconnected parts from absolute CFrame cloning across body types.
+    -- ============================================================
+    -- Anim Copier:
+    --  • HumanoidRootPart: one-to-one follow (side offset) + ALWAYS grounded
+    --  • Limbs/joints: rotation-only extract (keeps YOUR body proportions)
+    -- ============================================================
     local PART_ALIASES = {
         Torso = {"UpperTorso", "LowerTorso", "Torso"},
         UpperTorso = {"UpperTorso", "Torso"},
@@ -6252,6 +6420,14 @@ local function acStartCopying()
         ["Right Leg"] = {"RightUpperLeg", "Right Leg"},
     }
 
+    local CORE_ORDER = {
+        "LowerTorso", "UpperTorso", "Torso", "Head",
+        "LeftUpperArm", "LeftLowerArm", "LeftHand", "Left Arm",
+        "RightUpperArm", "RightLowerArm", "RightHand", "Right Arm",
+        "LeftUpperLeg", "LeftLowerLeg", "LeftFoot", "Left Leg",
+        "RightUpperLeg", "RightLowerLeg", "RightFoot", "Right Leg",
+    }
+
     local function partKey(constraint)
         if constraint:IsA("Motor6D") and constraint.Part1 then
             return constraint.Part1.Name
@@ -6264,7 +6440,7 @@ local function acStartCopying()
     end
 
     local function buildJointMap(char)
-        local map = {} -- name -> constraint
+        local map = {}
         if not char then return map end
         for _, d in ipairs(char:GetDescendants()) do
             if d:IsA("Motor6D") or d:IsA("AnimationConstraint") then
@@ -6288,10 +6464,104 @@ local function acStartCopying()
         return nil
     end
 
-    -- Extract rotation-only from a CFrame (drop translation for safer cross-rig paste)
     local function rotOnly(cf)
         local _, _, _, r00, r01, r02, r10, r11, r12, r20, r21, r22 = cf:GetComponents()
         return CFrame.new(0, 0, 0, r00, r01, r02, r10, r11, r12, r20, r21, r22)
+    end
+
+    -- Live pose from target parts (more reliable than Transform alone)
+    local function extractTargetTransform(tJoint)
+        if not tJoint then return nil end
+        if tJoint:IsA("Motor6D") and tJoint.Part0 and tJoint.Part1 then
+            local p0, p1 = tJoint.Part0, tJoint.Part1
+            local c0, c1 = tJoint.C0, tJoint.C1
+            local ok, tf = pcall(function()
+                return c0:Inverse() * p0.CFrame:Inverse() * p1.CFrame * c1
+            end)
+            if ok and tf then return tf end
+        elseif tJoint:IsA("AnimationConstraint") then
+            local att0 = tJoint.Attachment0
+            local att1 = tJoint.Attachment1
+            if att0 and att1 and att0.Parent and att1.Parent then
+                local ok, tf = pcall(function()
+                    return att0.WorldCFrame:Inverse() * att1.WorldCFrame
+                end)
+                if ok and tf then return tf end
+            end
+        end
+        local ok, tf = pcall(function() return tJoint.Transform end)
+        if ok then return tf end
+        return nil
+    end
+
+    -- Rotation-only onto YOUR joint (keeps your C0/C1 = your proportions)
+    local function applyToCloneJoint(cJoint, tf)
+        if not cJoint or not tf or not cJoint.Parent then return end
+        local rot = rotOnly(tf)
+        pcall(function()
+            cJoint.Transform = rot
+        end)
+
+        if cJoint:IsA("Motor6D") and cJoint.Part0 and cJoint.Part1 then
+            local p0, p1 = cJoint.Part0, cJoint.Part1
+            if p0.Parent and p1.Parent then
+                pcall(function()
+                    p1.CFrame = p0.CFrame * cJoint.C0 * rot * cJoint.C1:Inverse()
+                end)
+            end
+        elseif cJoint:IsA("AnimationConstraint") then
+            local att0 = cJoint.Attachment0
+            local att1 = cJoint.Attachment1
+            if att0 and att1 and att0.Parent and att1.Parent
+                and att0.Parent:IsA("BasePart") and att1.Parent:IsA("BasePart") then
+                pcall(function()
+                    local desiredChildAttWorld = att0.WorldCFrame * rot
+                    att1.Parent.CFrame = desiredChildAttWorld * att1.CFrame:Inverse()
+                end)
+            end
+        end
+    end
+
+    -- Raycast ground under a world XZ so HRP always stays on the floor
+    local groundRayParams = RaycastParams.new()
+    groundRayParams.FilterType = Enum.RaycastFilterType.Exclude
+    groundRayParams.IgnoreWater = false
+
+    local function groundYAt(worldPos, excludeChars, fallbackY)
+        local filter = {}
+        if excludeChars then
+            for _, ch in ipairs(excludeChars) do
+                if ch then table.insert(filter, ch) end
+            end
+        end
+        groundRayParams.FilterDescendantsInstances = filter
+        local origin = Vector3.new(worldPos.X, worldPos.Y + 6, worldPos.Z)
+        local result = workspace:Raycast(origin, Vector3.new(0, -80, 0), groundRayParams)
+        if result then
+            return result.Position.Y
+        end
+        -- Retry from higher up (fell through thin floor / started mid-air)
+        origin = Vector3.new(worldPos.X, worldPos.Y + 40, worldPos.Z)
+        result = workspace:Raycast(origin, Vector3.new(0, -200, 0), groundRayParams)
+        if result then
+            return result.Position.Y
+        end
+        return fallbackY
+    end
+
+    -- Approx hip height so HRP sits above the floor correctly for this clone
+    local function estimateHipHeight(char, hum)
+        if hum and hum.HipHeight and hum.HipHeight > 0.1 then
+            return hum.HipHeight
+        end
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        local foot = char and (char:FindFirstChild("LeftFoot") or char:FindFirstChild("RightFoot")
+            or char:FindFirstChild("Left Leg") or char:FindFirstChild("Right Leg"))
+        if hrp and foot and foot:IsA("BasePart") then
+            local d = hrp.Position.Y - foot.Position.Y
+            if d > 0.5 and d < 8 then return d end
+        end
+        return 2.0
     end
 
     local cloneJointMap = buildJointMap(clone)
@@ -6326,96 +6596,48 @@ local function acStartCopying()
         end
         local targetJointMap = buildJointMap(targetChar)
 
-        -- Hard side-slot follow (no position lerp = no sliding). Stay glued beside them.
+        -- ---- HumanoidRootPart: one-to-one XZ + rotation, Y = target Y + Height slider ----
         local rightVec = targetHRP.CFrame.RightVector
         if rightVec.Magnitude > 0.001 then rightVec = rightVec.Unit end
         local offsetVec = rightVec * (acDistance * acSide)
-        local pos = targetHRP.Position + offsetVec
+        local slotPos = targetHRP.Position + offsetVec + Vector3.new(0, acHeight, 0)
 
-        -- Yaw-only facing from target
-        local targetLook = targetHRP.CFrame.LookVector
-        local flatLook = Vector3.new(targetLook.X, 0, targetLook.Z)
-        if flatLook.Magnitude < 0.05 then
-            flatLook = Vector3.new(0, 0, -1)
-        else
-            flatLook = flatLook.Unit
-        end
-
-        local yawCF
+        local rootCF
         if acMatchFacing then
-            -- Move with them (exact pos each frame), only ROTATE yaw to match face.
-            -- No position smoothing → no slide.
-            local desiredLook = flatLook
-            if acFaceSmooth then
-                local prevLook = Vector3.new(acFaceSmooth.LookVector.X, 0, acFaceSmooth.LookVector.Z)
-                if prevLook.Magnitude > 0.05 then
-                    prevLook = prevLook.Unit
-                    desiredLook = prevLook:Lerp(flatLook, 0.28)
-                    if desiredLook.Magnitude < 0.05 then
-                        desiredLook = flatLook
-                    else
-                        desiredLook = desiredLook.Unit
-                    end
-                end
-            end
-            yawCF = CFrame.lookAt(pos, pos + desiredLook)
-            acFaceSmooth = yawCF
+            -- One-to-one rotation of target HRP, position beside them at chosen height
+            local rot = rotOnly(targetHRP.CFrame)
+            rootCF = CFrame.new(slotPos) * rot
+            acFaceSmooth = rootCF
         else
             local curLook = cloneHRP.CFrame.LookVector
             local flatCur = Vector3.new(curLook.X, 0, curLook.Z)
             if flatCur.Magnitude < 0.05 then
-                flatCur = flatLook
-            else
-                flatCur = flatCur.Unit
+                local tl = targetHRP.CFrame.LookVector
+                flatCur = Vector3.new(tl.X, 0, tl.Z)
+                if flatCur.Magnitude < 0.05 then flatCur = Vector3.new(0, 0, -1) end
             end
-            yawCF = CFrame.lookAt(pos, pos + flatCur)
+            flatCur = flatCur.Unit
+            rootCF = CFrame.lookAt(slotPos, slotPos + flatCur)
             acFaceSmooth = nil
         end
-        cloneHRP.CFrame = yawCF
-        acLockedPos = nil
+        cloneHRP.CFrame = rootCF
+        pcall(function()
+            cloneHRP.AssemblyLinearVelocity = Vector3.zero
+            cloneHRP.AssemblyAngularVelocity = Vector3.zero
+        end)
 
-        -- Parent-before-child order keeps the skeleton connected
-        local coreNames = {
-            "UpperTorso", "LowerTorso", "Torso", "Head",
-            "LeftUpperArm", "LeftLowerArm", "LeftHand", "Left Arm",
-            "RightUpperArm", "RightLowerArm", "RightHand", "Right Arm",
-            "LeftUpperLeg", "LeftLowerLeg", "LeftFoot", "Left Leg",
-            "RightUpperLeg", "RightLowerLeg", "RightFoot", "Right Leg",
-        }
-
-        -- Two passes so children see updated parent CFrames
+        -- ---- Limbs: rotation-only joint copy (your proportions) ----
+        local applied = {}
         for _pass = 1, 2 do
-            local applied = {}
-            for _, name in ipairs(coreNames) do
+            for _, name in ipairs(CORE_ORDER) do
                 local tJoint = resolveJoint(targetJointMap, name)
                 local cJoint = resolveJoint(cloneJointMap, name)
                 if tJoint and cJoint and not applied[cJoint] then
-                    applied[cJoint] = true
-                    -- Prefer full Transform from target (includes slight offsets anims need)
-                    local tf = tJoint.Transform
-                    pcall(function()
-                        cJoint.Transform = tf
-                    end)
-
-                    if cJoint:IsA("Motor6D") and cJoint.Part0 and cJoint.Part1 then
-                        local p0, p1 = cJoint.Part0, cJoint.Part1
-                        if p0.Parent and p1.Parent then
-                            -- Place child using CLONE joint offsets + TARGET rotation
-                            pcall(function()
-                                p1.CFrame = p0.CFrame * cJoint.C0 * rotOnly(tf) * cJoint.C1:Inverse()
-                            end)
-                        end
-                    elseif cJoint:IsA("AnimationConstraint") then
-                        local att0 = cJoint.Attachment0
-                        local att1 = cJoint.Attachment1
-                        if att0 and att1 and att0.Parent and att1.Parent
-                            and att0.Parent:IsA("BasePart") and att1.Parent:IsA("BasePart") then
-                            pcall(function()
-                                -- Standard constraint pose: parentAtt * Transform = childAtt world
-                                local desiredChildAttWorld = att0.WorldCFrame * rotOnly(tf)
-                                local childPart = att1.Parent
-                                childPart.CFrame = desiredChildAttWorld * att1.CFrame:Inverse()
-                            end)
+                    local tf = extractTargetTransform(tJoint)
+                    if tf then
+                        applyToCloneJoint(cJoint, tf)
+                        if _pass == 2 then
+                            applied[cJoint] = true
                         end
                     end
                 end
@@ -6430,6 +6652,12 @@ local function acStopCopying()
     acUnfreezeClone(clone)
     acStatus.Text = "OFF - Select a player and toggle ON"
     acStatus.TextColor3 = C.text3
+    -- Resume state animations if they were configured
+    pcall(function()
+        if State.isReanimated and StateAnims and next(StateAnims) and startStateSystem then
+            startStateSystem()
+        end
+    end)
 end
 
 local function acUpdateToggle()
@@ -6437,7 +6665,7 @@ local function acUpdateToggle()
         TweenService:Create(acToggleBg, TweenInfo.new(0.2), {BackgroundColor3 = C.green}):Play()
         TweenService:Create(acKnob, TweenInfo.new(0.2), {Position = UDim2.new(1,-19,0,3)}):Play()
         if acSelectedPlayer then
-            acStatus.Text = "COPYING " .. acSelectedPlayer.Name .. " | Dist: " .. string.format("%.1f", acDistance) .. " studs"
+            acStatus.Text = "COPYING " .. acSelectedPlayer.Name .. " | Dist: " .. string.format("%.1f", acDistance) .. " | H: " .. string.format("%+.1f", acHeight)
             acStatus.TextColor3 = C.green
             acStartCopying()
         else
@@ -7253,6 +7481,10 @@ end
 -- ============================================
 _G._HaloStareEnabled = _G._HaloStareEnabled or false
 _G._HaloIdleWobbleEnabled = _G._HaloIdleWobbleEnabled or false
+_G._HaloIdleWobbleSpeed = _G._HaloIdleWobbleSpeed or 1.0
+_G._HaloIdleGlitchEnabled = _G._HaloIdleGlitchEnabled or false
+_G._HaloIdleGlitchTorsoEnabled = _G._HaloIdleGlitchTorsoEnabled or false
+_G._HaloIdleGlitchSpeed = _G._HaloIdleGlitchSpeed or 1.0
 _G._HaloSpinHeadEnabled = _G._HaloSpinHeadEnabled or false
 _G._HaloSpinHeadSpeed = _G._HaloSpinHeadSpeed or 1.5
 _G._HaloTPoseEnabled = _G._HaloTPoseEnabled or false
@@ -7283,6 +7515,136 @@ buildToggle(LimbsPanel, "Idle Wobble", "Soft jiggle on head + arms while idle. C
     _G._HaloIdleWobbleEnabled = state
     if Notify then Notify("Idle Wobble: " .. (state and "ON" or "OFF"), 1.5) end
 end)
+
+buildToggle(LimbsPanel, "Idle Glitch", "Spastic jitter / snap glitch on head + arms while idle.", 22.5, _G._HaloIdleGlitchEnabled, function(state)
+    _G._HaloIdleGlitchEnabled = state
+    if Notify then Notify("Idle Glitch: " .. (state and "ON" or "OFF"), 1.5) end
+end)
+
+buildToggle(LimbsPanel, "Idle Glitch Torso", "Also glitch the torso / waist while Idle Glitch is on.", 22.6, _G._HaloIdleGlitchTorsoEnabled, function(state)
+    _G._HaloIdleGlitchTorsoEnabled = state
+    if Notify then Notify("Idle Glitch Torso: " .. (state and "ON" or "OFF"), 1.5) end
+end)
+
+-- Idle Wobble speed slider
+do
+    local frame = Instance.new("Frame"); frame.Parent = LimbsPanel
+    frame.Size = UDim2.new(1, 0, 0, 48)
+    frame.BackgroundColor3 = C.bg1; frame.BackgroundTransparency = 0.12; frame.BorderSizePixel = 0
+    frame.LayoutOrder = 22.7
+    do
+        local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 7); c.Parent = frame
+        local s = Instance.new("UIStroke"); s.Color = C.border; s.Transparency = 0.7; s.Thickness = 1; s.Parent = frame
+    end
+    local lbl = Instance.new("TextLabel"); lbl.Parent = frame
+    lbl.BackgroundTransparency = 1; lbl.Position = UDim2.new(0, 10, 0, 6)
+    lbl.Size = UDim2.new(1, -20, 0, 14); lbl.Font = Enum.Font.GothamBold
+    lbl.Text = "Wobble Speed: " .. string.format("%.1f", _G._HaloIdleWobbleSpeed) .. "x"
+    lbl.TextColor3 = C.text; lbl.TextSize = 10
+    lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.ZIndex = 33
+
+    local track = Instance.new("Frame"); track.Parent = frame
+    track.BackgroundColor3 = C.bg2; track.BackgroundTransparency = 0.3; track.BorderSizePixel = 0
+    track.Position = UDim2.new(0, 10, 0, 28); track.Size = UDim2.new(1, -20, 0, 8); track.ZIndex = 33
+    do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 4); c.Parent = track end
+    local minV, maxV = 0.2, 5.0
+    local p0 = math.clamp((_G._HaloIdleWobbleSpeed - minV) / (maxV - minV), 0, 1)
+    local fill = Instance.new("Frame"); fill.Parent = track
+    fill.BackgroundColor3 = C.accent; fill.BackgroundTransparency = 0.15; fill.BorderSizePixel = 0
+    fill.Size = UDim2.new(p0, 0, 1, 0); fill.ZIndex = 34
+    do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 4); c.Parent = fill end
+    local handle = Instance.new("Frame"); handle.Parent = track
+    handle.Size = UDim2.new(0, 12, 0, 12); handle.AnchorPoint = Vector2.new(0.5, 0.5)
+    handle.Position = UDim2.new(p0, 0, 0.5, 0); handle.BackgroundColor3 = C.text; handle.ZIndex = 35
+    do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1, 0); c.Parent = handle end
+
+    local dragging = false
+    local function setFromX(mx)
+        local pct = math.clamp((mx - track.AbsolutePosition.X) / math.max(track.AbsoluteSize.X, 1), 0, 1)
+        local val = minV + pct * (maxV - minV)
+        val = math.floor(val * 10 + 0.5) / 10
+        _G._HaloIdleWobbleSpeed = val
+        fill.Size = UDim2.new(pct, 0, 1, 0)
+        handle.Position = UDim2.new(pct, 0, 0.5, 0)
+        lbl.Text = "Wobble Speed: " .. string.format("%.1f", val) .. "x"
+    end
+    track.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            setFromX(input.Position.X)
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            setFromX(input.Position.X)
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+end
+
+-- Idle Glitch speed slider
+do
+    local frame = Instance.new("Frame"); frame.Parent = LimbsPanel
+    frame.Size = UDim2.new(1, 0, 0, 48)
+    frame.BackgroundColor3 = C.bg1; frame.BackgroundTransparency = 0.12; frame.BorderSizePixel = 0
+    frame.LayoutOrder = 22.8
+    do
+        local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 7); c.Parent = frame
+        local s = Instance.new("UIStroke"); s.Color = C.border; s.Transparency = 0.7; s.Thickness = 1; s.Parent = frame
+    end
+    local lbl = Instance.new("TextLabel"); lbl.Parent = frame
+    lbl.BackgroundTransparency = 1; lbl.Position = UDim2.new(0, 10, 0, 6)
+    lbl.Size = UDim2.new(1, -20, 0, 14); lbl.Font = Enum.Font.GothamBold
+    lbl.Text = "Glitch Speed: " .. string.format("%.1f", _G._HaloIdleGlitchSpeed) .. "x"
+    lbl.TextColor3 = C.text; lbl.TextSize = 10
+    lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.ZIndex = 33
+
+    local track = Instance.new("Frame"); track.Parent = frame
+    track.BackgroundColor3 = C.bg2; track.BackgroundTransparency = 0.3; track.BorderSizePixel = 0
+    track.Position = UDim2.new(0, 10, 0, 28); track.Size = UDim2.new(1, -20, 0, 8); track.ZIndex = 33
+    do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 4); c.Parent = track end
+    local minV, maxV = 0.2, 5.0
+    local p0 = math.clamp((_G._HaloIdleGlitchSpeed - minV) / (maxV - minV), 0, 1)
+    local fill = Instance.new("Frame"); fill.Parent = track
+    fill.BackgroundColor3 = C.accent; fill.BackgroundTransparency = 0.15; fill.BorderSizePixel = 0
+    fill.Size = UDim2.new(p0, 0, 1, 0); fill.ZIndex = 34
+    do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 4); c.Parent = fill end
+    local handle = Instance.new("Frame"); handle.Parent = track
+    handle.Size = UDim2.new(0, 12, 0, 12); handle.AnchorPoint = Vector2.new(0.5, 0.5)
+    handle.Position = UDim2.new(p0, 0, 0.5, 0); handle.BackgroundColor3 = C.text; handle.ZIndex = 35
+    do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1, 0); c.Parent = handle end
+
+    local dragging = false
+    local function setFromX(mx)
+        local pct = math.clamp((mx - track.AbsolutePosition.X) / math.max(track.AbsoluteSize.X, 1), 0, 1)
+        local val = minV + pct * (maxV - minV)
+        val = math.floor(val * 10 + 0.5) / 10
+        _G._HaloIdleGlitchSpeed = val
+        fill.Size = UDim2.new(pct, 0, 1, 0)
+        handle.Position = UDim2.new(pct, 0, 0.5, 0)
+        lbl.Text = "Glitch Speed: " .. string.format("%.1f", val) .. "x"
+    end
+    track.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            setFromX(input.Position.X)
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            setFromX(input.Position.X)
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+end
 
 buildToggle(LimbsPanel, "Spin Head", "Head continuously spins (exorcist mode). Overrides stare/head tracker.", 23, _G._HaloSpinHeadEnabled, function(state)
     _G._HaloSpinHeadEnabled = state
@@ -7465,7 +7827,7 @@ buildToggle(LimbsPanel, "Headbang", "Aggressive headbang loop. Party mode.", 54,
     if Notify then Notify("Headbang: " .. (state and "ON" or "OFF"), 1.4) end
 end)
 
-buildToggle(LimbsPanel, "Floppy Arms", "Arms hang limp and sway. Dead-arm energy.", 55, _G._HaloFloppyArmsEnabled, function(state)
+buildToggle(LimbsPanel, "Floppy Arms", "Double-pendulum limp arms — gravity hang + motion lag.", 55, _G._HaloFloppyArmsEnabled, function(state)
     _G._HaloFloppyArmsEnabled = state
     if state then
         _G._HaloHandsUpEnabled = false
@@ -7823,9 +8185,143 @@ local function applyArmStretchAmount(val)
     stNumBox.Text = string.format("%.2f", val)
 end
 
+
 _G._HaloResetArmStretch = function()
     applyArmStretchAmount(2.5)
 end
+
+task.spawn(function()
+-- ============================================
+-- Arm Stretcher (Pointers) — isolated scope (register limit)
+-- Only while a pointer is on; Ctrl + Mouse Wheel / slider
+-- ============================================
+-- ============================================
+-- Arm Stretcher (Pointers) — only while a pointer is on
+-- Adjust with Ctrl + Mouse Wheel (or slider below)
+-- ============================================
+_G._HaloPointerStretchAmount = _G._HaloPointerStretchAmount or 1.0
+local ptrStretchFrame = Instance.new("Frame"); ptrStretchFrame.Parent = StretchingPanel
+ptrStretchFrame.Size = UDim2.new(1, 0, 0, 110)
+ptrStretchFrame.BackgroundColor3 = C.bg1
+ptrStretchFrame.BackgroundTransparency = 0.12
+ptrStretchFrame.BorderSizePixel = 0
+ptrStretchFrame.LayoutOrder = 3.5
+do
+    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 10); c.Parent = ptrStretchFrame
+    local s = Instance.new("UIStroke"); s.Color = C.border; s.Transparency = 0.4; s.Thickness = 1; s.Parent = ptrStretchFrame
+end
+
+local pstTitle = Instance.new("TextLabel"); pstTitle.Parent = ptrStretchFrame
+pstTitle.BackgroundTransparency = 1; pstTitle.Position = UDim2.new(0, 14, 0, 8)
+pstTitle.Size = UDim2.new(1, -28, 0, 15); pstTitle.Font = Enum.Font.GothamMedium
+pstTitle.Text = "Arm Stretcher (Pointers)"; pstTitle.TextColor3 = C.text; pstTitle.TextSize = 12
+pstTitle.TextXAlignment = Enum.TextXAlignment.Left; pstTitle.ZIndex = 33
+
+local pstSub = Instance.new("TextLabel"); pstSub.Parent = ptrStretchFrame
+pstSub.BackgroundTransparency = 1; pstSub.Position = UDim2.new(0, 14, 0, 24)
+pstSub.Size = UDim2.new(1, -28, 0, 28); pstSub.Font = Enum.Font.Gotham
+pstSub.Text = "Only stretches arms while Left/Right pointer is on. Ctrl + Scroll to adjust."
+pstSub.TextColor3 = C.text3; pstSub.TextSize = 10
+pstSub.TextXAlignment = Enum.TextXAlignment.Left; pstSub.TextWrapped = true; pstSub.ZIndex = 33
+
+local pstNumBox = Instance.new("TextBox"); pstNumBox.Parent = ptrStretchFrame
+pstNumBox.BackgroundColor3 = C.bg2; pstNumBox.BackgroundTransparency = 0.2
+pstNumBox.BorderSizePixel = 0; pstNumBox.Position = UDim2.new(1, -64, 0, 8)
+pstNumBox.Size = UDim2.new(0, 50, 0, 22); pstNumBox.Font = Enum.Font.GothamBold
+pstNumBox.Text = string.format("%.2f", _G._HaloPointerStretchAmount or 1.0)
+pstNumBox.TextColor3 = C.accent; pstNumBox.TextSize = 11; pstNumBox.ZIndex = 33
+do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 6); c.Parent = pstNumBox end
+
+local pstTrack = Instance.new("Frame"); pstTrack.Parent = ptrStretchFrame
+pstTrack.BackgroundColor3 = C.bg2; pstTrack.BackgroundTransparency = 0.3; pstTrack.BorderSizePixel = 0
+pstTrack.Position = UDim2.new(0, 14, 0, 64); pstTrack.Size = UDim2.new(1, -28, 0, 8); pstTrack.ZIndex = 33
+do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 4); c.Parent = pstTrack end
+
+local pstMin, pstMax = 1.0, 8.0
+local function pstPct(val)
+    return math.clamp((val - pstMin) / (pstMax - pstMin), 0, 1)
+end
+local p0 = pstPct(_G._HaloPointerStretchAmount or 1.0)
+
+local pstFill = Instance.new("Frame"); pstFill.Parent = pstTrack
+pstFill.BackgroundColor3 = C.accent; pstFill.BackgroundTransparency = 0.15; pstFill.BorderSizePixel = 0
+pstFill.Size = UDim2.new(p0, 0, 1, 0); pstFill.ZIndex = 34
+do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 4); c.Parent = pstFill end
+
+local pstHandle = Instance.new("Frame"); pstHandle.Parent = pstTrack
+pstHandle.Size = UDim2.new(0, 12, 0, 12); pstHandle.AnchorPoint = Vector2.new(0.5, 0.5)
+pstHandle.Position = UDim2.new(p0, 0, 0.5, 0); pstHandle.BackgroundColor3 = C.text; pstHandle.ZIndex = 35
+do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1, 0); c.Parent = pstHandle end
+
+local pstHint = Instance.new("TextLabel"); pstHint.Parent = ptrStretchFrame
+pstHint.BackgroundTransparency = 1; pstHint.Position = UDim2.new(0, 14, 0, 82)
+pstHint.Size = UDim2.new(1, -28, 0, 14); pstHint.Font = Enum.Font.Gotham
+pstHint.Text = "1.00 = normal length  |  Hold Ctrl + scroll wheel"; pstHint.TextColor3 = C.text3
+pstHint.TextSize = 9; pstHint.TextXAlignment = Enum.TextXAlignment.Left; pstHint.ZIndex = 33
+
+local function applyPointerStretchAmount(val)
+    val = math.clamp(tonumber(val) or 1.0, pstMin, pstMax)
+    val = math.floor(val * 100 + 0.5) / 100
+    _G._HaloPointerStretchAmount = val
+    local pct = pstPct(val)
+    pstFill.Size = UDim2.new(pct, 0, 1, 0)
+    pstHandle.Position = UDim2.new(pct, 0, 0.5, 0)
+    pstNumBox.Text = string.format("%.2f", val)
+end
+_G._HaloApplyPointerStretchAmount = applyPointerStretchAmount
+applyPointerStretchAmount(_G._HaloPointerStretchAmount or 1.0)
+
+pstNumBox.FocusLost:Connect(function()
+    applyPointerStretchAmount(pstNumBox.Text)
+end)
+
+local pstDragging = false
+local pstDragBtn = Instance.new("TextButton"); pstDragBtn.Parent = pstTrack
+pstDragBtn.Size = UDim2.new(1, 0, 1, 0); pstDragBtn.BackgroundTransparency = 1
+pstDragBtn.Text = ""; pstDragBtn.ZIndex = 36
+
+local function setPtrStretchFromMouse(mx)
+    local pct = math.clamp((mx - pstTrack.AbsolutePosition.X) / math.max(pstTrack.AbsoluteSize.X, 1), 0, 1)
+    applyPointerStretchAmount(pstMin + pct * (pstMax - pstMin))
+end
+pstDragBtn.InputBegan:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+        pstDragging = true
+        setPtrStretchFromMouse(inp.Position.X)
+    end
+end)
+UserInputService.InputEnded:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+        pstDragging = false
+    end
+end)
+UserInputService.InputChanged:Connect(function(inp)
+    if pstDragging and (inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch) then
+        setPtrStretchFromMouse(inp.Position.X)
+    end
+end)
+
+-- Ctrl + MouseWheel adjusts pointer stretch ONLY when a pointer is active
+UserInputService.InputChanged:Connect(function(inp, gp)
+    if inp.UserInputType ~= Enum.UserInputType.MouseWheel then return end
+    local ctrl = UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.RightControl)
+    if not ctrl then return end
+    if not (_G._HaloLeftArmPointerEnabled or _G._HaloRightArmPointerEnabled) then return end
+    local cur = tonumber(_G._HaloPointerStretchAmount) or 1.0
+    local step = 0.15
+    local delta = inp.Position.Z -- +1 scroll up, -1 scroll down
+    local nextVal = cur + (delta > 0 and step or -step)
+    if _G._HaloApplyPointerStretchAmount then
+        _G._HaloApplyPointerStretchAmount(nextVal)
+    else
+        _G._HaloPointerStretchAmount = math.clamp(nextVal, 1.0, 8.0)
+    end
+    if Notify then
+        Notify("Pointer Stretch: " .. string.format("%.2f", _G._HaloPointerStretchAmount), 0.8)
+    end
+end)
+end)
+
 
 stToggleBtn.MouseButton1Click:Connect(function()
     if not State.isReanimated then
@@ -7891,21 +8387,8 @@ _G._HaloReanimConns = _G._HaloReanimConns or {}
 _G._HaloCtrlHeld = false
 
 local function _haloStretchWheelAction(actionName, inputState, inputObj)
-    if inputState == Enum.UserInputState.Change then
-        if not _G._HaloRightArmStretching or not _G._HaloLeftArmStretching then
-            ArmStretchEnabled = true
-            updateStretchState()
-        end
-        local current = _G._HaloArmStretchAmount or 2.5
-        local delta = (inputObj.Position.Z > 0) and 2.5 or -2.5
-        local newAmt = math.clamp(current + delta, 0.5, 1000.0)
-        _G._HaloArmStretchAmount = newAmt
-        local newPct = (newAmt - 0.5) / 1000
-        stFill.Size = UDim2.new(newPct, 0, 1, 0)
-        stHandle.Position = UDim2.new(newPct, 0, 0.5, 0)
-        stAmtLbl.Text = "Amount: " .. string.format("%.1f", newAmt) .. "x"
-        if stNumBox then stNumBox.Text = string.format("%.1f", newAmt) end
-    end
+    -- Ctrl+Wheel is reserved for Arm Stretcher (Pointers) only.
+    -- Always sink so the camera does not zoom; never touch regular Arm Stretch.
     return Enum.ContextActionResult.Sink
 end
 
@@ -8248,8 +8731,13 @@ local function startLimbsSystem()
                         shoulderResult = bindTransform
                     end
 
-                    shoulderConstraint.Transform = shoulderResult
-
+                    local armKey = isLeft and "Left" or "Right"
+                    _G._HaloArmPointerSmoothed = _G._HaloArmPointerSmoothed or {}
+                    local prevArm = _G._HaloArmPointerSmoothed[armKey]
+                    local smoothAmt = tonumber(_G._HaloArmPointerSmooth) or 0.15
+                    local smoothedArm = (prevArm and prevArm:Lerp(shoulderResult, smoothAmt)) or shoulderResult
+                    _G._HaloArmPointerSmoothed[armKey] = smoothedArm
+                    shoulderConstraint.Transform = smoothedArm
                     -- Force elbow and wrist to pure bind pose (identity) so the arm
                     -- stays perfectly straight and never drifts over time.
                     local elbowConstraint = anim.constraints[lowerName]
@@ -8299,15 +8787,16 @@ local function startLimbsSystem()
                 end
 
                 if _G._HaloRightArmPointerEnabled then
-                    local isStretching = _G._HaloRightArmStretching or false
-                    pointArm("RightUpperArm", "RightLowerArm", "RightHand", isStretching and stretchAmt or 1.0)
+                    -- Pointer stretch only (Ctrl+Wheel / Arm Stretcher Pointers) — not general Arm Stretch
+                    local pStretch = tonumber(_G._HaloPointerStretchAmount) or 1.0
+                    pointArm("RightUpperArm", "RightLowerArm", "RightHand", pStretch)
                 elseif not _G._HaloLeftArmPointerEnabled and not _G._HaloRightArmPointerEnabled and _G._HaloRightArmStretching and stretchAmt ~= 1.0 then
                     stretchArmOnly("RightLowerArm", "RightHand", stretchAmt)
                 end
 
                 if _G._HaloLeftArmPointerEnabled then
-                    local isStretching = _G._HaloLeftArmStretching or false
-                    pointArm("LeftUpperArm", "LeftLowerArm", "LeftHand", isStretching and stretchAmt or 1.0)
+                    local pStretch = tonumber(_G._HaloPointerStretchAmount) or 1.0
+                    pointArm("LeftUpperArm", "LeftLowerArm", "LeftHand", pStretch)
                 elseif not _G._HaloRightArmPointerEnabled and not _G._HaloLeftArmPointerEnabled and _G._HaloLeftArmStretching and stretchAmt ~= 1.0 then
                     stretchArmOnly("LeftLowerArm", "LeftHand", stretchAmt)
                 end
@@ -9469,6 +9958,8 @@ task.spawn(function()
         _G._HaloSpinHeadEnabled = false
         _G._HaloStareEnabled = false
         _G._HaloIdleWobbleEnabled = false
+        _G._HaloIdleGlitchEnabled = false
+        _G._HaloIdleGlitchTorsoEnabled = false
         _G._HaloHeadTrackerEnabled = false
         _G._HaloLeftArmPointerEnabled = false
         _G._HaloRightArmPointerEnabled = false
@@ -12439,18 +12930,36 @@ local getLogicalState = LPH_NO_VIRTUALIZE(function(hum)
         local speed = hum.WalkSpeed > 0 and hum.MoveDirection.Magnitude > 0.1
         return speed and "Swim" or "SwimIdle"
     else
-        -- Use horizontal velocity magnitude rather than MoveDirection so brief
-        -- directional pauses (where MoveDirection momentarily zeros) don't
-        -- register as Idle and flash the idle animation mid-movement.
+        -- Horizontal velocity + hysteresis (prevents Idle↔Walk↔Run flicker)
         local hrp = hum.RootPart
         local horizSpeed = 0
         if hrp then
             local vel = hrp.AssemblyLinearVelocity
             horizSpeed = Vector2.new(vel.X, vel.Z).Magnitude
         end
-        if horizSpeed > 14 then return "Run"
-        elseif horizSpeed > 1.5 then return "Walk"
-        else return "Idle" end
+        local last = _G._HaloLocoLast or "Idle"
+        local nextState = last
+        if last == "Run" then
+            if horizSpeed < 12 then
+                nextState = (horizSpeed < 1.0) and "Idle" or "Walk"
+            end
+        elseif last == "Walk" then
+            if horizSpeed >= 14.5 then
+                nextState = "Run"
+            elseif horizSpeed < 1.0 then
+                nextState = "Idle"
+            end
+        else
+            if horizSpeed >= 14.5 then
+                nextState = "Run"
+            elseif horizSpeed >= 1.8 then
+                nextState = "Walk"
+            else
+                nextState = "Idle"
+            end
+        end
+        _G._HaloLocoLast = nextState
+        return nextState
     end
 end)
 
@@ -12724,6 +13233,8 @@ startStateSystem = function()
 
     stateWatchConn = RunService.Heartbeat:Connect(LPH_NO_VIRTUALIZE(function()
         if not State.isReanimated then stopStateSystem(); return end
+        -- Don't fight the Animation Copier pose
+        if _G._HaloAnimCopierActive then return end
         -- FPS optimization: throttle state checks to 20Hz instead of every frame
         _stateCheckThrottle = (_stateCheckThrottle or 0) + 1
         if _stateCheckThrottle % 2 ~= 0 then return end
@@ -16382,10 +16893,10 @@ end)
 
 
 -- ============================================
--- STANDALONE ARM/LEG/TORSO STRETCH & POINTER SYSTEM
--- Works continuously even when no custom animation is playing
--- and automatically survives respawns / resets.
+-- STANDALONE ARM/LEG/TORSO + HEAD + FUN TRACKING
+-- Isolated task.spawn — avoids 200 local-register limit
 -- ============================================
+task.spawn(function()
 local standalonePointerConn = nil
 local standalonePointerCache = nil
 local standalonePointerBinds = {}
@@ -16491,8 +17002,13 @@ local function doStandalonePointers()
             if elbow then elbow.Transform = CFrame.new() end
             local wrist = standalonePointerCache[handName]
             if wrist then wrist.Transform = CFrame.new() end
-            if isLeft then _G._HaloLeftArmPointerNeedsReset = false
-            else _G._HaloRightArmPointerNeedsReset = false end
+            if isLeft then
+                _G._HaloLeftArmPointerNeedsReset = false
+                if _G._HaloArmPointerSmoothed then _G._HaloArmPointerSmoothed.Left = nil end
+            else
+                _G._HaloRightArmPointerNeedsReset = false
+                if _G._HaloArmPointerSmoothed then _G._HaloArmPointerSmoothed.Right = nil end
+            end
         end
 
         local shoulderWorldCF = nil
@@ -16528,8 +17044,13 @@ local function doStandalonePointers()
         else
             shoulderResult = bind
         end
-        shoulder.Transform = shoulderResult
-
+        local armKey = isLeft and "Left" or "Right"
+        _G._HaloArmPointerSmoothed = _G._HaloArmPointerSmoothed or {}
+        local prevArm = _G._HaloArmPointerSmoothed[armKey]
+        local smoothAmt = tonumber(_G._HaloArmPointerSmooth) or 0.15
+        local smoothedArm = (prevArm and prevArm:Lerp(shoulderResult, smoothAmt)) or shoulderResult
+        _G._HaloArmPointerSmoothed[armKey] = smoothedArm
+        shoulder.Transform = smoothedArm
         -- LOCK elbow and wrist to bind pose so arm stays perfectly straight
         local elbow = standalonePointerCache[lowerName]
         if elbow then elbow.Transform = CFrame.new() end
@@ -16573,13 +17094,15 @@ local function doStandalonePointers()
     end
 
     if _G._HaloRightArmPointerEnabled then
-        _point("RightUpperArm", "RightLowerArm", "RightHand", (_G._HaloRightArmStretching and stretchAmt) or 1.0)
+        local pStretch = tonumber(_G._HaloPointerStretchAmount) or 1.0
+        _point("RightUpperArm", "RightLowerArm", "RightHand", pStretch)
     elseif not _G._HaloLeftArmPointerEnabled and not _G._HaloRightArmPointerEnabled and _G._HaloRightArmStretching and stretchAmt ~= 1.0 then
         _stretchOnly("RightLowerArm", "RightHand", stretchAmt)
     end
 
     if _G._HaloLeftArmPointerEnabled then
-        _point("LeftUpperArm", "LeftLowerArm", "LeftHand", (_G._HaloLeftArmStretching and stretchAmt) or 1.0)
+        local pStretch = tonumber(_G._HaloPointerStretchAmount) or 1.0
+        _point("LeftUpperArm", "LeftLowerArm", "LeftHand", pStretch)
     elseif not _G._HaloRightArmPointerEnabled and not _G._HaloLeftArmPointerEnabled and _G._HaloLeftArmStretching and stretchAmt ~= 1.0 then
         _stretchOnly("LeftLowerArm", "LeftHand", stretchAmt)
     end
@@ -16870,10 +17393,14 @@ local function applyTPose()
 end
 
 local function applyIdleWobble(dt)
-    local t = tick()
+    local spd = tonumber(_G._HaloIdleWobbleSpeed) or 1.0
+    local t = tick() * spd
     local head = _Fun.cache and _Fun.cache.Head
     local rU = _Fun.cache and _Fun.cache.RightUpperArm
     local lU = _Fun.cache and _Fun.cache.LeftUpperArm
+    local waist = _Fun.cache and (_Fun.cache.Waist or _Fun.cache.UpperTorso or _Fun.cache.Torso or _Fun.cache.LowerTorso)
+    local waistBind = _Fun.binds and (_Fun.binds.Waist or _Fun.binds.UpperTorso or _Fun.binds.Torso or _Fun.binds.LowerTorso)
+
     if head and _Fun.binds and _Fun.binds.Head and not _G._HaloSpinHeadEnabled and not _G._HaloStareEnabled and not _G._HaloHeadTrackerEnabled then
         local wob = CFrame.Angles(
             math.sin(t * 2.1) * 0.07,
@@ -16899,6 +17426,75 @@ local function applyIdleWobble(dt)
             )
             lU.Transform = _Fun.binds.LeftUpperArm * wob
         end
+    end
+    -- Torso / waist soft sway
+    if waist and waistBind and waist.Parent then
+        local wob = CFrame.Angles(
+            math.sin(t * 1.4) * 0.05,
+            math.sin(t * 1.1) * 0.07,
+            math.sin(t * 1.7 + 0.4) * 0.04
+        )
+        waist.Transform = waistBind * wob
+    end
+end
+
+-- Harsh random snaps / stutter (glitch idle) — head + arms (+ optional torso)
+local function applyIdleGlitch(dt)
+    local spd = tonumber(_G._HaloIdleGlitchSpeed) or 1.0
+    -- Higher speed = shorter intervals between snaps
+    local intervalScale = 1 / math.max(spd, 0.15)
+    _Fun.glitchT = (_Fun.glitchT or 0) - (dt or 0.016) * spd
+    if _Fun.glitchT <= 0 then
+        _Fun.glitchT = (0.04 + math.random() * 0.14) * intervalScale
+        local intensity = 0.35 + math.random() * 0.55
+        _Fun.glitchHX = (math.random() - 0.5) * intensity
+        _Fun.glitchHY = (math.random() - 0.5) * intensity * 1.2
+        _Fun.glitchHZ = (math.random() - 0.5) * intensity * 0.6
+        _Fun.glitchAX = (math.random() - 0.5) * intensity * 0.9
+        _Fun.glitchAZ = (math.random() - 0.5) * intensity * 0.7
+        _Fun.glitchTX = (math.random() - 0.5) * intensity * 0.7
+        _Fun.glitchTY = (math.random() - 0.5) * intensity * 0.9
+        _Fun.glitchTZ = (math.random() - 0.5) * intensity * 0.5
+        _Fun.glitchHold = (0.02 + math.random() * 0.05) * intervalScale
+    end
+    local hold = _Fun.glitchHold or 0
+    if hold > 0 then
+        _Fun.glitchHold = hold - (dt or 0.016)
+    else
+        local decay = math.clamp(1 - (dt or 0.016) * 14 * spd, 0, 1)
+        _Fun.glitchHX = (_Fun.glitchHX or 0) * decay
+        _Fun.glitchHY = (_Fun.glitchHY or 0) * decay
+        _Fun.glitchHZ = (_Fun.glitchHZ or 0) * decay
+        _Fun.glitchAX = (_Fun.glitchAX or 0) * decay
+        _Fun.glitchAZ = (_Fun.glitchAZ or 0) * decay
+        _Fun.glitchTX = (_Fun.glitchTX or 0) * decay
+        _Fun.glitchTY = (_Fun.glitchTY or 0) * decay
+        _Fun.glitchTZ = (_Fun.glitchTZ or 0) * decay
+    end
+
+    local head = _Fun.cache and _Fun.cache.Head
+    local rU = _Fun.cache and _Fun.cache.RightUpperArm
+    local lU = _Fun.cache and _Fun.cache.LeftUpperArm
+    local waist = _Fun.cache and (_Fun.cache.Waist or _Fun.cache.UpperTorso or _Fun.cache.Torso or _Fun.cache.LowerTorso)
+    local waistBind = _Fun.binds and (_Fun.binds.Waist or _Fun.binds.UpperTorso or _Fun.binds.Torso or _Fun.binds.LowerTorso)
+    local hx, hy, hz = _Fun.glitchHX or 0, _Fun.glitchHY or 0, _Fun.glitchHZ or 0
+    local ax, az = _Fun.glitchAX or 0, _Fun.glitchAZ or 0
+    local tx, ty, tz = _Fun.glitchTX or 0, _Fun.glitchTY or 0, _Fun.glitchTZ or 0
+
+    if head and _Fun.binds and _Fun.binds.Head
+        and not _G._HaloSpinHeadEnabled and not _G._HaloStareEnabled and not _G._HaloHeadTrackerEnabled then
+        head.Transform = _Fun.binds.Head * CFrame.Angles(hx, hy, hz)
+    end
+    if not _G._HaloTPoseEnabled then
+        if rU and _Fun.binds and _Fun.binds.RightUpperArm and not _G._HaloRightArmPointerEnabled then
+            rU.Transform = _Fun.binds.RightUpperArm * CFrame.Angles(ax, 0, az)
+        end
+        if lU and _Fun.binds and _Fun.binds.LeftUpperArm and not _G._HaloLeftArmPointerEnabled then
+            lU.Transform = _Fun.binds.LeftUpperArm * CFrame.Angles(-ax * 0.85, 0, -az)
+        end
+    end
+    if _G._HaloIdleGlitchTorsoEnabled and waist and waistBind and waist.Parent then
+        waist.Transform = waistBind * CFrame.Angles(tx, ty, tz)
     end
 end
 
@@ -17062,9 +17658,39 @@ local function doFunTracking(dt)
         end
     end
 
-    -- ===== IDLE WOBBLE (lowest priority layer) =====
-    if _G._HaloIdleWobbleEnabled then
-        applyIdleWobble(dt)
+    -- ===== IDLE WOBBLE / IDLE GLITCH (lowest priority) =====
+    -- Only when truly idle AND no custom/state animation is playing.
+    if _G._HaloIdleWobbleEnabled or _G._HaloIdleGlitchEnabled then
+        local animPlaying = false
+        if ReanimateAPI and ReanimateAPI.is_animation_playing then
+            local ok, p = pcall(ReanimateAPI.is_animation_playing)
+            if ok and p then animPlaying = true end
+        end
+        -- Manual selection also counts as an animation playing
+        if State and State.selectedAnim then
+            animPlaying = true
+        end
+        -- State system currently driving a clip
+        if currentStateAnim then
+            animPlaying = true
+        end
+
+        if not animPlaying then
+            local horiz = 0
+            local clone = ReanimateAPI and ReanimateAPI.get_clone and ReanimateAPI.get_clone(plr)
+            local hrp = clone and clone:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local v = hrp.AssemblyLinearVelocity
+                horiz = Vector2.new(v.X, v.Z).Magnitude
+            end
+            if horiz < 1.2 then
+                if _G._HaloIdleGlitchEnabled then
+                    applyIdleGlitch(dt)
+                elseif _G._HaloIdleWobbleEnabled then
+                    applyIdleWobble(dt)
+                end
+            end
+        end
     end
 end
 
@@ -17073,8 +17699,9 @@ local function startFunTracking()
     buildFunLimbCache()
     _Fun.conn = RunService.PreSimulation:Connect(LPH_NO_VIRTUALIZE(function(dt)
         if not State.isReanimated then return end
+        if _G._HaloAnimCopierActive then return end
         if not (
-            _G._HaloStareEnabled or _G._HaloIdleWobbleEnabled or _G._HaloSpinHeadEnabled or _G._HaloTPoseEnabled
+            _G._HaloStareEnabled or _G._HaloIdleWobbleEnabled or _G._HaloIdleGlitchEnabled or _G._HaloSpinHeadEnabled or _G._HaloTPoseEnabled
             or _G._HaloLookBehindEnabled or _G._HaloHeadTiltEnabled or _G._HaloNodLoopEnabled
             or _G._HaloCraneNeckEnabled or _G._HaloHandsUpEnabled or _G._HaloCrossArmsEnabled
             or _G._HaloTorsoFaceNearest or _G._HaloDrunkSwayEnabled or _G._HaloTwitchEnabled
@@ -17119,14 +17746,23 @@ plr.CharacterAdded:Connect(function()
         buildFunLimbCache()
     end
 end)
+end) -- end standalone/fun isolation (register limit)
 
 -- ============================================================
 -- EXTRA LIMB TOOLS RUNTIME (Gun Aim / Wave / Headbang / Floppy)
 -- Isolated IIFE — keeps locals out of the main register pool
 -- ============================================================
 task.spawn(function()
-    local _Extra = _G._HaloExtraLimbs or { conn = nil, t = 0, cache = nil, binds = nil }
+    local _Extra = _G._HaloExtraLimbs or { conn = nil, t = 0, cache = nil, binds = nil, floppy = nil }
     _G._HaloExtraLimbs = _Extra
+    -- Reset floppy sim whenever the module reloads so state never carries stale angles
+    _Extra.floppy = {
+        -- angles (rad) and angular velocities for upper / lower / hand per side
+        R = { u=0, l=0, h=0, vu=0, vl=0, vh=0, uz=0, vuz=0 },
+        L = { u=0, l=0, h=0, vu=0, vl=0, vh=0, uz=0, vuz=0 },
+        prevVel = Vector3.zero,
+        smoothAcc = Vector3.zero,
+    }
 
     local function rebuildCache()
         local clone = ReanimateAPI and ReanimateAPI.get_clone and ReanimateAPI.get_clone(plr)
@@ -17254,19 +17890,145 @@ task.spawn(function()
             end
         end
 
-        -- Floppy Arms
+        -- Floppy Arms: double-pendulum limp chain (gravity + body inertia)
+        -- Looks like dead arms hanging from the shoulders, lagging behind motion.
         if _G._HaloFloppyArmsEnabled then
-            local sway = math.sin(t * 1.8)
-            local sway2 = math.sin(t * 2.3 + 1.1)
-            local rU, rL = _Extra.cache.RightUpperArm, _Extra.cache.RightLowerArm
-            local lU, lL = _Extra.cache.LeftUpperArm, _Extra.cache.LeftLowerArm
-            local rH, lH = _Extra.cache.RightHand, _Extra.cache.LeftHand
-            if rU then rU.Transform = CFrame.Angles(math.rad(15) + sway * 0.15, 0, math.rad(25) + sway * 0.1) end
-            if lU then lU.Transform = CFrame.Angles(math.rad(15) + sway2 * 0.15, 0, math.rad(-25) + sway2 * 0.1) end
-            if rL then rL.Transform = CFrame.Angles(math.rad(-25) + sway * 0.2, 0, 0) end
-            if lL then lL.Transform = CFrame.Angles(math.rad(-25) + sway2 * 0.2, 0, 0) end
-            if rH then rH.Transform = CFrame.Angles(sway * 0.15, 0, 0) end
-            if lH then lH.Transform = CFrame.Angles(sway2 * 0.15, 0, 0) end
+            local fl = _Extra.floppy
+            if not fl or not fl.R then
+                fl = {
+                    R = { u=0, l=0, h=0, vu=0, vl=0, vh=0, uz=0, vuz=0 },
+                    L = { u=0, l=0, h=0, vu=0, vl=0, vh=0, uz=0, vuz=0 },
+                    prevVel = Vector3.zero,
+                    smoothAcc = Vector3.zero,
+                }
+                _Extra.floppy = fl
+            end
+
+            local dtC = math.clamp(dt or 0.016, 0.001, 0.04)
+
+            -- Character motion (fictitious forces on the hanging limbs)
+            local bodyVel = Vector3.zero
+            local hrpCF = nil
+            pcall(function()
+                local clone = ReanimateAPI and ReanimateAPI.get_clone and ReanimateAPI.get_clone(plr)
+                local hrp = (clone and clone:FindFirstChild("HumanoidRootPart"))
+                    or (plr.Character and plr.Character:FindFirstChild("HumanoidRootPart"))
+                if hrp then
+                    bodyVel = hrp.AssemblyLinearVelocity
+                    hrpCF = hrp.CFrame
+                end
+            end)
+
+            local rawAcc = (bodyVel - (fl.prevVel or Vector3.zero)) / dtC
+            fl.prevVel = bodyVel
+            -- smooth acceleration so single-frame spikes don't twitch
+            fl.smoothAcc = (fl.smoothAcc or Vector3.zero):Lerp(rawAcc, 0.35)
+            local acc = fl.smoothAcc
+
+            -- world gravity + opposite of body accel (arms lag behind the body)
+            local gWorld = Vector3.new(0, -1, 0) -- unit down
+            local forceWorld = gWorld * 55 - acc * 0.55
+
+            local function parentWorldCF(constraint)
+                if not constraint then return nil end
+                if constraint:IsA("Motor6D") and constraint.Part0 then
+                    return constraint.Part0.CFrame * constraint.C0
+                end
+                local a0 = constraint.Attachment0
+                if a0 and a0.Parent then return a0.WorldCFrame end
+                return nil
+            end
+
+            -- Integrate one arm as a 2-link pendulum + floppy hand
+            -- u = upper pitch from "straight down" rest, l = elbow bend, h = wrist
+            -- uz = upper roll/outward swing
+            local function stepArm(side, sign, upperName, lowerName, handName)
+                local s = fl[side]
+                local upper = _Extra.cache[upperName]
+                local lower = _Extra.cache[lowerName]
+                local hand  = _Extra.cache[handName]
+                if not upper then return end
+
+                local pCF = parentWorldCF(upper)
+                if not pCF then return end
+
+                -- force in the shoulder's local space
+                local localF = pCF.Rotation:Inverse() * forceWorld
+                -- bone extends along -Y in typical R15 constraint space:
+                -- localF.Z drives forward/back swing (pitch), localF.X drives in/out (roll)
+                local torqueU  = localF.Z * 1.15          -- pitch torque on upper
+                local torqueUz = localF.X * sign * 0.85   -- outward/inward
+
+                -- light continuous lag from horizontal velocity (wind-drag feel)
+                if hrpCF then
+                    local localV = hrpCF.Rotation:Inverse() * bodyVel
+                    torqueU  = torqueU  - localV.Z * 0.08
+                    torqueUz = torqueUz - localV.X * sign * 0.06
+                end
+
+                -- --- Upper arm (shoulder) ---
+                -- target hang: almost straight down with slight outward rest
+                local restU  = 0.15
+                local restUz = sign * 0.22
+                -- very soft spring so gravity/inertia dominate
+                local kU, dU = 6.5, 3.8
+                local au = -kU * (s.u - restU) - dU * s.vu + torqueU
+                s.vu = s.vu + au * dtC
+                s.u  = s.u  + s.vu * dtC
+                local auz = -kU * (s.uz - restUz) - dU * s.vuz + torqueUz
+                s.vuz = s.vuz + auz * dtC
+                s.uz  = s.uz  + s.vuz * dtC
+
+                -- --- Lower arm (elbow) ---
+                -- hangs from upper; inherits upper angular velocity (chain)
+                local kL, dL = 5.0, 3.2
+                local restL = 0.25 -- slight natural bend
+                -- elbow feels upper acceleration + extra gravity pull
+                local torqueL = torqueU * 0.65 + (-s.vu) * 4.5 + localF.Z * 0.55
+                local al = -kL * (s.l - restL) - dL * s.vl + torqueL
+                s.vl = s.vl + al * dtC
+                s.l  = s.l  + s.vl * dtC
+
+                -- --- Hand (wrist) ---
+                local kH, dH = 4.0, 2.6
+                local torqueH = (-s.vl) * 5.5 + localF.Z * 0.35
+                local ah = -kH * s.h - dH * s.vh + torqueH
+                s.vh = s.vh + ah * dtC
+                s.h  = s.h  + s.vh * dtC
+
+                -- soft limits (still allow big swings)
+                local function clampAng(pos, vel, lim)
+                    if pos > lim then
+                        pos = lim
+                        if vel > 0 then vel = -vel * 0.2 end
+                    elseif pos < -lim then
+                        pos = -lim
+                        if vel < 0 then vel = -vel * 0.2 end
+                    end
+                    return pos, vel
+                end
+                s.u,  s.vu  = clampAng(s.u,  s.vu,  math.rad(95))
+                s.uz, s.vuz = clampAng(s.uz, s.vuz, math.rad(70))
+                s.l,  s.vl  = clampAng(s.l,  s.vl,  math.rad(140))
+                s.h,  s.vh  = clampAng(s.h,  s.vh,  math.rad(90))
+
+                -- Apply transforms. Absolute (not bind-relative) so arms fully override
+                -- idle/anim poses and read as pure limp hang.
+                -- Convention: +X pitches the limb forward/down in R15 anim constraints.
+                if upper then
+                    upper.Transform = CFrame.Angles(s.u + math.rad(70), 0, s.uz)
+                end
+                if lower then
+                    -- elbow folds further in the same pitch axis
+                    lower.Transform = CFrame.Angles(s.l, 0, 0)
+                end
+                if hand then
+                    hand.Transform = CFrame.Angles(s.h, 0, s.h * 0.35 * sign)
+                end
+            end
+
+            stepArm("R",  1, "RightUpperArm", "RightLowerArm", "RightHand")
+            stepArm("L", -1, "LeftUpperArm",  "LeftLowerArm",  "LeftHand")
         end
     end
 
