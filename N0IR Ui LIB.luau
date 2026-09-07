@@ -449,6 +449,15 @@ function N0IR:CreateWindow(opts)
     minBtn.Parent = titleBar
     corner(minBtn, 99)
 
+    -- thin accent line under title
+    local accentLine = Instance.new("Frame")
+    accentLine.Size = UDim2.new(1, 0, 0, 1)
+    accentLine.Position = UDim2.new(0, 0, 1, 0)
+    accentLine.BackgroundColor3 = T.accent
+    accentLine.BackgroundTransparency = 0.85
+    accentLine.BorderSizePixel = 0
+    accentLine.Parent = titleBar
+
     -- Drag
     do
         local dragging, startPos, dragStart
@@ -1082,6 +1091,60 @@ end
 -- UTILITY MODULES (baseplate, cmds) — no reanim dependency
 -- ============================================================
 function N0IR:MountUtilities(Window)
+    -- ---------- Home ----------
+    local Home = Window:CreateTab({ Name = "Home" })
+    Home:CreateSection("Welcome")
+    Home:CreateParagraph({
+        Content = "NØIR Suite  ·  v" .. N0IR.Version .. "\nClean black & white hub. Modules load from the tabs below — World, Player, Commands, Map, Social.",
+    })
+
+    Home:CreateSection("Quick actions")
+    Home:CreateButton({
+        Name = "Notify test",
+        Callback = function()
+            N0IR:Notify({ Title = "NØIR", Content = "Everything is running.", Duration = 2 })
+        end,
+    })
+    Home:CreateButton({
+        Name = "Rejoin server",
+        Callback = function()
+            pcall(function()
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+            end)
+        end,
+    })
+    Home:CreateButton({
+        Name = "Server hop",
+        Callback = function()
+            pcall(function()
+                local servers = HttpService:JSONDecode(game:HttpGet(
+                    "https://games.roblox.com/v1/games/" .. tostring(game.PlaceId) .. "/servers/Public?sortOrder=Asc&limit=50"
+                ))
+                if servers and servers.data then
+                    for _, s in ipairs(servers.data) do
+                        if s.playing < s.maxPlayers and s.id ~= game.JobId then
+                            TeleportService:TeleportToPlaceInstance(game.PlaceId, s.id, LocalPlayer)
+                            return
+                        end
+                    end
+                end
+                TeleportService:Teleport(game.PlaceId, LocalPlayer)
+            end)
+        end,
+    })
+
+    Home:CreateSection("Session")
+    local placeName = "unknown"
+    pcall(function()
+        if game.PlaceId ~= 0 then
+            local info = MarketplaceService:GetProductInfo(game.PlaceId)
+            if info and info.Name then placeName = info.Name end
+        end
+    end)
+    Home:CreateLabel("Place  ·  " .. placeName)
+    Home:CreateLabel("PlaceId  ·  " .. tostring(game.PlaceId))
+    Home:CreateLabel("Players  ·  " .. tostring(#Players:GetPlayers()))
+
     -- ---------- World tab ----------
     local World = Window:CreateTab({ Name = "World" })
     World:CreateSection("Baseplate")
@@ -1644,6 +1707,7 @@ function N0IR:MountUtilities(Window)
     })
 
     return {
+        Home = Home,
         World = World,
         Player = Player,
         Cmds = Cmds,
