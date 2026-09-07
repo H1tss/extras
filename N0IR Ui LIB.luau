@@ -11,7 +11,7 @@
 ]]
 
 local N0IR = {
-    Version = "1.0.0",
+    Version = "1.1.0",
     Flags = {},
     _windows = {},
 }
@@ -1083,8 +1083,8 @@ function N0IR:CreateWindow(opts)
         screen:Destroy()
     end
 
-    -- Toggle keybind (default M)
-    local toggleKey = opts.ToggleKey or Enum.KeyCode.M
+    -- Toggle keybind (default RightControl)
+    local toggleKey = opts.ToggleKey or Enum.KeyCode.RightControl
     if type(toggleKey) == "string" then
         pcall(function() toggleKey = Enum.KeyCode[toggleKey] end)
     end
@@ -1120,7 +1120,7 @@ function N0IR:CreateWindow(opts)
     UserInputService.InputBegan:Connect(function(input, gp)
         if gp then return end
         if UserInputService:GetFocusedTextBox() then return end
-        local key = _G._N0IR_ToggleKey or Enum.KeyCode.M
+        local key = _G._N0IR_ToggleKey or Enum.KeyCode.RightControl
         if input.KeyCode == key then
             Window.Toggle()
         end
@@ -1211,13 +1211,16 @@ function N0IR:MountUtilities(Window)
         if part then
             part.Color = col
             if part:IsA("BasePart") then
-                pcall(function() part.Material = Enum.Material.SmoothPlastic end)
+                pcall(function()
+                    part.Material = Enum.Material.Grass
+                    part.MaterialVariant = "" -- ensure default grass look
+                end)
             end
             N0IR:Notify({ Title = "Baseplate", Content = label or "Color applied", Duration = 1.4 })
         else
             -- terrain fallback
             pcall(function()
-                workspace.Terrain:SetMaterialColor(Enum.Material.Asphalt, col)
+                workspace.Terrain:SetMaterialColor(Enum.Material.Grass, col)
             end)
             N0IR:Notify({ Title = "Baseplate", Content = "Terrain color set", Duration = 1.4 })
         end
@@ -1935,7 +1938,7 @@ function N0IR:MountUtilities(Window)
         Content = "NØIR UI Library v" .. N0IR.Version .. "\nMinimal black & white suite. Mount reanim or other modules via loadstring onto this window.",
     })
     Settings:CreateSection("Keybind")
-    local keyLbl = Settings:CreateLabel("Menu toggle  ·  M")
+    local keyLbl = Settings:CreateLabel("Menu toggle  ·  RightControl")
     local listening = false
     Settings:CreateButton({
         Name = "Set menu keybind",
@@ -1950,7 +1953,7 @@ function N0IR:MountUtilities(Window)
                 conn:Disconnect()
                 listening = false
                 if input.KeyCode == Enum.KeyCode.Escape then
-                    keyLbl:Set("Menu toggle  ·  " .. tostring((_G._N0IR_ToggleKey or Enum.KeyCode.M).Name))
+                    keyLbl:Set("Menu toggle  ·  " .. tostring((_G._N0IR_ToggleKey or Enum.KeyCode.RightControl).Name))
                     N0IR:Notify({ Title = "Keybind", Content = "Cancelled", Duration = 1.5 })
                     return
                 end
@@ -1996,7 +1999,7 @@ function N0IR:Init(opts)
         Loading = opts.Loading ~= false,
         LoadingText = opts.LoadingText or "loading modules",
         LoadingDuration = opts.LoadingDuration or 2.2,
-        ToggleKey = opts.ToggleKey or Enum.KeyCode.M,
+        ToggleKey = opts.ToggleKey or Enum.KeyCode.RightControl,
     })
     local modules = self:MountUtilities(win)
     return win, modules
