@@ -772,7 +772,8 @@ function N0IR:CreateWindow(opts)
             end
 
             hit.MouseButton1Click:Connect(function() set(not state) end)
-            if togOpts.Default == true and togOpts.Callback then
+            -- fire callback on load when Default is true OR Flag restored as true
+            if state and togOpts.Callback then
                 task.defer(function() togOpts.Callback(true) end)
             end
 
@@ -1091,8 +1092,10 @@ function N0IR:CreateWindow(opts)
     _G._N0IR_ToggleKey = toggleKey
     Window.ToggleKey = toggleKey
 
+    local isOpen = true
     local function setWindowVisible(vis)
-        if vis then
+        isOpen = vis and true or false
+        if isOpen then
             screen.Enabled = true
             win.Visible = true
             win.BackgroundTransparency = 1
@@ -1102,23 +1105,29 @@ function N0IR:CreateWindow(opts)
                 BackgroundTransparency = 0.04,
             }, 0.35)
         else
+            -- hide (don't destroy)
             tween(win, {
                 Size = UDim2.fromOffset(math.floor(width * 0.92), math.floor(height * 0.92)),
                 BackgroundTransparency = 1,
             }, 0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
             task.delay(0.3, function()
-                win.Visible = false
+                if not isOpen then
+                    win.Visible = false
+                end
             end)
         end
     end
 
     Window.SetVisible = setWindowVisible
     Window.Toggle = function()
-        setWindowVisible(not win.Visible)
+        setWindowVisible(not isOpen)
+    end
+    Window.IsOpen = function()
+        return isOpen
     end
 
+    -- RightControl often has gameProcessed=true; still allow toggle unless typing
     UserInputService.InputBegan:Connect(function(input, gp)
-        if gp then return end
         if UserInputService:GetFocusedTextBox() then return end
         local key = _G._N0IR_ToggleKey or Enum.KeyCode.RightControl
         if input.KeyCode == key then
@@ -1213,7 +1222,6 @@ function N0IR:MountUtilities(Window)
             if part:IsA("BasePart") then
                 pcall(function()
                     part.Material = Enum.Material.Grass
-                    part.MaterialVariant = "" -- ensure default grass look
                 end)
             end
             N0IR:Notify({ Title = "Baseplate", Content = label or "Color applied", Duration = 1.4 })
@@ -1250,38 +1258,72 @@ function N0IR:MountUtilities(Window)
 
     local infConn = nil
     local infPart = nil
+
+    local function destroyInfBaseplate()
+        if infConn then
+            infConn:Disconnect()
+            infConn = nil
+        end
+        if infPart then
+            pcall(function() infPart:Destroy() end)
+            infPart = nil
+        end
+        -- clean any leftover
+        local cam = workspace.CurrentCamera
+        if cam then
+            local old = cam:FindFirstChild("N0IR_InfBaseplate")
+            if old then pcall(function() old:Destroy() end) end
+        end
+        for _, v in ipairs(workspace:GetDescendants()) do
+            if v.Name == "N0IR_InfBaseplate" then
+                pcall(function() v:Destroy() end)
+            end
+        end
+    end
+
+    local function enableInfBaseplate()
+        destroyInfBaseplate()
+        local cam = workspace.CurrentCamera
+        if not cam then return end
+        infPart = Instance.new("Part")
+        infPart.Name = "N0IR_InfBaseplate"
+        infPart.Anchored = true
+        infPart.CanCollide = true
+        infPart.Transparency = 1
+        infPart.Size = Vector3.new(2048, 1, 2048)
+        infPart.Parent = cam
+        infConn = RunService.Heartbeat:Connect(function()
+            if not infPart or not infPart.Parent then return end
+            local char = LocalPlayer.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                infPart.CFrame = CFrame.new(hrp.Position.X, -0.5, hrp.Position.Z)
+            end
+        end)
+    end
+
+    -- restore saved state from previous session / auto-execute
+    local savedInf = false
+    if _G._N0IR_AutoInfBaseplate == true or N0IR.Flags.AutoInfBaseplate == true then
+        savedInf = true
+        N0IR.Flags.AutoInfBaseplate = true
+    end
+
     World:CreateToggle({
         Name = "Auto Infinite Baseplate",
-        Description = "Invisible floor that follows you (auto-runs when enabled)",
+        Description = "Invisible floor that follows you (saves on, auto-runs when enabled)",
         Flag = "AutoInfBaseplate",
-        Default = false,
+        Default = savedInf,
         Callback = function(on)
-            if infConn then infConn:Disconnect(); infConn = nil end
-            if not on then
-                if infPart then infPart:Destroy(); infPart = nil end
-                N0IR:Notify({ Title = "Inf Baseplate", Content = "Off", Duration = 1.2 })
-                return
-            end
-            local cam = workspace.CurrentCamera
-            if cam:FindFirstChild("N0IR_InfBaseplate") then
-                infPart = cam:FindFirstChild("N0IR_InfBaseplate")
+            _G._N0IR_AutoInfBaseplate = on
+            N0IR.Flags.AutoInfBaseplate = on
+            if on then
+                enableInfBaseplate()
+                N0IR:Notify({ Title = "Inf Baseplate", Content = "On", Duration = 1.2 })
             else
-                infPart = Instance.new("Part")
-                infPart.Name = "N0IR_InfBaseplate"
-                infPart.Anchored = true
-                infPart.CanCollide = true
-                infPart.Transparency = 1
-                infPart.Size = Vector3.new(2048, 1, 2048)
-                infPart.Parent = cam
+                destroyInfBaseplate()
+                N0IR:Notify({ Title = "Inf Baseplate", Content = "Off", Duration = 1.2 })
             end
-            infConn = RunService.Heartbeat:Connect(function()
-                local char = LocalPlayer.Character
-                local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                if hrp and infPart then
-                    infPart.CFrame = CFrame.new(hrp.Position.X, -0.5, hrp.Position.Z)
-                end
-            end)
-            N0IR:Notify({ Title = "Inf Baseplate", Content = "On", Duration = 1.2 })
         end,
     })
 
