@@ -1,21 +1,19 @@
 --[[
-    NØIR UI Library  ·  v2.0.0
+    NØIR UI Library
     Clean · Minimal · Black & White
-    Massively upgraded: polish, reliability, keybind system, fixed modules.
+    Designed to host modules (utility, cmds, reanim via loadstring, etc.)
 
     Usage:
-        local N0IR = loadstring(...)()
-        local Window, Modules = N0IR:Init({ Title = "NØIR", SubTitle = "Suite" })
-        -- or manual:
-        local Window = N0IR:CreateWindow({ Title = "NØIR", ToggleKey = Enum.KeyCode.LeftAlt })
-        N0IR:MountUtilities(Window)
+        local N0IR = loadstring(game:HttpGet("..."))()  -- or readfile
+        local Window = N0IR:CreateWindow({ Title = "NØIR", SubTitle = "Suite" })
+        local Tab = Window:CreateTab({ Name = "Main" })
+        Tab:CreateToggle({ Name = "Example", Flag = "ex", Callback = function(v) end })
 ]]
 
 local N0IR = {
-    Version = "2.0.0",
+    Version = "1.1.0",
     Flags = {},
     _windows = {},
-    _connections = {},
 }
 
 local Players = game:GetService("Players")
@@ -26,41 +24,32 @@ local HttpService = game:GetService("HttpService")
 local MarketplaceService = game:GetService("MarketplaceService")
 local TeleportService = game:GetService("TeleportService")
 local CoreGui = game:GetService("CoreGui")
-local GuiService = game:GetService("GuiService")
 
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 
 -- ============================================================
--- THEME (refined black & white)
+-- THEME
 -- ============================================================
 local T = {
-    bg0       = Color3.fromRGB(6, 6, 6),
-    bg1       = Color3.fromRGB(12, 12, 12),
-    bg2       = Color3.fromRGB(18, 18, 18),
-    bg3       = Color3.fromRGB(26, 26, 26),
-    bg4       = Color3.fromRGB(34, 34, 34),
-    bg5       = Color3.fromRGB(44, 44, 44),
-    border    = Color3.fromRGB(48, 48, 48),
-    border2   = Color3.fromRGB(64, 64, 64),
-    text      = Color3.fromRGB(248, 248, 248),
-    text2     = Color3.fromRGB(190, 190, 190),
-    text3     = Color3.fromRGB(120, 120, 120),
-    text4     = Color3.fromRGB(80, 80, 80),
+    bg0       = Color3.fromRGB(8, 8, 8),
+    bg1       = Color3.fromRGB(14, 14, 14),
+    bg2       = Color3.fromRGB(20, 20, 20),
+    bg3       = Color3.fromRGB(28, 28, 28),
+    bg4       = Color3.fromRGB(36, 36, 36),
+    border    = Color3.fromRGB(42, 42, 42),
+    border2   = Color3.fromRGB(55, 55, 55),
+    text      = Color3.fromRGB(245, 245, 245),
+    text2     = Color3.fromRGB(180, 180, 180),
+    text3     = Color3.fromRGB(110, 110, 110),
     accent    = Color3.fromRGB(255, 255, 255),
-    accentDim = Color3.fromRGB(200, 200, 200),
-    dim       = Color3.fromRGB(150, 150, 150),
-    danger    = Color3.fromRGB(220, 70, 70),
-    success   = Color3.fromRGB(70, 200, 120),
-    warning   = Color3.fromRGB(220, 170, 60),
+    dim       = Color3.fromRGB(160, 160, 160),
+    danger    = Color3.fromRGB(200, 80, 80),
+    success   = Color3.fromRGB(80, 200, 120),
 }
 
 local function tween(obj, props, dur, style, dir)
-    local info = TweenInfo.new(
-        dur or 0.22,
-        style or Enum.EasingStyle.Quint,
-        dir or Enum.EasingDirection.Out
-    )
+    local info = TweenInfo.new(dur or 0.25, style or Enum.EasingStyle.Quint, dir or Enum.EasingDirection.Out)
     local t = TweenService:Create(obj, info, props)
     t:Play()
     return t
@@ -77,7 +66,7 @@ local function stroke(parent, color, thickness, trans)
     local s = Instance.new("UIStroke")
     s.Color = color or T.border
     s.Thickness = thickness or 1
-    s.Transparency = trans or 0.3
+    s.Transparency = trans or 0.35
     s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     s.Parent = parent
     return s
@@ -98,29 +87,19 @@ local function getHost()
         return CoreGui
     end)
     if ok and host then
+        -- prefer PlayerGui — CoreGui can intercept input on some executors
         local pg = LocalPlayer:FindFirstChildOfClass("PlayerGui")
         return pg or host
     end
     return LocalPlayer:WaitForChild("PlayerGui")
 end
 
-local function safeDestroy(obj)
-    if obj and obj.Parent then
-        pcall(function() obj:Destroy() end)
-    end
-end
-
-local function track(conn)
-    table.insert(N0IR._connections, conn)
-    return conn
-end
-
 -- ============================================================
--- LOADING SCREEN
+-- LOADING SCREEN (fullscreen, half-transparent, NØIR)
 -- ============================================================
 function N0IR:LoadingScreen(opts)
     opts = opts or {}
-    local duration = opts.Duration or 2.2
+    local duration = opts.Duration or 2.4
     local title = opts.Title or "NØIR"
     local subtitle = opts.Subtitle or "initializing"
 
@@ -144,6 +123,7 @@ function N0IR:LoadingScreen(opts)
     gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     gui.Parent = host
 
+    -- Fullscreen dim
     local veil = Instance.new("Frame")
     veil.Name = "Veil"
     veil.Size = UDim2.fromScale(1, 1)
@@ -152,27 +132,28 @@ function N0IR:LoadingScreen(opts)
     veil.BorderSizePixel = 0
     veil.Parent = gui
 
+    -- Center stack
     local stack = Instance.new("Frame")
     stack.Name = "Stack"
     stack.AnchorPoint = Vector2.new(0.5, 0.5)
     stack.Position = UDim2.fromScale(0.5, 0.5)
-    stack.Size = UDim2.fromOffset(340, 130)
+    stack.Size = UDim2.fromOffset(320, 120)
     stack.BackgroundTransparency = 1
     stack.Parent = gui
 
     local brand = Instance.new("TextLabel")
     brand.BackgroundTransparency = 1
-    brand.Size = UDim2.new(1, 0, 0, 38)
+    brand.Size = UDim2.new(1, 0, 0, 36)
     brand.Font = Enum.Font.GothamBlack
     brand.Text = title
-    brand.TextSize = 30
+    brand.TextSize = 28
     brand.TextColor3 = T.text
     brand.TextTransparency = 1
     brand.Parent = stack
 
     local sub = Instance.new("TextLabel")
     sub.BackgroundTransparency = 1
-    sub.Position = UDim2.fromOffset(0, 40)
+    sub.Position = UDim2.fromOffset(0, 38)
     sub.Size = UDim2.new(1, 0, 0, 18)
     sub.Font = Enum.Font.GothamMedium
     sub.Text = subtitle
@@ -183,18 +164,19 @@ function N0IR:LoadingScreen(opts)
 
     local place = Instance.new("TextLabel")
     place.BackgroundTransparency = 1
-    place.Position = UDim2.fromOffset(0, 62)
+    place.Position = UDim2.fromOffset(0, 58)
     place.Size = UDim2.new(1, 0, 0, 16)
     place.Font = Enum.Font.Code
     place.Text = placeName .. "  ·  " .. tostring(game.PlaceId)
     place.TextSize = 11
-    place.TextColor3 = T.text4
+    place.TextColor3 = T.text3
     place.TextTransparency = 1
     place.TextTruncate = Enum.TextTruncate.AtEnd
     place.Parent = stack
 
+    -- Progress track
     local track = Instance.new("Frame")
-    track.Position = UDim2.fromOffset(0, 92)
+    track.Position = UDim2.fromOffset(0, 88)
     track.Size = UDim2.new(1, 0, 0, 3)
     track.BackgroundColor3 = T.bg3
     track.BackgroundTransparency = 1
@@ -212,7 +194,7 @@ function N0IR:LoadingScreen(opts)
 
     local pct = Instance.new("TextLabel")
     pct.BackgroundTransparency = 1
-    pct.Position = UDim2.fromOffset(0, 100)
+    pct.Position = UDim2.fromOffset(0, 96)
     pct.Size = UDim2.new(1, 0, 0, 16)
     pct.Font = Enum.Font.Code
     pct.Text = "0%"
@@ -221,37 +203,36 @@ function N0IR:LoadingScreen(opts)
     pct.TextTransparency = 1
     pct.Parent = stack
 
-    tween(veil, { BackgroundTransparency = 0.42 }, 0.35)
-    tween(brand, { TextTransparency = 0 }, 0.4)
-    tween(sub, { TextTransparency = 0 }, 0.45)
-    tween(place, { TextTransparency = 0 }, 0.5)
-    tween(track, { BackgroundTransparency = 0 }, 0.45)
-    tween(fill, { BackgroundTransparency = 0 }, 0.45)
-    tween(pct, { TextTransparency = 0 }, 0.45)
+    -- Fade in
+    tween(veil, { BackgroundTransparency = 0.45 }, 0.4)
+    tween(brand, { TextTransparency = 0 }, 0.45)
+    tween(sub, { TextTransparency = 0 }, 0.5)
+    tween(place, { TextTransparency = 0 }, 0.55)
+    tween(track, { BackgroundTransparency = 0 }, 0.5)
+    tween(fill, { BackgroundTransparency = 0 }, 0.5)
+    tween(pct, { TextTransparency = 0 }, 0.5)
 
     local done = false
     local t0 = tick()
     local conn
     conn = RunService.RenderStepped:Connect(function()
         local p = math.clamp((tick() - t0) / duration, 0, 1)
-        -- smooth ease-out with tiny noise
-        local eased = 1 - (1 - p) ^ 2.2
-        local jagged = math.clamp(eased + math.sin(p * 11) * 0.008, 0, 1)
+        local jagged = math.clamp(p + math.sin(p * 9) * 0.01, 0, 1)
         fill.Size = UDim2.fromScale(jagged, 1)
         pct.Text = string.format("%d%%", math.floor(jagged * 100))
         if p >= 1 and not done then
             done = true
             conn:Disconnect()
-            task.delay(0.12, function()
-                tween(veil, { BackgroundTransparency = 1 }, 0.35)
-                tween(brand, { TextTransparency = 1 }, 0.3)
-                tween(sub, { TextTransparency = 1 }, 0.28)
-                tween(place, { TextTransparency = 1 }, 0.28)
-                tween(track, { BackgroundTransparency = 1 }, 0.28)
-                tween(fill, { BackgroundTransparency = 1 }, 0.28)
-                tween(pct, { TextTransparency = 1 }, 0.28)
-                task.delay(0.4, function()
-                    safeDestroy(gui)
+            task.delay(0.15, function()
+                tween(veil, { BackgroundTransparency = 1 }, 0.4)
+                tween(brand, { TextTransparency = 1 }, 0.35)
+                tween(sub, { TextTransparency = 1 }, 0.3)
+                tween(place, { TextTransparency = 1 }, 0.3)
+                tween(track, { BackgroundTransparency = 1 }, 0.3)
+                tween(fill, { BackgroundTransparency = 1 }, 0.3)
+                tween(pct, { TextTransparency = 1 }, 0.3)
+                task.delay(0.45, function()
+                    if gui then gui:Destroy() end
                 end)
             end)
         end
@@ -261,7 +242,7 @@ function N0IR:LoadingScreen(opts)
 end
 
 -- ============================================================
--- NOTIFY (stacked, polished)
+-- NOTIFY
 -- ============================================================
 function N0IR:Notify(opts)
     if type(opts) == "string" then
@@ -270,13 +251,7 @@ function N0IR:Notify(opts)
     opts = opts or {}
     local title = opts.Title or "NØIR"
     local content = opts.Content or opts.Description or ""
-    local dur = opts.Duration or 2.6
-    local kind = opts.Type or "info" -- info / success / danger / warning
-
-    local barColor = T.accent
-    if kind == "success" then barColor = T.success
-    elseif kind == "danger" then barColor = T.danger
-    elseif kind == "warning" then barColor = T.warning end
+    local dur = opts.Duration or 2.5
 
     local host = getHost()
     local holder = host:FindFirstChild("N0IR_Notifies")
@@ -289,34 +264,32 @@ function N0IR:Notify(opts)
         holder.Parent = host
     end
 
-    local height = content ~= "" and 58 or 42
     local n = Instance.new("Frame")
-    n.Size = UDim2.fromOffset(300, height)
-    n.Position = UDim2.new(1, 24, 0, 20)
+    n.Size = UDim2.fromOffset(280, content ~= "" and 56 or 40)
+    n.Position = UDim2.new(1, 20, 0, 20)
     n.BackgroundColor3 = T.bg1
-    n.BackgroundTransparency = 0.02
+    n.BackgroundTransparency = 0.05
     n.BorderSizePixel = 0
-    n.ClipsDescendants = true
     n.Parent = holder
     corner(n, 10)
-    stroke(n, T.border, 1, 0.25)
+    stroke(n, T.border, 1, 0.3)
 
     local bar = Instance.new("Frame")
-    bar.Size = UDim2.new(0, 3, 0.6, 0)
+    bar.Size = UDim2.new(0, 2, 0.55, 0)
     bar.Position = UDim2.new(0, 0, 0.5, 0)
     bar.AnchorPoint = Vector2.new(0, 0.5)
-    bar.BackgroundColor3 = barColor
+    bar.BackgroundColor3 = T.accent
     bar.BorderSizePixel = 0
     bar.Parent = n
-    corner(bar, 2)
+    corner(bar, 1)
 
     local t = Instance.new("TextLabel")
     t.BackgroundTransparency = 1
-    t.Position = UDim2.fromOffset(16, content ~= "" and 9 or 0)
-    t.Size = UDim2.new(1, -28, 0, content ~= "" and 18 or 42)
+    t.Position = UDim2.fromOffset(14, content ~= "" and 8 or 0)
+    t.Size = UDim2.new(1, -24, 0, content ~= "" and 18 or 40)
     t.Font = Enum.Font.GothamBold
     t.Text = title
-    t.TextSize = 13
+    t.TextSize = 12
     t.TextColor3 = T.text
     t.TextXAlignment = Enum.TextXAlignment.Left
     t.Parent = n
@@ -324,8 +297,8 @@ function N0IR:Notify(opts)
     if content ~= "" then
         local c = Instance.new("TextLabel")
         c.BackgroundTransparency = 1
-        c.Position = UDim2.fromOffset(16, 30)
-        c.Size = UDim2.new(1, -28, 0, 20)
+        c.Position = UDim2.fromOffset(14, 28)
+        c.Size = UDim2.new(1, -24, 0, 20)
         c.Font = Enum.Font.Gotham
         c.Text = content
         c.TextSize = 11
@@ -335,33 +308,20 @@ function N0IR:Notify(opts)
         c.Parent = n
     end
 
-    -- stack from top
-    local yOff = 18
+    -- stack offset
+    local yOff = 20
     for _, ch in ipairs(holder:GetChildren()) do
         if ch:IsA("Frame") and ch ~= n then
             yOff = yOff + ch.AbsoluteSize.Y + 8
         end
     end
-    n.Position = UDim2.new(1, 24, 0, yOff)
-    tween(n, { Position = UDim2.new(1, -316, 0, yOff) }, 0.38, Enum.EasingStyle.Quint)
+    n.Position = UDim2.new(1, 20, 0, yOff)
+    tween(n, { Position = UDim2.new(1, -300, 0, yOff) }, 0.4)
 
     task.delay(dur, function()
-        if not n or not n.Parent then return end
-        tween(n, {
-            Position = UDim2.new(1, 24, 0, yOff),
-            BackgroundTransparency = 1,
-        }, 0.28)
-        for _, child in ipairs(n:GetDescendants()) do
-            if child:IsA("TextLabel") or child:IsA("Frame") then
-                if child:IsA("TextLabel") then
-                    tween(child, { TextTransparency = 1 }, 0.25)
-                else
-                    tween(child, { BackgroundTransparency = 1 }, 0.25)
-                end
-            end
-        end
-        task.delay(0.32, function()
-            safeDestroy(n)
+        tween(n, { Position = UDim2.new(1, 20, 0, yOff), BackgroundTransparency = 1 }, 0.3)
+        task.delay(0.35, function()
+            if n then n:Destroy() end
         end)
     end)
 end
@@ -373,23 +333,16 @@ function N0IR:CreateWindow(opts)
     opts = opts or {}
     local title = opts.Title or "NØIR"
     local subTitle = opts.SubTitle or opts.Subtitle or ""
-    local width = opts.Width or 540
-    local height = opts.Height or 460
-
-    -- Default toggle key: LeftAlt
-    local toggleKey = opts.ToggleKey or Enum.KeyCode.LeftAlt
-    if type(toggleKey) == "string" then
-        pcall(function() toggleKey = Enum.KeyCode[toggleKey] end)
-    end
-    _G._N0IR_ToggleKey = toggleKey
+    local width = opts.Width or 520
+    local height = opts.Height or 420
 
     if opts.Loading ~= false then
         self:LoadingScreen({
             Title = title,
             Subtitle = opts.LoadingText or "loading modules",
-            Duration = opts.LoadingDuration or 2.0,
+            Duration = opts.LoadingDuration or 2.2,
         })
-        task.wait((opts.LoadingDuration or 2.0) + 0.45)
+        task.wait((opts.LoadingDuration or 2.2) + 0.5)
     end
 
     local host = getHost()
@@ -402,7 +355,6 @@ function N0IR:CreateWindow(opts)
     screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     screen.IgnoreGuiInset = true
     screen.DisplayOrder = 100
-    screen.Enabled = true
     screen.Parent = host
 
     local win = Instance.new("Frame")
@@ -411,86 +363,75 @@ function N0IR:CreateWindow(opts)
     win.Position = UDim2.fromScale(0.5, 0.5)
     win.Size = UDim2.fromOffset(width, height)
     win.BackgroundColor3 = T.bg0
-    win.BackgroundTransparency = 0.02
+    win.BackgroundTransparency = 0.04
     win.BorderSizePixel = 0
     win.ClipsDescendants = true
-    win.Visible = true
     win.Parent = screen
-    corner(win, 14)
-    local winStroke = stroke(win, T.border, 1, 0.2)
-
-    -- soft outer glow via second stroke (subtle)
-    local glow = Instance.new("UIStroke")
-    glow.Color = Color3.fromRGB(255, 255, 255)
-    glow.Thickness = 1
-    glow.Transparency = 0.92
-    glow.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    glow.Parent = win
+    corner(win, 12)
+    stroke(win, T.border, 1, 0.25)
 
     -- Entrance
-    win.Size = UDim2.fromOffset(math.floor(width * 0.9), math.floor(height * 0.9))
+    win.Size = UDim2.fromOffset(math.floor(width * 0.92), math.floor(height * 0.92))
     win.BackgroundTransparency = 1
     tween(win, {
         Size = UDim2.fromOffset(width, height),
-        BackgroundTransparency = 0.02,
-    }, 0.42, Enum.EasingStyle.Quint)
+        BackgroundTransparency = 0.04,
+    }, 0.45)
 
     -- Title bar
     local titleBar = Instance.new("Frame")
     titleBar.Name = "TitleBar"
-    titleBar.Size = UDim2.new(1, 0, 0, 50)
+    titleBar.Size = UDim2.new(1, 0, 0, 48)
     titleBar.BackgroundColor3 = T.bg1
-    titleBar.BackgroundTransparency = 0.1
+    titleBar.BackgroundTransparency = 0.15
     titleBar.BorderSizePixel = 0
     titleBar.Active = true
     titleBar.Parent = win
-    corner(titleBar, 14)
+    corner(titleBar, 12)
     do
         local cover = Instance.new("Frame")
         cover.BackgroundColor3 = T.bg1
-        cover.BackgroundTransparency = 0.1
+        cover.BackgroundTransparency = 0.15
         cover.BorderSizePixel = 0
-        cover.Position = UDim2.new(0, 0, 1, -14)
-        cover.Size = UDim2.new(1, 0, 0, 14)
+        cover.Position = UDim2.new(0, 0, 1, -12)
+        cover.Size = UDim2.new(1, 0, 0, 12)
         cover.Parent = titleBar
     end
 
     local titleLbl = Instance.new("TextLabel")
     titleLbl.BackgroundTransparency = 1
-    titleLbl.Position = UDim2.fromOffset(18, 0)
-    titleLbl.Size = UDim2.new(0, 140, 1, 0)
+    titleLbl.Position = UDim2.fromOffset(16, 0)
+    titleLbl.Size = UDim2.new(0, 120, 1, 0)
     titleLbl.Font = Enum.Font.GothamBlack
     titleLbl.Text = title
-    titleLbl.TextSize = 17
+    titleLbl.TextSize = 16
     titleLbl.TextColor3 = T.text
     titleLbl.TextXAlignment = Enum.TextXAlignment.Left
     titleLbl.Parent = titleBar
 
-    local subLbl
     if subTitle ~= "" then
-        subLbl = Instance.new("TextLabel")
+        local subLbl = Instance.new("TextLabel")
         subLbl.BackgroundTransparency = 1
-        subLbl.Position = UDim2.fromOffset(18 + 100, 0)
-        subLbl.Size = UDim2.new(0, 180, 1, 0)
+        subLbl.Position = UDim2.fromOffset(16 + titleLbl.TextBounds.X + 10, 0)
+        subLbl.Size = UDim2.new(0, 160, 1, 0)
         subLbl.Font = Enum.Font.GothamMedium
         subLbl.Text = subTitle
-        subLbl.TextSize = 12
+        subLbl.TextSize = 11
         subLbl.TextColor3 = T.text3
         subLbl.TextXAlignment = Enum.TextXAlignment.Left
         subLbl.Parent = titleBar
+        -- fix after render
         task.defer(function()
-            if titleLbl and subLbl then
-                subLbl.Position = UDim2.fromOffset(18 + titleLbl.TextBounds.X + 14, 0)
-            end
+            subLbl.Position = UDim2.fromOffset(16 + titleLbl.TextBounds.X + 12, 0)
         end)
     end
 
-    -- Window controls (mac-style dots)
+    -- Window controls
     local closeBtn = Instance.new("TextButton")
     closeBtn.AnchorPoint = Vector2.new(1, 0.5)
-    closeBtn.Position = UDim2.new(1, -16, 0.5, 0)
-    closeBtn.Size = UDim2.fromOffset(13, 13)
-    closeBtn.BackgroundColor3 = Color3.fromRGB(180, 180, 180)
+    closeBtn.Position = UDim2.new(1, -14, 0.5, 0)
+    closeBtn.Size = UDim2.fromOffset(12, 12)
+    closeBtn.BackgroundColor3 = Color3.fromRGB(160, 160, 160)
     closeBtn.BorderSizePixel = 0
     closeBtn.Text = ""
     closeBtn.AutoButtonColor = false
@@ -499,33 +440,21 @@ function N0IR:CreateWindow(opts)
 
     local minBtn = Instance.new("TextButton")
     minBtn.AnchorPoint = Vector2.new(1, 0.5)
-    minBtn.Position = UDim2.new(1, -36, 0.5, 0)
-    minBtn.Size = UDim2.fromOffset(13, 13)
-    minBtn.BackgroundColor3 = Color3.fromRGB(220, 220, 220)
+    minBtn.Position = UDim2.new(1, -34, 0.5, 0)
+    minBtn.Size = UDim2.fromOffset(12, 12)
+    minBtn.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
     minBtn.BorderSizePixel = 0
     minBtn.Text = ""
     minBtn.AutoButtonColor = false
     minBtn.Parent = titleBar
     corner(minBtn, 99)
 
-    closeBtn.MouseEnter:Connect(function()
-        tween(closeBtn, { BackgroundColor3 = T.danger }, 0.12)
-    end)
-    closeBtn.MouseLeave:Connect(function()
-        tween(closeBtn, { BackgroundColor3 = Color3.fromRGB(180, 180, 180) }, 0.12)
-    end)
-    minBtn.MouseEnter:Connect(function()
-        tween(minBtn, { BackgroundColor3 = Color3.fromRGB(255, 255, 255) }, 0.12)
-    end)
-    minBtn.MouseLeave:Connect(function()
-        tween(minBtn, { BackgroundColor3 = Color3.fromRGB(220, 220, 220) }, 0.12)
-    end)
-
+    -- thin accent line under title
     local accentLine = Instance.new("Frame")
     accentLine.Size = UDim2.new(1, 0, 0, 1)
     accentLine.Position = UDim2.new(0, 0, 1, 0)
     accentLine.BackgroundColor3 = T.accent
-    accentLine.BackgroundTransparency = 0.88
+    accentLine.BackgroundTransparency = 0.85
     accentLine.BorderSizePixel = 0
     accentLine.Parent = titleBar
 
@@ -540,35 +469,33 @@ function N0IR:CreateWindow(opts)
                 startPos = win.Position
             end
         end)
-        track(UserInputService.InputChanged:Connect(function(input)
+        UserInputService.InputChanged:Connect(function(input)
             if not dragging then return end
             if input.UserInputType == Enum.UserInputType.MouseMovement
             or input.UserInputType == Enum.UserInputType.Touch then
                 local d = input.Position - dragStart
-                win.Position = UDim2.new(
-                    startPos.X.Scale, startPos.X.Offset + d.X,
-                    startPos.Y.Scale, startPos.Y.Offset + d.Y
-                )
+                win.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
             end
-        end))
-        track(UserInputService.InputEnded:Connect(function(input)
+        end)
+        UserInputService.InputEnded:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1
             or input.UserInputType == Enum.UserInputType.Touch then
                 dragging = false
             end
-        end))
+        end)
     end
 
     local isMin = false
     local fullSize = UDim2.fromOffset(width, height)
+    local bodyVisible = true
 
     -- Tab strip
     local tabStrip = Instance.new("ScrollingFrame")
     tabStrip.Name = "TabStrip"
-    tabStrip.Position = UDim2.fromOffset(0, 50)
-    tabStrip.Size = UDim2.new(1, 0, 0, 38)
+    tabStrip.Position = UDim2.fromOffset(0, 48)
+    tabStrip.Size = UDim2.new(1, 0, 0, 36)
     tabStrip.BackgroundColor3 = T.bg1
-    tabStrip.BackgroundTransparency = 0.35
+    tabStrip.BackgroundTransparency = 0.4
     tabStrip.BorderSizePixel = 0
     tabStrip.ScrollBarThickness = 0
     tabStrip.CanvasSize = UDim2.new(0, 0, 0, 0)
@@ -578,29 +505,29 @@ function N0IR:CreateWindow(opts)
     local tabLayout = Instance.new("UIListLayout")
     tabLayout.FillDirection = Enum.FillDirection.Horizontal
     tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    tabLayout.Padding = UDim.new(0, 5)
+    tabLayout.Padding = UDim.new(0, 4)
     tabLayout.Parent = tabStrip
-    padding(tabStrip, 5, 5, 12, 12)
+    padding(tabStrip, 4, 4, 10, 10)
     tabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        tabStrip.CanvasSize = UDim2.fromOffset(tabLayout.AbsoluteContentSize.X + 24, 0)
+        tabStrip.CanvasSize = UDim2.fromOffset(tabLayout.AbsoluteContentSize.X + 20, 0)
     end)
 
     -- Content host
     local contentHost = Instance.new("Frame")
     contentHost.Name = "Content"
-    contentHost.Position = UDim2.fromOffset(0, 88)
-    contentHost.Size = UDim2.new(1, 0, 1, -88)
+    contentHost.Position = UDim2.fromOffset(0, 84)
+    contentHost.Size = UDim2.new(1, 0, 1, -84)
     contentHost.BackgroundTransparency = 1
     contentHost.ClipsDescendants = true
     contentHost.Parent = win
 
     closeBtn.MouseButton1Click:Connect(function()
         tween(win, {
-            Size = UDim2.fromOffset(math.floor(width * 0.88), math.floor(height * 0.88)),
+            Size = UDim2.fromOffset(math.floor(width * 0.9), math.floor(height * 0.9)),
             BackgroundTransparency = 1,
-        }, 0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
-        task.delay(0.3, function()
-            safeDestroy(screen)
+        }, 0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+        task.delay(0.32, function()
+            screen:Destroy()
         end)
     end)
 
@@ -609,10 +536,10 @@ function N0IR:CreateWindow(opts)
         if isMin then
             tabStrip.Visible = false
             contentHost.Visible = false
-            tween(win, { Size = UDim2.fromOffset(width, 50) }, 0.32)
+            tween(win, { Size = UDim2.fromOffset(width, 48) }, 0.35)
         else
-            tween(win, { Size = fullSize }, 0.32)
-            task.delay(0.18, function()
+            tween(win, { Size = fullSize }, 0.35)
+            task.delay(0.2, function()
                 tabStrip.Visible = true
                 contentHost.Visible = true
             end)
@@ -624,53 +551,7 @@ function N0IR:CreateWindow(opts)
         Frame = win,
         Tabs = {},
         _current = nil,
-        ToggleKey = toggleKey,
-        Visible = true,
     }
-
-    -- Robust visibility system (fixes menu not hiding)
-    local function setWindowVisible(vis)
-        Window.Visible = vis
-        if vis then
-            screen.Enabled = true
-            win.Visible = true
-            win.BackgroundTransparency = 1
-            win.Size = UDim2.fromOffset(math.floor(width * 0.93), math.floor(height * 0.93))
-            tween(win, {
-                Size = UDim2.fromOffset(width, height),
-                BackgroundTransparency = 0.02,
-            }, 0.32, Enum.EasingStyle.Quint)
-        else
-            tween(win, {
-                Size = UDim2.fromOffset(math.floor(width * 0.91), math.floor(height * 0.91)),
-                BackgroundTransparency = 1,
-            }, 0.26, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
-            task.delay(0.28, function()
-                if not Window.Visible then
-                    win.Visible = false
-                    -- keep screen.Enabled true so keybind still works; only hide the frame
-                end
-            end)
-        end
-    end
-
-    Window.SetVisible = setWindowVisible
-    Window.Toggle = function()
-        setWindowVisible(not Window.Visible)
-    end
-    Window.IsVisible = function()
-        return Window.Visible == true
-    end
-
-    -- Keybind toggle (works reliably)
-    track(UserInputService.InputBegan:Connect(function(input, gp)
-        if gp then return end
-        if UserInputService:GetFocusedTextBox() then return end
-        local key = _G._N0IR_ToggleKey or Enum.KeyCode.LeftAlt
-        if input.KeyCode == key then
-            Window.Toggle()
-        end
-    end))
 
     function Window:CreateTab(tabOpts)
         tabOpts = tabOpts or {}
@@ -690,7 +571,7 @@ function N0IR:CreateWindow(opts)
         btn.AutoButtonColor = false
         btn.LayoutOrder = order
         btn.Parent = tabStrip
-        corner(btn, 7)
+        corner(btn, 6)
 
         local page = Instance.new("ScrollingFrame")
         page.Name = name
@@ -699,7 +580,7 @@ function N0IR:CreateWindow(opts)
         page.BorderSizePixel = 0
         page.ScrollBarThickness = 3
         page.ScrollBarImageColor3 = T.accent
-        page.ScrollBarImageTransparency = 0.55
+        page.ScrollBarImageTransparency = 0.5
         page.CanvasSize = UDim2.new(0, 0, 0, 0)
         page.Visible = false
         page.Parent = contentHost
@@ -708,9 +589,9 @@ function N0IR:CreateWindow(opts)
         list.SortOrder = Enum.SortOrder.LayoutOrder
         list.Padding = UDim.new(0, 8)
         list.Parent = page
-        padding(page, 14, 14, 16, 16)
+        padding(page, 12, 12, 14, 14)
         list:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-            page.CanvasSize = UDim2.new(0, 0, 0, list.AbsoluteContentSize.Y + 28)
+            page.CanvasSize = UDim2.new(0, 0, 0, list.AbsoluteContentSize.Y + 24)
         end)
 
         local Tab = {
@@ -727,7 +608,7 @@ function N0IR:CreateWindow(opts)
                 t.Button.TextColor3 = T.text3
             end
             page.Visible = true
-            btn.BackgroundTransparency = 0.12
+            btn.BackgroundTransparency = 0.15
             btn.TextColor3 = T.text
             Window._current = Tab
         end
@@ -752,32 +633,17 @@ function N0IR:CreateWindow(opts)
         function Tab:CreateSection(secOpts)
             secOpts = type(secOpts) == "string" and { Name = secOpts } or (secOpts or {})
             self._order = self._order + 1
-            local holder = Instance.new("Frame")
-            holder.BackgroundTransparency = 1
-            holder.Size = UDim2.new(1, 0, 0, 24)
-            holder.LayoutOrder = self._order
-            holder.Parent = page
-
             local lbl = Instance.new("TextLabel")
             lbl.BackgroundTransparency = 1
-            lbl.Size = UDim2.new(1, 0, 1, 0)
+            lbl.Size = UDim2.new(1, 0, 0, 20)
             lbl.Font = Enum.Font.GothamBold
             lbl.Text = secOpts.Name or "Section"
             lbl.TextSize = 12
             lbl.TextColor3 = T.text
             lbl.TextXAlignment = Enum.TextXAlignment.Left
-            lbl.Parent = holder
-
-            local line = Instance.new("Frame")
-            line.AnchorPoint = Vector2.new(1, 0.5)
-            line.Position = UDim2.new(1, 0, 0.5, 0)
-            line.Size = UDim2.new(0.55, 0, 0, 1)
-            line.BackgroundColor3 = T.border
-            line.BackgroundTransparency = 0.4
-            line.BorderSizePixel = 0
-            line.Parent = holder
-
-            return holder
+            lbl.LayoutOrder = self._order
+            lbl.Parent = page
+            return lbl
         end
 
         function Tab:CreateLabel(lblOpts)
@@ -796,7 +662,6 @@ function N0IR:CreateWindow(opts)
             lbl.Parent = page
             return {
                 Set = function(_, text) lbl.Text = text end,
-                Instance = lbl,
             }
         end
 
@@ -804,7 +669,7 @@ function N0IR:CreateWindow(opts)
             btnOpts = btnOpts or {}
             self._order = self._order + 1
             local b = Instance.new("TextButton")
-            b.Size = UDim2.new(1, 0, 0, 36)
+            b.Size = UDim2.new(1, 0, 0, 34)
             b.BackgroundColor3 = T.bg2
             b.BorderSizePixel = 0
             b.Font = Enum.Font.GothamMedium
@@ -814,20 +679,13 @@ function N0IR:CreateWindow(opts)
             b.AutoButtonColor = false
             b.LayoutOrder = self._order
             b.Parent = page
-            corner(b, 9)
-            stroke(b, T.border, 1, 0.5)
-
+            corner(b, 8)
+            stroke(b, T.border, 1, 0.55)
             b.MouseEnter:Connect(function()
                 tween(b, { BackgroundColor3 = T.bg3 }, 0.12)
             end)
             b.MouseLeave:Connect(function()
                 tween(b, { BackgroundColor3 = T.bg2 }, 0.12)
-            end)
-            b.MouseButton1Down:Connect(function()
-                tween(b, { BackgroundColor3 = T.bg4 }, 0.08)
-            end)
-            b.MouseButton1Up:Connect(function()
-                tween(b, { BackgroundColor3 = T.bg3 }, 0.08)
             end)
             b.MouseButton1Click:Connect(function()
                 if btnOpts.Callback then
@@ -845,19 +703,19 @@ function N0IR:CreateWindow(opts)
             if flag and N0IR.Flags[flag] ~= nil then state = N0IR.Flags[flag] end
 
             local row = Instance.new("Frame")
-            row.Size = UDim2.new(1, 0, 0, 46)
+            row.Size = UDim2.new(1, 0, 0, 44)
             row.BackgroundColor3 = T.bg1
-            row.BackgroundTransparency = 0.2
+            row.BackgroundTransparency = 0.25
             row.BorderSizePixel = 0
             row.LayoutOrder = self._order
             row.Parent = page
-            corner(row, 9)
-            stroke(row, T.border, 1, 0.55)
+            corner(row, 8)
+            stroke(row, T.border, 1, 0.65)
 
             local name = Instance.new("TextLabel")
             name.BackgroundTransparency = 1
-            name.Position = UDim2.fromOffset(14, 7)
-            name.Size = UDim2.new(1, -72, 0, 16)
+            name.Position = UDim2.fromOffset(12, 6)
+            name.Size = UDim2.new(1, -70, 0, 16)
             name.Font = Enum.Font.GothamMedium
             name.Text = togOpts.Name or "Toggle"
             name.TextSize = 12
@@ -867,8 +725,8 @@ function N0IR:CreateWindow(opts)
 
             local desc = Instance.new("TextLabel")
             desc.BackgroundTransparency = 1
-            desc.Position = UDim2.fromOffset(14, 25)
-            desc.Size = UDim2.new(1, -72, 0, 14)
+            desc.Position = UDim2.fromOffset(12, 24)
+            desc.Size = UDim2.new(1, -70, 0, 14)
             desc.Font = Enum.Font.Gotham
             desc.Text = togOpts.Description or togOpts.Desc or ""
             desc.TextSize = 10
@@ -879,20 +737,20 @@ function N0IR:CreateWindow(opts)
 
             local track = Instance.new("Frame")
             track.AnchorPoint = Vector2.new(1, 0.5)
-            track.Position = UDim2.new(1, -14, 0.5, 0)
-            track.Size = UDim2.fromOffset(42, 24)
+            track.Position = UDim2.new(1, -12, 0.5, 0)
+            track.Size = UDim2.fromOffset(40, 22)
             track.BackgroundColor3 = state and T.accent or T.bg3
             track.BorderSizePixel = 0
             track.Parent = row
-            corner(track, 12)
+            corner(track, 11)
 
             local knob = Instance.new("Frame")
-            knob.Size = UDim2.fromOffset(18, 18)
-            knob.Position = state and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)
-            knob.BackgroundColor3 = state and Color3.fromRGB(8, 8, 8) or T.text
+            knob.Size = UDim2.fromOffset(16, 16)
+            knob.Position = state and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
+            knob.BackgroundColor3 = state and Color3.fromRGB(10, 10, 10) or T.text
             knob.BorderSizePixel = 0
             knob.Parent = track
-            corner(knob, 9)
+            corner(knob, 8)
 
             local hit = Instance.new("TextButton")
             hit.Size = UDim2.fromScale(1, 1)
@@ -903,11 +761,11 @@ function N0IR:CreateWindow(opts)
             local function set(v, fire)
                 state = v and true or false
                 if flag then N0IR.Flags[flag] = state end
-                tween(track, { BackgroundColor3 = state and T.accent or T.bg3 }, 0.16)
+                tween(track, { BackgroundColor3 = state and T.accent or T.bg3 }, 0.18)
                 tween(knob, {
-                    Position = state and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9),
-                    BackgroundColor3 = state and Color3.fromRGB(8, 8, 8) or T.text,
-                }, 0.16)
+                    Position = state and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8),
+                    BackgroundColor3 = state and Color3.fromRGB(10, 10, 10) or T.text,
+                }, 0.18)
                 if fire ~= false and togOpts.Callback then
                     task.spawn(togOpts.Callback, state)
                 end
@@ -934,19 +792,19 @@ function N0IR:CreateWindow(opts)
             if flag and N0IR.Flags[flag] ~= nil then value = N0IR.Flags[flag] end
 
             local row = Instance.new("Frame")
-            row.Size = UDim2.new(1, 0, 0, 58)
+            row.Size = UDim2.new(1, 0, 0, 56)
             row.BackgroundColor3 = T.bg1
-            row.BackgroundTransparency = 0.2
+            row.BackgroundTransparency = 0.25
             row.BorderSizePixel = 0
             row.LayoutOrder = self._order
             row.Parent = page
-            corner(row, 9)
-            stroke(row, T.border, 1, 0.55)
+            corner(row, 8)
+            stroke(row, T.border, 1, 0.65)
 
             local name = Instance.new("TextLabel")
             name.BackgroundTransparency = 1
-            name.Position = UDim2.fromOffset(14, 9)
-            name.Size = UDim2.new(0.65, 0, 0, 14)
+            name.Position = UDim2.fromOffset(12, 8)
+            name.Size = UDim2.new(0.7, 0, 0, 14)
             name.Font = Enum.Font.GothamMedium
             name.Text = slOpts.Name or "Slider"
             name.TextSize = 12
@@ -956,8 +814,8 @@ function N0IR:CreateWindow(opts)
 
             local valLbl = Instance.new("TextLabel")
             valLbl.BackgroundTransparency = 1
-            valLbl.Position = UDim2.new(1, -64, 0, 9)
-            valLbl.Size = UDim2.fromOffset(50, 14)
+            valLbl.Position = UDim2.new(1, -60, 0, 8)
+            valLbl.Size = UDim2.fromOffset(48, 14)
             valLbl.Font = Enum.Font.Code
             valLbl.Text = tostring(value)
             valLbl.TextSize = 11
@@ -966,19 +824,19 @@ function N0IR:CreateWindow(opts)
             valLbl.Parent = row
 
             local track = Instance.new("Frame")
-            track.Position = UDim2.fromOffset(14, 36)
-            track.Size = UDim2.new(1, -28, 0, 7)
+            track.Position = UDim2.fromOffset(12, 34)
+            track.Size = UDim2.new(1, -24, 0, 6)
             track.BackgroundColor3 = T.bg3
             track.BorderSizePixel = 0
             track.Parent = row
-            corner(track, 4)
+            corner(track, 3)
 
             local fill = Instance.new("Frame")
             fill.Size = UDim2.fromScale(math.clamp((value - minV) / math.max(maxV - minV, 1e-4), 0, 1), 1)
             fill.BackgroundColor3 = T.accent
             fill.BorderSizePixel = 0
             fill.Parent = track
-            corner(fill, 4)
+            corner(fill, 3)
 
             local function apply(v, fire)
                 value = math.clamp(v, minV, maxV)
@@ -988,11 +846,7 @@ function N0IR:CreateWindow(opts)
                 if flag then N0IR.Flags[flag] = value end
                 local pct = (value - minV) / math.max(maxV - minV, 1e-4)
                 fill.Size = UDim2.fromScale(pct, 1)
-                if slOpts.Increment and slOpts.Increment < 1 then
-                    valLbl.Text = string.format("%.2f", value)
-                else
-                    valLbl.Text = string.format("%.0f", value)
-                end
+                valLbl.Text = string.format(slOpts.Increment and slOpts.Increment < 1 and "%.2f" or "%.0f", value)
                 if fire ~= false and slOpts.Callback then
                     task.spawn(slOpts.Callback, value)
                 end
@@ -1007,20 +861,20 @@ function N0IR:CreateWindow(opts)
                     apply(minV + pct * (maxV - minV))
                 end
             end)
-            track(UserInputService.InputChanged:Connect(function(input)
+            UserInputService.InputChanged:Connect(function(input)
                 if not dragging then return end
                 if input.UserInputType == Enum.UserInputType.MouseMovement
                 or input.UserInputType == Enum.UserInputType.Touch then
                     local pct = math.clamp((input.Position.X - track.AbsolutePosition.X) / math.max(track.AbsoluteSize.X, 1), 0, 1)
                     apply(minV + pct * (maxV - minV))
                 end
-            end))
-            track(UserInputService.InputEnded:Connect(function(input)
+            end)
+            UserInputService.InputEnded:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseButton1
                 or input.UserInputType == Enum.UserInputType.Touch then
                     dragging = false
                 end
-            end))
+            end)
 
             return {
                 Set = function(_, v) apply(v) end,
@@ -1038,20 +892,20 @@ function N0IR:CreateWindow(opts)
             local open = false
 
             local row = Instance.new("Frame")
-            row.Size = UDim2.new(1, 0, 0, 42)
+            row.Size = UDim2.new(1, 0, 0, 40)
             row.BackgroundColor3 = T.bg1
-            row.BackgroundTransparency = 0.2
+            row.BackgroundTransparency = 0.25
             row.BorderSizePixel = 0
             row.LayoutOrder = self._order
             row.ClipsDescendants = true
             row.Parent = page
-            corner(row, 9)
-            stroke(row, T.border, 1, 0.55)
+            corner(row, 8)
+            stroke(row, T.border, 1, 0.65)
 
             local name = Instance.new("TextLabel")
             name.BackgroundTransparency = 1
-            name.Position = UDim2.fromOffset(14, 0)
-            name.Size = UDim2.new(0.4, 0, 0, 42)
+            name.Position = UDim2.fromOffset(12, 0)
+            name.Size = UDim2.new(0.4, 0, 0, 40)
             name.Font = Enum.Font.GothamMedium
             name.Text = ddOpts.Name or "Dropdown"
             name.TextSize = 12
@@ -1062,19 +916,18 @@ function N0IR:CreateWindow(opts)
             local val = Instance.new("TextLabel")
             val.BackgroundTransparency = 1
             val.Position = UDim2.new(0.4, 0, 0, 0)
-            val.Size = UDim2.new(0.5, -12, 0, 42)
+            val.Size = UDim2.new(0.5, -10, 0, 40)
             val.Font = Enum.Font.Gotham
             val.Text = tostring(current)
             val.TextSize = 11
             val.TextColor3 = T.text2
             val.TextXAlignment = Enum.TextXAlignment.Right
-            val.TextTruncate = Enum.TextTruncate.AtEnd
             val.Parent = row
 
             local arrow = Instance.new("TextLabel")
             arrow.BackgroundTransparency = 1
-            arrow.Position = UDim2.new(1, -30, 0, 0)
-            arrow.Size = UDim2.fromOffset(22, 42)
+            arrow.Position = UDim2.new(1, -28, 0, 0)
+            arrow.Size = UDim2.fromOffset(20, 40)
             arrow.Font = Enum.Font.GothamBold
             arrow.Text = "▾"
             arrow.TextSize = 12
@@ -1082,24 +935,24 @@ function N0IR:CreateWindow(opts)
             arrow.Parent = row
 
             local hit = Instance.new("TextButton")
-            hit.Size = UDim2.new(1, 0, 0, 42)
+            hit.Size = UDim2.new(1, 0, 0, 40)
             hit.BackgroundTransparency = 1
             hit.Text = ""
             hit.Parent = row
 
             local listFrame = Instance.new("Frame")
-            listFrame.Position = UDim2.fromOffset(10, 42)
-            listFrame.Size = UDim2.new(1, -20, 0, 0)
+            listFrame.Position = UDim2.fromOffset(8, 40)
+            listFrame.Size = UDim2.new(1, -16, 0, 0)
             listFrame.BackgroundTransparency = 1
             listFrame.Parent = row
 
             local function rebuild()
                 for _, ch in ipairs(listFrame:GetChildren()) do ch:Destroy() end
                 local y = 0
-                for _, opt in ipairs(options) do
+                for i, opt in ipairs(options) do
                     local ob = Instance.new("TextButton")
                     ob.Position = UDim2.fromOffset(0, y)
-                    ob.Size = UDim2.new(1, 0, 0, 28)
+                    ob.Size = UDim2.new(1, 0, 0, 26)
                     ob.BackgroundColor3 = T.bg2
                     ob.BorderSizePixel = 0
                     ob.Font = Enum.Font.Gotham
@@ -1109,24 +962,17 @@ function N0IR:CreateWindow(opts)
                     ob.TextXAlignment = Enum.TextXAlignment.Left
                     ob.AutoButtonColor = false
                     ob.Parent = listFrame
-                    corner(ob, 6)
-                    ob.MouseEnter:Connect(function()
-                        tween(ob, { BackgroundColor3 = T.bg3 }, 0.1)
-                    end)
-                    ob.MouseLeave:Connect(function()
-                        tween(ob, { BackgroundColor3 = T.bg2 }, 0.1)
-                    end)
+                    corner(ob, 5)
                     ob.MouseButton1Click:Connect(function()
                         current = opt
                         if flag then N0IR.Flags[flag] = current end
                         val.Text = tostring(current)
                         if ddOpts.Callback then task.spawn(ddOpts.Callback, current) end
                         open = false
-                        tween(row, { Size = UDim2.new(1, 0, 0, 42) }, 0.18)
-                        listFrame.Size = UDim2.new(1, -20, 0, 0)
-                        arrow.Text = "▾"
+                        tween(row, { Size = UDim2.new(1, 0, 0, 40) }, 0.2)
+                        listFrame.Size = UDim2.new(1, -16, 0, 0)
                     end)
-                    y = y + 30
+                    y = y + 28
                 end
                 return y
             end
@@ -1135,13 +981,11 @@ function N0IR:CreateWindow(opts)
                 open = not open
                 if open then
                     local h = rebuild()
-                    tween(row, { Size = UDim2.new(1, 0, 0, 42 + h + 10) }, 0.2)
-                    listFrame.Size = UDim2.new(1, -20, 0, h)
-                    arrow.Text = "▴"
+                    tween(row, { Size = UDim2.new(1, 0, 0, 40 + h + 8) }, 0.22)
+                    listFrame.Size = UDim2.new(1, -16, 0, h)
                 else
-                    tween(row, { Size = UDim2.new(1, 0, 0, 42) }, 0.18)
-                    listFrame.Size = UDim2.new(1, -20, 0, 0)
-                    arrow.Text = "▾"
+                    tween(row, { Size = UDim2.new(1, 0, 0, 40) }, 0.2)
+                    listFrame.Size = UDim2.new(1, -16, 0, 0)
                 end
             end)
 
@@ -1162,18 +1006,18 @@ function N0IR:CreateWindow(opts)
             inOpts = inOpts or {}
             self._order = self._order + 1
             local row = Instance.new("Frame")
-            row.Size = UDim2.new(1, 0, 0, 42)
+            row.Size = UDim2.new(1, 0, 0, 40)
             row.BackgroundColor3 = T.bg1
-            row.BackgroundTransparency = 0.2
+            row.BackgroundTransparency = 0.25
             row.BorderSizePixel = 0
             row.LayoutOrder = self._order
             row.Parent = page
-            corner(row, 9)
-            stroke(row, T.border, 1, 0.55)
+            corner(row, 8)
+            stroke(row, T.border, 1, 0.65)
 
             local name = Instance.new("TextLabel")
             name.BackgroundTransparency = 1
-            name.Position = UDim2.fromOffset(14, 0)
+            name.Position = UDim2.fromOffset(12, 0)
             name.Size = UDim2.new(0.35, 0, 1, 0)
             name.Font = Enum.Font.GothamMedium
             name.Text = inOpts.Name or "Input"
@@ -1183,8 +1027,8 @@ function N0IR:CreateWindow(opts)
             name.Parent = row
 
             local box = Instance.new("TextBox")
-            box.Position = UDim2.new(0.38, 0, 0.5, -13)
-            box.Size = UDim2.new(0.6, -14, 0, 26)
+            box.Position = UDim2.new(0.38, 0, 0.5, -12)
+            box.Size = UDim2.new(0.6, -12, 0, 24)
             box.BackgroundColor3 = T.bg2
             box.BorderSizePixel = 0
             box.Font = Enum.Font.Gotham
@@ -1195,7 +1039,7 @@ function N0IR:CreateWindow(opts)
             box.TextColor3 = T.text
             box.ClearTextOnFocus = false
             box.Parent = row
-            corner(box, 7)
+            corner(box, 6)
             padding(box, 0, 0, 8, 8)
 
             box.FocusLost:Connect(function(enter)
@@ -1215,7 +1059,7 @@ function N0IR:CreateWindow(opts)
             self._order = self._order + 1
             local lbl = Instance.new("TextLabel")
             lbl.BackgroundColor3 = T.bg1
-            lbl.BackgroundTransparency = 0.3
+            lbl.BackgroundTransparency = 0.35
             lbl.Size = UDim2.new(1, 0, 0, 0)
             lbl.AutomaticSize = Enum.AutomaticSize.Y
             lbl.Font = Enum.Font.Gotham
@@ -1227,133 +1071,81 @@ function N0IR:CreateWindow(opts)
             lbl.TextWrapped = true
             lbl.LayoutOrder = self._order
             lbl.Parent = page
-            corner(lbl, 9)
-            padding(lbl, 11, 11, 14, 14)
+            corner(lbl, 8)
+            padding(lbl, 10, 10, 12, 12)
             return lbl
-        end
-
-        function Tab:CreateKeybind(kbOpts)
-            kbOpts = kbOpts or {}
-            self._order = self._order + 1
-            local current = kbOpts.Default or Enum.KeyCode.LeftAlt
-            if type(current) == "string" then
-                pcall(function() current = Enum.KeyCode[current] end)
-            end
-            local listening = false
-
-            local row = Instance.new("Frame")
-            row.Size = UDim2.new(1, 0, 0, 46)
-            row.BackgroundColor3 = T.bg1
-            row.BackgroundTransparency = 0.2
-            row.BorderSizePixel = 0
-            row.LayoutOrder = self._order
-            row.Parent = page
-            corner(row, 9)
-            stroke(row, T.border, 1, 0.55)
-
-            local name = Instance.new("TextLabel")
-            name.BackgroundTransparency = 1
-            name.Position = UDim2.fromOffset(14, 7)
-            name.Size = UDim2.new(1, -120, 0, 16)
-            name.Font = Enum.Font.GothamMedium
-            name.Text = kbOpts.Name or "Keybind"
-            name.TextSize = 12
-            name.TextColor3 = T.text
-            name.TextXAlignment = Enum.TextXAlignment.Left
-            name.Parent = row
-
-            local desc = Instance.new("TextLabel")
-            desc.BackgroundTransparency = 1
-            desc.Position = UDim2.fromOffset(14, 25)
-            desc.Size = UDim2.new(1, -120, 0, 14)
-            desc.Font = Enum.Font.Gotham
-            desc.Text = kbOpts.Description or kbOpts.Desc or "Click to change"
-            desc.TextSize = 10
-            desc.TextColor3 = T.text3
-            desc.TextXAlignment = Enum.TextXAlignment.Left
-            desc.Parent = row
-
-            local keyBtn = Instance.new("TextButton")
-            keyBtn.AnchorPoint = Vector2.new(1, 0.5)
-            keyBtn.Position = UDim2.new(1, -12, 0.5, 0)
-            keyBtn.Size = UDim2.fromOffset(90, 28)
-            keyBtn.BackgroundColor3 = T.bg3
-            keyBtn.BorderSizePixel = 0
-            keyBtn.Font = Enum.Font.GothamBold
-            keyBtn.Text = current.Name
-            keyBtn.TextSize = 11
-            keyBtn.TextColor3 = T.text
-            keyBtn.AutoButtonColor = false
-            keyBtn.Parent = row
-            corner(keyBtn, 7)
-            stroke(keyBtn, T.border, 1, 0.4)
-
-            local function setKey(kc)
-                current = kc
-                keyBtn.Text = kc.Name
-                if kbOpts.Flag then N0IR.Flags[kbOpts.Flag] = kc.Name end
-                if kbOpts.Callback then
-                    task.spawn(kbOpts.Callback, kc)
-                end
-            end
-
-            keyBtn.MouseButton1Click:Connect(function()
-                if listening then return end
-                listening = true
-                keyBtn.Text = "..."
-                tween(keyBtn, { BackgroundColor3 = T.bg4 }, 0.1)
-                local conn
-                conn = UserInputService.InputBegan:Connect(function(input, gp)
-                    if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-                    conn:Disconnect()
-                    listening = false
-                    tween(keyBtn, { BackgroundColor3 = T.bg3 }, 0.12)
-                    if input.KeyCode == Enum.KeyCode.Escape then
-                        keyBtn.Text = current.Name
-                        return
-                    end
-                    setKey(input.KeyCode)
-                end)
-            end)
-
-            return {
-                Set = function(_, kc)
-                    if type(kc) == "string" then
-                        pcall(function() kc = Enum.KeyCode[kc] end)
-                    end
-                    if typeof(kc) == "EnumItem" then setKey(kc) end
-                end,
-                Get = function() return current end,
-            }
         end
 
         return Tab
     end
 
     function Window:Destroy()
-        safeDestroy(screen)
+        screen:Destroy()
     end
+
+    -- Toggle keybind (default M)
+    local toggleKey = opts.ToggleKey or Enum.KeyCode.M
+    if type(toggleKey) == "string" then
+        pcall(function() toggleKey = Enum.KeyCode[toggleKey] end)
+    end
+    _G._N0IR_ToggleKey = toggleKey
+    Window.ToggleKey = toggleKey
+
+    local function setWindowVisible(vis)
+        if vis then
+            screen.Enabled = true
+            win.Visible = true
+            win.BackgroundTransparency = 1
+            win.Size = UDim2.fromOffset(math.floor(width * 0.94), math.floor(height * 0.94))
+            tween(win, {
+                Size = UDim2.fromOffset(width, height),
+                BackgroundTransparency = 0.04,
+            }, 0.35)
+        else
+            tween(win, {
+                Size = UDim2.fromOffset(math.floor(width * 0.92), math.floor(height * 0.92)),
+                BackgroundTransparency = 1,
+            }, 0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+            task.delay(0.3, function()
+                win.Visible = false
+            end)
+        end
+    end
+
+    Window.SetVisible = setWindowVisible
+    Window.Toggle = function()
+        setWindowVisible(not win.Visible)
+    end
+
+    UserInputService.InputBegan:Connect(function(input, gp)
+        if gp then return end
+        if UserInputService:GetFocusedTextBox() then return end
+        local key = _G._N0IR_ToggleKey or Enum.KeyCode.M
+        if input.KeyCode == key then
+            Window.Toggle()
+        end
+    end)
 
     table.insert(self._windows, Window)
     return Window
 end
 
 -- ============================================================
--- UTILITY MODULES
+-- UTILITY MODULES (baseplate, cmds) — no reanim dependency
 -- ============================================================
 function N0IR:MountUtilities(Window)
     -- ---------- Home ----------
     local Home = Window:CreateTab({ Name = "Home" })
     Home:CreateSection("Welcome")
     Home:CreateParagraph({
-        Content = "NØIR Suite  ·  v" .. N0IR.Version .. "\nClean black & white hub. Modules live in the tabs — World, Player, Animations, Commands, Map, Social, Settings.",
+        Content = "NØIR Suite  ·  v" .. N0IR.Version .. "\nClean black & white hub. Modules load from the tabs below — World, Player, Commands, Map, Social.",
     })
 
     Home:CreateSection("Quick actions")
     Home:CreateButton({
         Name = "Notify test",
         Callback = function()
-            N0IR:Notify({ Title = "NØIR", Content = "Everything is running.", Duration = 2, Type = "success" })
+            N0IR:Notify({ Title = "NØIR", Content = "Everything is running.", Duration = 2 })
         end,
     })
     Home:CreateButton({
@@ -1395,7 +1187,6 @@ function N0IR:MountUtilities(Window)
     Home:CreateLabel("Place  ·  " .. placeName)
     Home:CreateLabel("PlaceId  ·  " .. tostring(game.PlaceId))
     Home:CreateLabel("Players  ·  " .. tostring(#Players:GetPlayers()))
-    Home:CreateLabel("Toggle key  ·  " .. tostring((_G._N0IR_ToggleKey or Enum.KeyCode.LeftAlt).Name))
 
     -- ---------- World tab ----------
     local World = Window:CreateTab({ Name = "World" })
@@ -1419,9 +1210,12 @@ function N0IR:MountUtilities(Window)
         local part = findBaseplate()
         if part then
             part.Color = col
-            pcall(function() part.Material = Enum.Material.Grass end)
+            if part:IsA("BasePart") then
+                pcall(function() part.Material = Enum.Material.Grass end)
+            end
             N0IR:Notify({ Title = "Baseplate", Content = label or "Color applied", Duration = 1.4 })
         else
+            -- terrain fallback
             pcall(function()
                 workspace.Terrain:SetMaterialColor(Enum.Material.Asphalt, col)
             end)
@@ -1451,76 +1245,42 @@ function N0IR:MountUtilities(Window)
 
     World:CreateSection("Infinite Baseplate")
 
-    -- Fixed Auto Infinite Baseplate
     local infConn = nil
     local infPart = nil
-    local infEnabled = false
-
-    local function destroyInfBaseplate()
-        if infConn then
-            infConn:Disconnect()
-            infConn = nil
-        end
-        if infPart then
-            pcall(function() infPart:Destroy() end)
-            infPart = nil
-        end
-        -- also clean any leftover
-        local existing = workspace:FindFirstChild("N0IR_InfBaseplate")
-        if existing then pcall(function() existing:Destroy() end) end
-    end
-
-    local function createInfBaseplate()
-        destroyInfBaseplate()
-        infPart = Instance.new("Part")
-        infPart.Name = "N0IR_InfBaseplate"
-        infPart.Anchored = true
-        infPart.CanCollide = true
-        infPart.CanQuery = false
-        infPart.CanTouch = false
-        infPart.Transparency = 1
-        infPart.Material = Enum.Material.SmoothPlastic
-        infPart.Size = Vector3.new(4096, 2, 4096)
-        infPart.Parent = workspace
-
-        infConn = RunService.Heartbeat:Connect(function()
-            if not infEnabled or not infPart or not infPart.Parent then return end
-            local char = LocalPlayer.Character
-            local hrp = char and char:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                -- keep under the player, slight offset so feet land cleanly
-                local y = hrp.Position.Y - 3.2
-                -- clamp y so it doesn't float too high if player falls
-                if y > hrp.Position.Y - 1 then y = hrp.Position.Y - 3.2 end
-                infPart.CFrame = CFrame.new(hrp.Position.X, math.min(y, hrp.Position.Y - 2.8), hrp.Position.Z)
-            end
-        end)
-    end
-
     World:CreateToggle({
         Name = "Auto Infinite Baseplate",
-        Description = "Invisible floor that follows you (works on void / no floor)",
+        Description = "Invisible floor that follows you (auto-runs when enabled)",
         Flag = "AutoInfBaseplate",
         Default = false,
         Callback = function(on)
-            infEnabled = on
+            if infConn then infConn:Disconnect(); infConn = nil end
             if not on then
-                destroyInfBaseplate()
+                if infPart then infPart:Destroy(); infPart = nil end
                 N0IR:Notify({ Title = "Inf Baseplate", Content = "Off", Duration = 1.2 })
                 return
             end
-            createInfBaseplate()
-            N0IR:Notify({ Title = "Inf Baseplate", Content = "On", Duration = 1.2, Type = "success" })
+            local cam = workspace.CurrentCamera
+            if cam:FindFirstChild("N0IR_InfBaseplate") then
+                infPart = cam:FindFirstChild("N0IR_InfBaseplate")
+            else
+                infPart = Instance.new("Part")
+                infPart.Name = "N0IR_InfBaseplate"
+                infPart.Anchored = true
+                infPart.CanCollide = true
+                infPart.Transparency = 1
+                infPart.Size = Vector3.new(2048, 1, 2048)
+                infPart.Parent = cam
+            end
+            infConn = RunService.Heartbeat:Connect(function()
+                local char = LocalPlayer.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                if hrp and infPart then
+                    infPart.CFrame = CFrame.new(hrp.Position.X, -0.5, hrp.Position.Z)
+                end
+            end)
+            N0IR:Notify({ Title = "Inf Baseplate", Content = "On", Duration = 1.2 })
         end,
     })
-
-    -- re-create on character respawn if still enabled
-    track(LocalPlayer.CharacterAdded:Connect(function()
-        if infEnabled then
-            task.wait(0.4)
-            createInfBaseplate()
-        end
-    end))
 
     -- ---------- Player tab ----------
     local Player = Window:CreateTab({ Name = "Player" })
@@ -1619,7 +1379,6 @@ function N0IR:MountUtilities(Window)
                 Title = "Reanim",
                 Content = ok and "Loaded" or "Failed to load",
                 Duration = 2,
-                Type = ok and "success" or "danger",
             })
         end,
     })
@@ -1640,63 +1399,6 @@ function N0IR:MountUtilities(Window)
         Swim = 913384386,
         SwimIdle = 913389285,
     }
-
-    -- Store the character's original animation IDs on first use
-    local ORIGINAL_ANIMS = nil
-    local function captureOriginalAnims()
-        if ORIGINAL_ANIMS then return ORIGINAL_ANIMS end
-        local char = LocalPlayer.Character
-        if not char then return nil end
-        local animate = char:FindFirstChild("Animate")
-        if not animate then return nil end
-
-        local function getId(folderName, animName)
-            local folder = animate:FindFirstChild(folderName)
-            if not folder then return 0 end
-            local anim = folder:FindFirstChild(animName) or folder:FindFirstChildOfClass("Animation")
-            if anim and anim:IsA("Animation") then
-                local id = anim.AnimationId:match("%d+")
-                return tonumber(id) or 0
-            end
-            return 0
-        end
-
-        ORIGINAL_ANIMS = {
-            Run = getId("run", "RunAnim"),
-            Walk = getId("walk", "WalkAnim"),
-            Jump = getId("jump", "JumpAnim"),
-            Fall = getId("fall", "FallAnim"),
-            Climb = getId("climb", "ClimbAnim"),
-            Swim = getId("swim", "Swim"),
-            SwimIdle = getId("swimidle", "SwimIdle"),
-            Idle1 = 0,
-            Idle2 = 0,
-        }
-        local idle = animate:FindFirstChild("idle")
-        if idle then
-            local a1 = idle:FindFirstChild("Animation1")
-            local a2 = idle:FindFirstChild("Animation2")
-            if a1 and a1:IsA("Animation") then
-                ORIGINAL_ANIMS.Idle1 = tonumber(a1.AnimationId:match("%d+")) or 0
-            end
-            if a2 and a2:IsA("Animation") then
-                ORIGINAL_ANIMS.Idle2 = tonumber(a2.AnimationId:match("%d+")) or 0
-            end
-        end
-        return ORIGINAL_ANIMS
-    end
-
-    -- capture as soon as character exists
-    task.spawn(function()
-        if LocalPlayer.Character then
-            captureOriginalAnims()
-        end
-        LocalPlayer.CharacterAdded:Connect(function()
-            task.wait(0.5)
-            ORIGINAL_ANIMS = nil -- re-capture on new character
-            captureOriginalAnims()
-        end)
-    end)
 
     local OFFICIAL_PACKS = {
         ["Zombie"] = {
@@ -1812,14 +1514,13 @@ function N0IR:MountUtilities(Window)
     local function applyPackIds(ids)
         local char = LocalPlayer.Character
         if not char then
-            N0IR:Notify({ Title = "Anims", Content = "No character", Duration = 2, Type = "danger" })
+            N0IR:Notify({ Title = "Anims", Content = "No character", Duration = 2 })
             return false
         end
-        captureOriginalAnims() -- ensure we have originals before changing
         local hum = char:FindFirstChildOfClass("Humanoid")
         local animate = char:FindFirstChild("Animate")
         if not animate then
-            N0IR:Notify({ Title = "Anims", Content = "Animate script not found (need R15)", Duration = 2.5, Type = "warning" })
+            N0IR:Notify({ Title = "Anims", Content = "Animate script not found (need R15)", Duration = 2.5 })
             return false
         end
         stopTracks(hum)
@@ -1851,38 +1552,11 @@ function N0IR:MountUtilities(Window)
         Callback = function()
             local ids = OFFICIAL_PACKS[selectedPack]
             if not ids then
-                N0IR:Notify({ Title = "Anims", Content = "Unknown pack", Duration = 2, Type = "danger" })
+                N0IR:Notify({ Title = "Anims", Content = "Unknown pack", Duration = 2 })
                 return
             end
             if applyPackIds(ids) then
-                N0IR:Notify({ Title = "Anims", Content = selectedPack .. " applied", Duration = 2, Type = "success" })
-            end
-        end,
-    })
-
-    -- Reset to the animations the character originally had
-    Anims:CreateButton({
-        Name = "Reset to original animations",
-        Callback = function()
-            local orig = captureOriginalAnims()
-            if not orig then
-                -- fallback to Roblox defaults
-                if applyPackIds(DEFAULT_ANIMS) then
-                    N0IR:Notify({ Title = "Anims", Content = "Reset to default (no original captured)", Duration = 2 })
-                end
-                return
-            end
-            if applyPackIds(orig) then
-                N0IR:Notify({ Title = "Anims", Content = "Reset to your original animations", Duration = 2, Type = "success" })
-            end
-        end,
-    })
-
-    Anims:CreateButton({
-        Name = "Reset to Roblox defaults",
-        Callback = function()
-            if applyPackIds(DEFAULT_ANIMS) then
-                N0IR:Notify({ Title = "Anims", Content = "Reset to Roblox defaults", Duration = 2 })
+                N0IR:Notify({ Title = "Anims", Content = selectedPack .. " applied", Duration = 2 })
             end
         end,
     })
@@ -1953,7 +1627,25 @@ function N0IR:MountUtilities(Window)
                 end
             end
             if applyPackIds(customSlots) then
-                N0IR:Notify({ Title = "Anims", Content = "Custom slots applied", Duration = 2, Type = "success" })
+                N0IR:Notify({ Title = "Anims", Content = "Custom slots applied", Duration = 2 })
+            end
+        end,
+    })
+
+    Anims:CreateButton({
+        Name = "Reset to default animations",
+        Callback = function()
+            if applyPackIds(DEFAULT_ANIMS) then
+                for k, v in pairs(DEFAULT_ANIMS) do
+                    customSlots[k] = v
+                end
+                for key, inp in pairs(slotInputs) do
+                    if inp and inp.Set and DEFAULT_ANIMS[key] then
+                        inp:Set(tostring(DEFAULT_ANIMS[key]))
+                    end
+                end
+                updateSlotLabel()
+                N0IR:Notify({ Title = "Anims", Content = "Reset to default", Duration = 2 })
             end
         end,
     })
@@ -1991,7 +1683,7 @@ function N0IR:MountUtilities(Window)
                     end)
                 end
                 if not ok or not details or type(details.items) ~= "table" then
-                    N0IR:Notify({ Title = "Anims", Content = "Could not load bundle", Duration = 2, Type = "danger" })
+                    N0IR:Notify({ Title = "Anims", Content = "Could not load bundle", Duration = 2 })
                     return
                 end
                 local map = {
@@ -2023,7 +1715,7 @@ function N0IR:MountUtilities(Window)
                     end
                 end
                 updateSlotLabel()
-                N0IR:Notify({ Title = "Anims", Content = (details.name or name) .. " loaded into slots", Duration = 2, Type = "success" })
+                N0IR:Notify({ Title = "Anims", Content = (details.name or name) .. " loaded into slots", Duration = 2 })
             end)
         end,
     })
@@ -2058,7 +1750,7 @@ function N0IR:MountUtilities(Window)
                     end
                 end
                 if not data then
-                    N0IR:Notify({ Title = "Anims", Content = "No results / request failed", Duration = 2.5, Type = "danger" })
+                    N0IR:Notify({ Title = "Anims", Content = "No results / request failed", Duration = 2.5 })
                     return
                 end
                 searchResults = {}
@@ -2075,7 +1767,7 @@ function N0IR:MountUtilities(Window)
                 if #resultNames > 0 and resultDropdown and resultDropdown.Set then
                     resultDropdown:Set(resultNames[1])
                 end
-                N0IR:Notify({ Title = "Anims", Content = tostring(#resultNames) .. " packs found", Duration = 2, Type = "success" })
+                N0IR:Notify({ Title = "Anims", Content = tostring(#resultNames) .. " packs found", Duration = 2 })
             end)
         end,
     })
@@ -2084,7 +1776,7 @@ function N0IR:MountUtilities(Window)
         Name = "Apply selected search result",
         Callback = function()
             if applyPackIds(customSlots) then
-                N0IR:Notify({ Title = "Anims", Content = "Applied custom / search slots", Duration = 2, Type = "success" })
+                N0IR:Notify({ Title = "Anims", Content = "Applied custom / search slots", Duration = 2 })
             end
         end,
     })
@@ -2173,6 +1865,7 @@ function N0IR:MountUtilities(Window)
             end
         elseif cmd == "noclip" then
             N0IR.Flags.Noclip = true
+            -- fire player toggle if present via flag only; enable loop
             if not _G._N0IR_NoclipConn then
                 _G._N0IR_NoclipOn = true
                 _G._N0IR_NoclipConn = RunService.Stepped:Connect(function()
@@ -2246,6 +1939,11 @@ function N0IR:MountUtilities(Window)
             flying = false
             if flyConn then flyConn:Disconnect(); flyConn = nil end
             if hrp then
+                for _, x in ipairs(hrp:GetChildren()) do
+                    if x:IsA("BodyVelocity") and (x.Name == "N0IR_FlyBV" or true) then
+                        if x.Name == "N0IR_FlyBV" then x:Destroy() end
+                    end
+                end
                 local f = hrp:FindFirstChild("N0IR_FlyBV")
                 if f then f:Destroy() end
             end
@@ -2269,6 +1967,7 @@ function N0IR:MountUtilities(Window)
         end
     end
 
+    -- Command catalog → UI rows with Run
     local catalog = {
         { cmd = "ws",        label = "WalkSpeed",     desc = "Set walk speed  ·  arg: number",        needsArg = true,  example = "50" },
         { cmd = "jp",        label = "JumpPower",     desc = "Set jump power  ·  arg: number",        needsArg = true,  example = "75" },
@@ -2290,22 +1989,23 @@ function N0IR:MountUtilities(Window)
     Cmds:CreateSection("All commands")
 
     local function makeCmdRow(entry)
+        -- custom row: name + desc + Run button
         Cmds._order = (Cmds._order or 0) + 1
         local page = Cmds.Page
         local row = Instance.new("Frame")
-        row.Size = UDim2.new(1, 0, 0, 50)
+        row.Size = UDim2.new(1, 0, 0, 48)
         row.BackgroundColor3 = T.bg1
-        row.BackgroundTransparency = 0.2
+        row.BackgroundTransparency = 0.25
         row.BorderSizePixel = 0
         row.LayoutOrder = Cmds._order
         row.Parent = page
-        corner(row, 9)
-        stroke(row, T.border, 1, 0.55)
+        corner(row, 8)
+        stroke(row, T.border, 1, 0.65)
 
         local name = Instance.new("TextLabel")
         name.BackgroundTransparency = 1
-        name.Position = UDim2.fromOffset(14, 7)
-        name.Size = UDim2.new(1, -96, 0, 16)
+        name.Position = UDim2.fromOffset(12, 6)
+        name.Size = UDim2.new(1, -90, 0, 16)
         name.Font = Enum.Font.GothamBold
         name.Text = entry.label .. "  ·  ;" .. entry.cmd
         name.TextSize = 12
@@ -2315,8 +2015,8 @@ function N0IR:MountUtilities(Window)
 
         local desc = Instance.new("TextLabel")
         desc.BackgroundTransparency = 1
-        desc.Position = UDim2.fromOffset(14, 26)
-        desc.Size = UDim2.new(1, -96, 0, 16)
+        desc.Position = UDim2.fromOffset(12, 24)
+        desc.Size = UDim2.new(1, -90, 0, 16)
         desc.Font = Enum.Font.Gotham
         desc.Text = entry.desc
         desc.TextSize = 10
@@ -2327,28 +2027,31 @@ function N0IR:MountUtilities(Window)
 
         local run = Instance.new("TextButton")
         run.AnchorPoint = Vector2.new(1, 0.5)
-        run.Position = UDim2.new(1, -12, 0.5, 0)
-        run.Size = UDim2.fromOffset(68, 28)
+        run.Position = UDim2.new(1, -10, 0.5, 0)
+        run.Size = UDim2.fromOffset(64, 26)
         run.BackgroundColor3 = T.accent
         run.BorderSizePixel = 0
         run.Font = Enum.Font.GothamBold
         run.Text = "Run"
         run.TextSize = 11
-        run.TextColor3 = Color3.fromRGB(8, 8, 8)
+        run.TextColor3 = Color3.fromRGB(10, 10, 10)
         run.AutoButtonColor = false
         run.Parent = row
-        corner(run, 7)
+        corner(run, 6)
 
         run.MouseEnter:Connect(function()
-            tween(run, { BackgroundTransparency = 0.12 }, 0.1)
+            tween(run, { BackgroundTransparency = 0.15 }, 0.12)
         end)
         run.MouseLeave:Connect(function()
-            tween(run, { BackgroundTransparency = 0 }, 0.1)
+            tween(run, { BackgroundTransparency = 0 }, 0.12)
         end)
         run.MouseButton1Click:Connect(function()
             local arg = ""
             if argBox and argBox.Get then
                 arg = tostring(argBox:Get() or ""):gsub("^%s+", ""):gsub("%s+$", "")
+            end
+            if entry.needsArg and arg == "" and entry.example and entry.example ~= "" then
+                -- don't auto-fill silently; notify
             end
             local line = entry.cmd
             if arg ~= "" then
@@ -2364,6 +2067,7 @@ function N0IR:MountUtilities(Window)
         makeCmdRow(entry)
     end
 
+    -- Chat still works with ;
     pcall(function()
         LocalPlayer.Chatted:Connect(function(msg)
             runCmd(msg)
@@ -2380,18 +2084,18 @@ function N0IR:MountUtilities(Window)
 
     local bar = Instance.new("Frame")
     bar.AnchorPoint = Vector2.new(0.5, 1)
-    bar.Position = UDim2.new(0.5, 0, 1, 70)
-    bar.Size = UDim2.fromOffset(400, 42)
+    bar.Position = UDim2.new(0.5, 0, 1, 60)
+    bar.Size = UDim2.fromOffset(380, 40)
     bar.BackgroundColor3 = T.bg0
-    bar.BackgroundTransparency = 0.06
+    bar.BackgroundTransparency = 0.08
     bar.BorderSizePixel = 0
     bar.Parent = cmdGui
-    corner(bar, 11)
-    stroke(bar, T.border, 1, 0.3)
+    corner(bar, 10)
+    stroke(bar, T.border, 1, 0.35)
 
     local input = Instance.new("TextBox")
-    input.Size = UDim2.new(1, -28, 1, 0)
-    input.Position = UDim2.fromOffset(14, 0)
+    input.Size = UDim2.new(1, -24, 1, 0)
+    input.Position = UDim2.fromOffset(12, 0)
     input.BackgroundTransparency = 1
     input.Font = Enum.Font.GothamMedium
     input.PlaceholderText = "command  ·  press ; to open"
@@ -2403,19 +2107,19 @@ function N0IR:MountUtilities(Window)
     input.ClearTextOnFocus = false
     input.Parent = bar
 
-    track(UserInputService.InputBegan:Connect(function(inp, gp)
+    UserInputService.InputBegan:Connect(function(inp, gp)
         if gp then return end
         if inp.KeyCode == cmdBarKey then
             task.defer(function()
                 input:CaptureFocus()
                 input.Text = ""
-                tween(bar, { Position = UDim2.new(0.5, 0, 1, -20) }, 0.28)
+                tween(bar, { Position = UDim2.new(0.5, 0, 1, -18) }, 0.3)
             end)
         end
-    end))
+    end)
 
     input.FocusLost:Connect(function(enter)
-        tween(bar, { Position = UDim2.new(0.5, 0, 1, 70) }, 0.28)
+        tween(bar, { Position = UDim2.new(0.5, 0, 1, 60) }, 0.3)
         if enter and input.Text ~= "" then
             local t = input.Text
             if t:sub(1, 1) ~= prefix then t = prefix .. t end
@@ -2476,7 +2180,7 @@ function N0IR:MountUtilities(Window)
             return game:GetObjects("rbxassetid://" .. tostring(TREEHOUSE_ASSET_ID))
         end)
         if not ok or not objects or #objects == 0 then
-            N0IR:Notify({ Title = "Treehouse", Content = "Failed to load model", Duration = 3, Type = "danger" })
+            N0IR:Notify({ Title = "Treehouse", Content = "Failed to load model", Duration = 3 })
             return nil
         end
         local model = objects[1]
@@ -2484,7 +2188,7 @@ function N0IR:MountUtilities(Window)
         model.Parent = workspace
         prepareTreehouseModel(model, getTreehouseSpawnPosition())
         _G._HaloTreehouseModel = model
-        N0IR:Notify({ Title = "Treehouse", Content = "Spawned", Duration = 2.5, Type = "success" })
+        N0IR:Notify({ Title = "Treehouse", Content = "Spawned", Duration = 2.5 })
         return model
     end
 
@@ -2547,7 +2251,7 @@ function N0IR:MountUtilities(Window)
         local hrp = char and (char:FindFirstChild("HumanoidRootPart") or char.PrimaryPart)
         if hrp then
             hrp.CFrame = targetPart.CFrame + Vector3.new(0, 6, 0)
-            N0IR:Notify({ Title = "Treehouse", Content = "Teleported", Duration = 1.5, Type = "success" })
+            N0IR:Notify({ Title = "Treehouse", Content = "Teleported", Duration = 1.5 })
         end
     end
 
@@ -2569,6 +2273,26 @@ function N0IR:MountUtilities(Window)
     local friendLeftOn = (_G._N0IR_FriendLeftNotify ~= false)
     local friendLeftConn = nil
 
+    local function getUserAvatarThumbnail(userId, size)
+        size = size or 150
+        local thumbnailUrl = string.format(
+            "https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=%d&size=%dx%d&format=Png&isCircular=false",
+            userId, size, size
+        )
+        if request then
+            local success, response = pcall(function()
+                return request({ Url = thumbnailUrl, Method = "GET" })
+            end)
+            if success and response and response.StatusCode == 200 then
+                local ok, data = pcall(HttpService.JSONDecode, HttpService, response.Body)
+                if ok and data and data.data and data.data[1] then
+                    return data.data[1].imageUrl
+                end
+            end
+        end
+        return "rbxasset://textures/ui/GuiImagePlaceholder.png"
+    end
+
     local function isFriend(userId)
         local ok, res = pcall(function()
             if LocalPlayer.IsFriendsWith then
@@ -2587,11 +2311,11 @@ function N0IR:MountUtilities(Window)
             local userId = player.UserId
             task.spawn(function()
                 if not isFriend(userId) then return end
+                local icon = getUserAvatarThumbnail(userId, 150)
                 N0IR:Notify({
                     Title = displayName .. " left",
                     Content = "Friend left this server",
                     Duration = 5,
-                    Type = "warning",
                 })
             end)
         end)
@@ -2616,6 +2340,7 @@ function N0IR:MountUtilities(Window)
         end,
     })
 
+    -- auto-start if default on
     startFriendLeft()
 
     -- ---------- Settings tab ----------
@@ -2624,55 +2349,37 @@ function N0IR:MountUtilities(Window)
     Settings:CreateParagraph({
         Content = "NØIR UI Library v" .. N0IR.Version .. "\nMinimal black & white suite. Mount reanim or other modules via loadstring onto this window.",
     })
-
-    Settings:CreateSection("Menu Keybind")
-    Settings:CreateParagraph({
-        Content = "Default is Left Alt. Click the keybind button, then press any key. Esc cancels.",
-    })
-
-    -- Proper keybind selector (default LeftAlt)
-    local keybindControl = Settings:CreateKeybind({
-        Name = "Menu toggle",
-        Description = "Show / hide the entire menu",
-        Default = _G._N0IR_ToggleKey or Enum.KeyCode.LeftAlt,
-        Flag = "MenuToggleKey",
-        Callback = function(kc)
-            _G._N0IR_ToggleKey = kc
-            Window.ToggleKey = kc
-            N0IR:Notify({
-                Title = "Keybind",
-                Content = "Menu toggle set to " .. kc.Name,
-                Duration = 2,
-                Type = "success",
-            })
-        end,
-    })
-
+    Settings:CreateSection("Keybind")
+    local keyLbl = Settings:CreateLabel("Menu toggle  ·  M")
+    local listening = false
     Settings:CreateButton({
-        Name = "Reset keybind to Left Alt",
+        Name = "Set menu keybind",
         Callback = function()
-            local kc = Enum.KeyCode.LeftAlt
-            _G._N0IR_ToggleKey = kc
-            Window.ToggleKey = kc
-            if keybindControl and keybindControl.Set then
-                keybindControl:Set(kc)
-            end
-            N0IR:Notify({ Title = "Keybind", Content = "Reset to LeftAlt", Duration = 1.8 })
+            if listening then return end
+            listening = true
+            keyLbl:Set("Press any key...")
+            N0IR:Notify({ Title = "Keybind", Content = "Press a key (Esc to cancel)", Duration = 2 })
+            local conn
+            conn = UserInputService.InputBegan:Connect(function(input, gp)
+                if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+                conn:Disconnect()
+                listening = false
+                if input.KeyCode == Enum.KeyCode.Escape then
+                    keyLbl:Set("Menu toggle  ·  " .. tostring((_G._N0IR_ToggleKey or Enum.KeyCode.M).Name))
+                    N0IR:Notify({ Title = "Keybind", Content = "Cancelled", Duration = 1.5 })
+                    return
+                end
+                _G._N0IR_ToggleKey = input.KeyCode
+                keyLbl:Set("Menu toggle  ·  " .. input.KeyCode.Name)
+                N0IR:Notify({ Title = "Keybind", Content = "Set to " .. input.KeyCode.Name, Duration = 2 })
+            end)
         end,
     })
 
-    Settings:CreateSection("Tests")
     Settings:CreateButton({
         Name = "Notify Test",
         Callback = function()
-            N0IR:Notify({ Title = "NØIR", Content = "Library is alive.", Duration = 2, Type = "success" })
-        end,
-    })
-
-    Settings:CreateButton({
-        Name = "Toggle menu (test)",
-        Callback = function()
-            Window.Toggle()
+            N0IR:Notify({ Title = "NØIR", Content = "Library is alive.", Duration = 2 })
         end,
     })
 
@@ -2700,12 +2407,12 @@ function N0IR:Init(opts)
     local win = self:CreateWindow({
         Title = opts.Title or "NØIR",
         SubTitle = opts.SubTitle or "Suite",
-        Width = opts.Width or 540,
-        Height = opts.Height or 460,
+        Width = opts.Width or 520,
+        Height = opts.Height or 440,
         Loading = opts.Loading ~= false,
         LoadingText = opts.LoadingText or "loading modules",
-        LoadingDuration = opts.LoadingDuration or 2.0,
-        ToggleKey = opts.ToggleKey or Enum.KeyCode.LeftAlt,
+        LoadingDuration = opts.LoadingDuration or 2.2,
+        ToggleKey = opts.ToggleKey or Enum.KeyCode.M,
     })
     local modules = self:MountUtilities(win)
     return win, modules
