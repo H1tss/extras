@@ -1,5 +1,10 @@
 --[[
-     Usage:
+    NØIR UI Library
+    Clean · Minimal · Black & White
+    Designed to host modules (utility, cmds, reanim via loadstring, etc.)
+
+    Usage:
+        local N0IR = loadstring(game:HttpGet("..."))()  -- or readfile
         local Window = N0IR:CreateWindow({ Title = "NØIR", SubTitle = "Suite" })
         local Tab = Window:CreateTab({ Name = "Main" })
         Tab:CreateToggle({ Name = "Example", Flag = "ex", Callback = function(v) end })
@@ -23,9 +28,9 @@ local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 
-
+-- ============================================================
 -- THEME
-
+-- ============================================================
 local T = {
     bg0       = Color3.fromRGB(8, 8, 8),
     bg1       = Color3.fromRGB(14, 14, 14),
@@ -89,9 +94,9 @@ local function getHost()
     return LocalPlayer:WaitForChild("PlayerGui")
 end
 
-
+-- ============================================================
 -- LOADING SCREEN (fullscreen, half-transparent, NØIR)
-
+-- ============================================================
 function N0IR:LoadingScreen(opts)
     opts = opts or {}
     local duration = opts.Duration or 2.4
@@ -236,9 +241,9 @@ function N0IR:LoadingScreen(opts)
     return gui
 end
 
-
+-- ============================================================
 -- NOTIFY
-
+-- ============================================================
 function N0IR:Notify(opts)
     if type(opts) == "string" then
         opts = { Title = opts }
@@ -321,9 +326,9 @@ function N0IR:Notify(opts)
     end)
 end
 
-
+-- ============================================================
 -- WINDOW
-
+-- ============================================================
 function N0IR:CreateWindow(opts)
     opts = opts or {}
     local title = opts.Title or "NØIR"
@@ -614,7 +619,7 @@ function N0IR:CreateWindow(opts)
         table.insert(self.Tabs, Tab)
         if #self.Tabs == 1 then activate() end
 
-        -- Element builders
+        -- ---- Element builders ----
 
         function Tab:CreateSection(secOpts)
             secOpts = type(secOpts) == "string" and { Name = secOpts } or (secOpts or {})
@@ -1073,11 +1078,11 @@ function N0IR:CreateWindow(opts)
     return Window
 end
 
-
+-- ============================================================
 -- UTILITY MODULES (baseplate, cmds) — no reanim dependency
-
+-- ============================================================
 function N0IR:MountUtilities(Window)
-    -- World tab
+    -- ---------- World tab ----------
     local World = Window:CreateTab({ Name = "World" })
     World:CreateSection("Baseplate")
 
@@ -1171,7 +1176,7 @@ function N0IR:MountUtilities(Window)
         end,
     })
 
-    -- Player tab
+    -- ---------- Player tab ----------
     local Player = Window:CreateTab({ Name = "Player" })
     Player:CreateSection("Movement")
 
@@ -1255,7 +1260,7 @@ function N0IR:MountUtilities(Window)
         end,
     })
 
-    -- Commands tab
+    -- ---------- Commands tab ----------
     local Cmds = Window:CreateTab({ Name = "Commands" })
     Cmds:CreateSection("Command Bar")
     Cmds:CreateParagraph({
@@ -1412,7 +1417,220 @@ function N0IR:MountUtilities(Window)
 
     Cmds:CreateLabel("Press  ;  to open the command bar")
 
-    -- Settings tab 
+    -- ---------- Map / Treehouse ----------
+    local Map = Window:CreateTab({ Name = "Map" })
+    Map:CreateSection("Treehouse")
+    Map:CreateParagraph({
+        Content = "Spawn / teleport / remove the Halo treehouse model in workspace.",
+    })
+
+    local TREEHOUSE_ASSET_ID = 7860328354
+    _G._HaloTreehouseModel = _G._HaloTreehouseModel
+
+    local function getTreehouseSpawnPosition()
+        local spawnPart = workspace:FindFirstChild("ModelSpawn")
+        if spawnPart and spawnPart:IsA("BasePart") then
+            return spawnPart.Position
+        end
+        return Vector3.new(-410.25, 100.5, -75.46)
+    end
+
+    local function prepareTreehouseModel(model, position)
+        for _, v in pairs(model:GetDescendants()) do
+            if v:IsA("BasePart") then
+                v.Anchored = true
+                v.CanCollide = true
+            end
+        end
+        if model:IsA("Model") then
+            local spawnPart = workspace:FindFirstChild("ModelSpawn")
+            if spawnPart and spawnPart:IsA("BasePart") then
+                model:PivotTo(spawnPart.CFrame)
+            else
+                model:PivotTo(CFrame.new(position))
+            end
+        end
+    end
+
+    local function spawnTreehouse()
+        if _G._HaloTreehouseModel and _G._HaloTreehouseModel.Parent then
+            N0IR:Notify({ Title = "Treehouse", Content = "Already spawned", Duration = 2 })
+            return _G._HaloTreehouseModel
+        end
+        local existing = workspace:FindFirstChild("HaloTreehouse")
+        if existing then
+            _G._HaloTreehouseModel = existing
+            N0IR:Notify({ Title = "Treehouse", Content = "Already in workspace", Duration = 2 })
+            return existing
+        end
+        local ok, objects = pcall(function()
+            return game:GetObjects("rbxassetid://" .. tostring(TREEHOUSE_ASSET_ID))
+        end)
+        if not ok or not objects or #objects == 0 then
+            N0IR:Notify({ Title = "Treehouse", Content = "Failed to load model", Duration = 3 })
+            return nil
+        end
+        local model = objects[1]
+        model.Name = "HaloTreehouse"
+        model.Parent = workspace
+        prepareTreehouseModel(model, getTreehouseSpawnPosition())
+        _G._HaloTreehouseModel = model
+        N0IR:Notify({ Title = "Treehouse", Content = "Spawned", Duration = 2.5 })
+        return model
+    end
+
+    local function deleteTreehouse()
+        local deleted = false
+        if _G._HaloTreehouseModel and _G._HaloTreehouseModel.Parent then
+            pcall(function() _G._HaloTreehouseModel:Destroy() end)
+            _G._HaloTreehouseModel = nil
+            deleted = true
+        end
+        for _, item in ipairs(workspace:GetChildren()) do
+            if item.Name == "HaloTreehouse" then
+                pcall(function() item:Destroy() end)
+                deleted = true
+            end
+        end
+        N0IR:Notify({
+            Title = "Treehouse",
+            Content = deleted and "Removed" or "Nothing to remove",
+            Duration = 2,
+        })
+    end
+
+    local function teleportToTreehouse()
+        local model = _G._HaloTreehouseModel or workspace:FindFirstChild("HaloTreehouse")
+        if not model or not model.Parent then
+            model = spawnTreehouse()
+            if not model then return end
+            task.wait(0.25)
+        end
+        local targetPart = nil
+        for _, v in pairs(model:GetDescendants()) do
+            if v:IsA("BasePart") and string.find(string.lower(v.Name), "spawn") then
+                targetPart = v
+                break
+            end
+        end
+        if not targetPart then
+            local parts = {}
+            for _, v in pairs(model:GetDescendants()) do
+                if v:IsA("BasePart") then table.insert(parts, v) end
+            end
+            if #parts > 0 then
+                local total = Vector3.zero
+                for _, p in pairs(parts) do total = total + p.Position end
+                local center = total / #parts
+                local closest, minDist = parts[1], math.huge
+                for _, p in pairs(parts) do
+                    local d = (p.Position - center).Magnitude
+                    if d < minDist then closest, minDist = p, d end
+                end
+                targetPart = closest
+            end
+        end
+        if not targetPart then
+            N0IR:Notify({ Title = "Treehouse", Content = "No part to teleport to", Duration = 2 })
+            return
+        end
+        local char = LocalPlayer.Character
+        local hrp = char and (char:FindFirstChild("HumanoidRootPart") or char.PrimaryPart)
+        if hrp then
+            hrp.CFrame = targetPart.CFrame + Vector3.new(0, 6, 0)
+            N0IR:Notify({ Title = "Treehouse", Content = "Teleported", Duration = 1.5 })
+        end
+    end
+
+    _G._HaloSpawnTreehouse = spawnTreehouse
+    _G._HaloDeleteTreehouse = deleteTreehouse
+    _G._HaloTeleportToTreehouse = teleportToTreehouse
+
+    Map:CreateButton({ Name = "Spawn Treehouse", Callback = spawnTreehouse })
+    Map:CreateButton({ Name = "Teleport to Treehouse", Callback = teleportToTreehouse })
+    Map:CreateButton({ Name = "Delete Treehouse", Callback = deleteTreehouse })
+
+    -- ---------- Social ----------
+    local Social = Window:CreateTab({ Name = "Social" })
+    Social:CreateSection("Friends")
+    Social:CreateParagraph({
+        Content = "Notify when a Roblox friend leaves your server.",
+    })
+
+    local friendLeftOn = (_G._N0IR_FriendLeftNotify ~= false)
+    local friendLeftConn = nil
+
+    local function getUserAvatarThumbnail(userId, size)
+        size = size or 150
+        local thumbnailUrl = string.format(
+            "https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=%d&size=%dx%d&format=Png&isCircular=false",
+            userId, size, size
+        )
+        if request then
+            local success, response = pcall(function()
+                return request({ Url = thumbnailUrl, Method = "GET" })
+            end)
+            if success and response and response.StatusCode == 200 then
+                local ok, data = pcall(HttpService.JSONDecode, HttpService, response.Body)
+                if ok and data and data.data and data.data[1] then
+                    return data.data[1].imageUrl
+                end
+            end
+        end
+        return "rbxasset://textures/ui/GuiImagePlaceholder.png"
+    end
+
+    local function isFriend(userId)
+        local ok, res = pcall(function()
+            if LocalPlayer.IsFriendsWith then
+                return LocalPlayer:IsFriendsWith(userId)
+            end
+            return false
+        end)
+        return ok and res or false
+    end
+
+    local function startFriendLeft()
+        if friendLeftConn then return end
+        friendLeftConn = Players.PlayerRemoving:Connect(function(player)
+            if not friendLeftOn then return end
+            local displayName = player.DisplayName
+            local userId = player.UserId
+            task.spawn(function()
+                if not isFriend(userId) then return end
+                local icon = getUserAvatarThumbnail(userId, 150)
+                N0IR:Notify({
+                    Title = displayName .. " left",
+                    Content = "Friend left this server",
+                    Duration = 5,
+                })
+            end)
+        end)
+    end
+
+    local function stopFriendLeft()
+        if friendLeftConn then
+            friendLeftConn:Disconnect()
+            friendLeftConn = nil
+        end
+    end
+
+    Social:CreateToggle({
+        Name = "Friend Left Notify",
+        Description = "Toast when a friend leaves the server",
+        Flag = "FriendLeftNotify",
+        Default = true,
+        Callback = function(on)
+            friendLeftOn = on
+            _G._N0IR_FriendLeftNotify = on
+            if on then startFriendLeft() else stopFriendLeft() end
+        end,
+    })
+
+    -- auto-start if default on
+    startFriendLeft()
+
+    -- ---------- Settings tab ----------
     local Settings = Window:CreateTab({ Name = "Settings" })
     Settings:CreateSection("About")
     Settings:CreateParagraph({
@@ -1429,14 +1647,19 @@ function N0IR:MountUtilities(Window)
         World = World,
         Player = Player,
         Cmds = Cmds,
+        Map = Map,
+        Social = Social,
         Settings = Settings,
         RunCommand = runCmd,
+        SpawnTreehouse = spawnTreehouse,
+        DeleteTreehouse = deleteTreehouse,
+        TeleportToTreehouse = teleportToTreehouse,
     }
 end
 
-
+-- ============================================================
 -- QUICK START HELPER
-
+-- ============================================================
 function N0IR:Init(opts)
     opts = opts or {}
     local win = self:CreateWindow({
