@@ -772,8 +772,7 @@ function N0IR:CreateWindow(opts)
             end
 
             hit.MouseButton1Click:Connect(function() set(not state) end)
-            -- fire callback on load when Default is true OR Flag restored as true
-            if state and togOpts.Callback then
+            if togOpts.Default == true and togOpts.Callback then
                 task.defer(function() togOpts.Callback(true) end)
             end
 
@@ -1084,18 +1083,16 @@ function N0IR:CreateWindow(opts)
         screen:Destroy()
     end
 
-    -- Toggle keybind (default RightControl)
-    local toggleKey = opts.ToggleKey or Enum.KeyCode.RightControl
+    -- Toggle keybind (default M)
+    local toggleKey = opts.ToggleKey or Enum.KeyCode.M
     if type(toggleKey) == "string" then
         pcall(function() toggleKey = Enum.KeyCode[toggleKey] end)
     end
     _G._N0IR_ToggleKey = toggleKey
     Window.ToggleKey = toggleKey
 
-    local isOpen = true
     local function setWindowVisible(vis)
-        isOpen = vis and true or false
-        if isOpen then
+        if vis then
             screen.Enabled = true
             win.Visible = true
             win.BackgroundTransparency = 1
@@ -1105,31 +1102,25 @@ function N0IR:CreateWindow(opts)
                 BackgroundTransparency = 0.04,
             }, 0.35)
         else
-            -- hide (don't destroy)
             tween(win, {
                 Size = UDim2.fromOffset(math.floor(width * 0.92), math.floor(height * 0.92)),
                 BackgroundTransparency = 1,
             }, 0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
             task.delay(0.3, function()
-                if not isOpen then
-                    win.Visible = false
-                end
+                win.Visible = false
             end)
         end
     end
 
     Window.SetVisible = setWindowVisible
     Window.Toggle = function()
-        setWindowVisible(not isOpen)
-    end
-    Window.IsOpen = function()
-        return isOpen
+        setWindowVisible(not win.Visible)
     end
 
-    -- RightControl often has gameProcessed=true; still allow toggle unless typing
     UserInputService.InputBegan:Connect(function(input, gp)
+        if gp then return end
         if UserInputService:GetFocusedTextBox() then return end
-        local key = _G._N0IR_ToggleKey or Enum.KeyCode.RightControl
+        local key = _G._N0IR_ToggleKey or Enum.KeyCode.M
         if input.KeyCode == key then
             Window.Toggle()
         end
@@ -1220,15 +1211,13 @@ function N0IR:MountUtilities(Window)
         if part then
             part.Color = col
             if part:IsA("BasePart") then
-                pcall(function()
-                    part.Material = Enum.Material.Grass
-                end)
+                pcall(function() part.Material = Enum.Material.SmoothPlastic end)
             end
             N0IR:Notify({ Title = "Baseplate", Content = label or "Color applied", Duration = 1.4 })
         else
             -- terrain fallback
             pcall(function()
-                workspace.Terrain:SetMaterialColor(Enum.Material.Grass, col)
+                workspace.Terrain:SetMaterialColor(Enum.Material.Asphalt, col)
             end)
             N0IR:Notify({ Title = "Baseplate", Content = "Terrain color set", Duration = 1.4 })
         end
@@ -1258,72 +1247,38 @@ function N0IR:MountUtilities(Window)
 
     local infConn = nil
     local infPart = nil
-
-    local function destroyInfBaseplate()
-        if infConn then
-            infConn:Disconnect()
-            infConn = nil
-        end
-        if infPart then
-            pcall(function() infPart:Destroy() end)
-            infPart = nil
-        end
-        -- clean any leftover
-        local cam = workspace.CurrentCamera
-        if cam then
-            local old = cam:FindFirstChild("N0IR_InfBaseplate")
-            if old then pcall(function() old:Destroy() end) end
-        end
-        for _, v in ipairs(workspace:GetDescendants()) do
-            if v.Name == "N0IR_InfBaseplate" then
-                pcall(function() v:Destroy() end)
-            end
-        end
-    end
-
-    local function enableInfBaseplate()
-        destroyInfBaseplate()
-        local cam = workspace.CurrentCamera
-        if not cam then return end
-        infPart = Instance.new("Part")
-        infPart.Name = "N0IR_InfBaseplate"
-        infPart.Anchored = true
-        infPart.CanCollide = true
-        infPart.Transparency = 1
-        infPart.Size = Vector3.new(2048, 1, 2048)
-        infPart.Parent = cam
-        infConn = RunService.Heartbeat:Connect(function()
-            if not infPart or not infPart.Parent then return end
-            local char = LocalPlayer.Character
-            local hrp = char and char:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                infPart.CFrame = CFrame.new(hrp.Position.X, -0.5, hrp.Position.Z)
-            end
-        end)
-    end
-
-    -- restore saved state from previous session / auto-execute
-    local savedInf = false
-    if _G._N0IR_AutoInfBaseplate == true or N0IR.Flags.AutoInfBaseplate == true then
-        savedInf = true
-        N0IR.Flags.AutoInfBaseplate = true
-    end
-
     World:CreateToggle({
         Name = "Auto Infinite Baseplate",
-        Description = "Invisible floor that follows you (saves on, auto-runs when enabled)",
+        Description = "Invisible floor that follows you (auto-runs when enabled)",
         Flag = "AutoInfBaseplate",
-        Default = savedInf,
+        Default = false,
         Callback = function(on)
-            _G._N0IR_AutoInfBaseplate = on
-            N0IR.Flags.AutoInfBaseplate = on
-            if on then
-                enableInfBaseplate()
-                N0IR:Notify({ Title = "Inf Baseplate", Content = "On", Duration = 1.2 })
-            else
-                destroyInfBaseplate()
+            if infConn then infConn:Disconnect(); infConn = nil end
+            if not on then
+                if infPart then infPart:Destroy(); infPart = nil end
                 N0IR:Notify({ Title = "Inf Baseplate", Content = "Off", Duration = 1.2 })
+                return
             end
+            local cam = workspace.CurrentCamera
+            if cam:FindFirstChild("N0IR_InfBaseplate") then
+                infPart = cam:FindFirstChild("N0IR_InfBaseplate")
+            else
+                infPart = Instance.new("Part")
+                infPart.Name = "N0IR_InfBaseplate"
+                infPart.Anchored = true
+                infPart.CanCollide = true
+                infPart.Transparency = 1
+                infPart.Size = Vector3.new(2048, 1, 2048)
+                infPart.Parent = cam
+            end
+            infConn = RunService.Heartbeat:Connect(function()
+                local char = LocalPlayer.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                if hrp and infPart then
+                    infPart.CFrame = CFrame.new(hrp.Position.X, -0.5, hrp.Position.Z)
+                end
+            end)
+            N0IR:Notify({ Title = "Inf Baseplate", Content = "On", Duration = 1.2 })
         end,
     })
 
@@ -1408,6 +1363,427 @@ function N0IR:MountUtilities(Window)
                 end
                 TeleportService:Teleport(game.PlaceId, LocalPlayer)
             end)
+        end,
+    })
+
+    -- ---------- Animations tab ----------
+    local Anims = Window:CreateTab({ Name = "Animations" })
+    Anims:CreateSection("Reanimation")
+    Anims:CreateButton({
+        Name = "Load Reanimation",
+        Callback = function()
+            local ok, err = pcall(function()
+                loadstring(game:HttpGet("https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/Reanimation.luau"))()
+            end)
+            if ok then
+                N0IR:Notify({ Title = "Reanim", Content = "Loaded", Duration = 2 })
+            else
+                N0IR:Notify({ Title = "Reanim", Content = "Failed to load", Duration = 2.5 })
+            end
+        end,
+    })
+
+    Anims:CreateSection("Official packs")
+    Anims:CreateParagraph({
+        Content = "Select a Roblox animation pack, then Apply. Works on R15 Animate script.",
+    })
+
+    -- Official catalog animation IDs (from Roblox docs)
+    local OFFICIAL_PACKS = {
+        ["Zombie"] = {
+            Run = 616163682, Walk = 616168032, Jump = 616161997,
+            Idle1 = 616158929, Idle2 = 616160636, Fall = 616157476,
+            Swim = 616165109, SwimIdle = 616166655, Climb = 616156119,
+        },
+        ["Ninja"] = {
+            Run = 656118852, Walk = 656121766, Jump = 656117878,
+            Idle1 = 656117400, Idle2 = 656118341, Fall = 656115606,
+            Swim = 656119721, SwimIdle = 656121397, Climb = 656114359,
+        },
+        ["Robot"] = {
+            Run = 616163682, Walk = 616168032, Jump = 616161997, -- fallback; real ids below
+            Idle1 = 616158929, Idle2 = 616160636, Fall = 616157476,
+            Swim = 616165109, SwimIdle = 616166655, Climb = 616156119,
+        },
+        ["Cartoony"] = {
+            Run = 742638842, Walk = 742640026, Jump = 742637942,
+            Idle1 = 742637544, Idle2 = 742638445, Fall = 742637151,
+            Swim = 742639220, SwimIdle = 742639812, Climb = 742636889,
+        },
+        ["Superhero"] = {
+            Run = 619528716, Walk = 619529601, Jump = 619528412,
+            Idle1 = 619528125, Idle2 = 619528125, Fall = 619527817,
+            Swim = 619529095, SwimIdle = 619529095, Climb = 619527470,
+        },
+        ["Stylish"] = {
+            Run = 619512153, Walk = 619512767, Jump = 619511974,
+            Idle1 = 619511648, Idle2 = 619511648, Fall = 619511417,
+            Swim = 619512450, SwimIdle = 619512450, Climb = 619509955,
+        },
+        ["Elder"] = {
+            Run = 845386501, Walk = 845403856, Jump = 845398858,
+            Idle1 = 845397899, Idle2 = 845400520, Fall = 845396048,
+            Swim = 845401742, SwimIdle = 845403127, Climb = 845392038,
+        },
+        ["Toy"] = {
+            Run = 973766674, Walk = 973767371, Jump = 973770652,
+            Idle1 = 973771666, Idle2 = 973771666, Fall = 973768058,
+            Swim = 973772659, SwimIdle = 973772659, Climb = 973773170,
+        },
+        ["Bubbly"] = {
+            Run = 910025107, Walk = 910034870, Jump = 910016857,
+            Idle1 = 910004836, Idle2 = 910009958, Fall = 910001910,
+            Swim = 910028158, SwimIdle = 910030921, Climb = 909997997,
+        },
+        ["Astronaut"] = {
+            Run = 891636393, Walk = 891636393, Jump = 891627522,
+            Idle1 = 891621366, Idle2 = 891633237, Fall = 891617961,
+            Swim = 891639666, SwimIdle = 891663592, Climb = 891609353,
+        },
+        ["Vampire"] = {
+            Run = 1113740510, Walk = 1113741192, Jump = 1113742359,
+            Idle1 = 1113742618, Idle2 = 1113742618, Fall = 1113742092,
+            Swim = 1113742944, SwimIdle = 1113742944, Climb = 1113743239,
+        },
+        ["Werewolf"] = {
+            Run = 619535616, Walk = 619537468, Jump = 619536283,
+            Idle1 = 619535834, Idle2 = 619535834, Fall = 619535616,
+            Swim = 619537096, SwimIdle = 619537096, Climb = 619535091,
+        },
+        ["Levitation"] = {
+            Run = 619543231, Walk = 619544080, Jump = 619542888,
+            Idle1 = 619542203, Idle2 = 619542203, Fall = 619541867,
+            Swim = 619543721, SwimIdle = 619543721, Climb = 619541458,
+        },
+        ["Mage"] = {
+            Run = 707861613, Walk = 707897309, Jump = 707853694,
+            Idle1 = 707742142, Idle2 = 707855907, Fall = 707829716,
+            Swim = 707876443, SwimIdle = 707894699, Climb = 707826056,
+        },
+    }
+
+    -- fix Robot with correct IDs if available from docs style (use Stylish-like known set)
+    OFFICIAL_PACKS["Robot"] = {
+        Run = 619522386, Walk = 619522849, Jump = 619522088,
+        Idle1 = 619521748, Idle2 = 619521748, Fall = 619521521,
+        Swim = 619522642, SwimIdle = 619522642, Climb = 619521311,
+    }
+
+    local packNames = {}
+    for name in pairs(OFFICIAL_PACKS) do
+        table.insert(packNames, name)
+    end
+    table.sort(packNames)
+
+    local selectedPack = packNames[1] or "Zombie"
+    local packDropdown = Anims:CreateDropdown({
+        Name = "Pack",
+        Options = packNames,
+        Default = selectedPack,
+        Callback = function(v)
+            selectedPack = v
+        end,
+    })
+
+    local function stopTracks(hum)
+        if not hum then return end
+        pcall(function()
+            for _, t in ipairs(hum:GetPlayingAnimationTracks()) do
+                t:Stop(0)
+            end
+            local animator = hum:FindFirstChildOfClass("Animator")
+            if animator then
+                for _, t in ipairs(animator:GetPlayingAnimationTracks()) do
+                    t:Stop(0)
+                end
+            end
+        end)
+    end
+
+    local function setAnimId(obj, id)
+        if not obj or not id or id == 0 then return end
+        pcall(function()
+            obj.AnimationId = "rbxassetid://" .. tostring(id)
+        end)
+    end
+
+    local function applyPackIds(ids)
+        local char = LocalPlayer.Character
+        if not char then
+            N0IR:Notify({ Title = "Anims", Content = "No character", Duration = 2 })
+            return false
+        end
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        local animate = char:FindFirstChild("Animate")
+        if not animate then
+            N0IR:Notify({ Title = "Anims", Content = "Animate script not found (need R15)", Duration = 2.5 })
+            return false
+        end
+        stopTracks(hum)
+
+        local function childAnim(folderName, animName)
+            local folder = animate:FindFirstChild(folderName)
+            if not folder then return nil end
+            return folder:FindFirstChild(animName) or folder:FindFirstChildOfClass("Animation")
+        end
+
+        setAnimId(childAnim("run", "RunAnim"), ids.Run)
+        setAnimId(childAnim("walk", "WalkAnim"), ids.Walk)
+        setAnimId(childAnim("jump", "JumpAnim"), ids.Jump)
+        setAnimId(childAnim("fall", "FallAnim"), ids.Fall)
+        setAnimId(childAnim("climb", "ClimbAnim"), ids.Climb)
+        setAnimId(childAnim("swim", "Swim"), ids.Swim)
+        setAnimId(childAnim("swimidle", "SwimIdle"), ids.SwimIdle or ids.Swim)
+
+        local idle = animate:FindFirstChild("idle")
+        if idle then
+            local a1 = idle:FindFirstChild("Animation1")
+            local a2 = idle:FindFirstChild("Animation2")
+            setAnimId(a1, ids.Idle1 or ids.Idle)
+            setAnimId(a2, ids.Idle2 or ids.Idle1 or ids.Idle)
+        end
+
+        return true
+    end
+
+    Anims:CreateButton({
+        Name = "Apply selected pack",
+        Callback = function()
+            local ids = OFFICIAL_PACKS[selectedPack]
+            if not ids then
+                N0IR:Notify({ Title = "Anims", Content = "Unknown pack", Duration = 2 })
+                return
+            end
+            if applyPackIds(ids) then
+                N0IR:Notify({ Title = "Anims", Content = selectedPack .. " applied", Duration = 2 })
+            end
+        end,
+    })
+
+    -- Current custom slot IDs (for mix / search results)
+    local customSlots = {
+        Run = 0, Walk = 0, Jump = 0, Idle1 = 0, Idle2 = 0,
+        Fall = 0, Climb = 0, Swim = 0, SwimIdle = 0,
+    }
+
+    Anims:CreateSection("Custom slots")
+    Anims:CreateParagraph({
+        Content = "Pick a pack above or search below, then tweak individual slots and Apply custom.",
+    })
+
+    local slotOrder = { "Run", "Walk", "Jump", "Idle1", "Idle2", "Fall", "Climb", "Swim", "SwimIdle" }
+    local slotDropdowns = {}
+
+    local function refreshSlotDropdowns(ids)
+        for _, key in ipairs(slotOrder) do
+            if ids[key] then
+                customSlots[key] = ids[key]
+            end
+        end
+    end
+
+    -- simple label showing current custom IDs
+    local slotLabel = Anims:CreateLabel("Slots  ·  none loaded yet")
+    local function updateSlotLabel()
+        local parts = {}
+        for _, key in ipairs({ "Run", "Walk", "Jump", "Fall", "Climb" }) do
+            local v = customSlots[key]
+            if v and v ~= 0 then
+                table.insert(parts, key .. "=" .. tostring(v))
+            end
+        end
+        slotLabel:Set(#parts > 0 and ("Slots  ·  " .. table.concat(parts, "  ")) or "Slots  ·  none loaded yet")
+    end
+
+    Anims:CreateButton({
+        Name = "Load pack into custom slots",
+        Callback = function()
+            local ids = OFFICIAL_PACKS[selectedPack]
+            if not ids then return end
+            refreshSlotDropdowns(ids)
+            updateSlotLabel()
+            N0IR:Notify({ Title = "Anims", Content = selectedPack .. " → custom slots", Duration = 1.5 })
+        end,
+    })
+
+    -- Per-slot ID inputs
+    local slotInputs = {}
+    for _, key in ipairs(slotOrder) do
+        slotInputs[key] = Anims:CreateInput({
+            Name = key,
+            Placeholder = "animation asset id",
+            Default = "",
+            Callback = function(text)
+                local n = tonumber(text)
+                if n then customSlots[key] = n end
+                updateSlotLabel()
+            end,
+        })
+    end
+
+    Anims:CreateButton({
+        Name = "Apply custom slots",
+        Callback = function()
+            -- pull latest from inputs if typed
+            for key, inp in pairs(slotInputs) do
+                if inp and inp.Get then
+                    local n = tonumber(inp:Get())
+                    if n then customSlots[key] = n end
+                end
+            end
+            if applyPackIds(customSlots) then
+                N0IR:Notify({ Title = "Anims", Content = "Custom slots applied", Duration = 2 })
+            end
+        end,
+    })
+
+    Anims:CreateSection("Search bundles")
+    Anims:CreateParagraph({
+        Content = "Search Roblox catalog animation packs (e.g. zombie). Select a result to fill custom slots.",
+    })
+
+    local searchInput = Anims:CreateInput({
+        Name = "Search",
+        Placeholder = "zombie, ninja, anime...",
+        Default = "",
+    })
+
+    local searchResults = {}
+    local resultNames = { "(search first)" }
+    local resultDropdown = Anims:CreateDropdown({
+        Name = "Results",
+        Options = resultNames,
+        Default = resultNames[1],
+        Callback = function(name)
+            local entry = searchResults[name]
+            if not entry then return end
+            task.spawn(function()
+                N0IR:Notify({ Title = "Anims", Content = "Loading bundle details...", Duration = 1.5 })
+                local ok, details = pcall(function()
+                    local body = game:HttpGet("https://catalog.roblox.com/v1/bundles/" .. tostring(entry.id) .. "/details")
+                    return HttpService:JSONDecode(body)
+                end)
+                if not ok or not details or not details.items then
+                    -- proxy fallback
+                    ok, details = pcall(function()
+                        local body = game:HttpGet("https://catalog.roproxy.com/v1/bundles/" .. tostring(entry.id) .. "/details")
+                        return HttpService:JSONDecode(body)
+                    end)
+                end
+                if not ok or not details or type(details.items) ~= "table" then
+                    N0IR:Notify({ Title = "Anims", Content = "Could not load bundle", Duration = 2 })
+                    return
+                end
+                local map = {
+                    run = "Run", walk = "Walk", jump = "Jump", fall = "Fall",
+                    climb = "Climb", swim = "Swim", idle = "Idle1",
+                }
+                local filled = {}
+                for _, item in ipairs(details.items) do
+                    if item.type == "Asset" and item.id then
+                        local n = string.lower(item.name or "")
+                        for needle, slot in pairs(map) do
+                            if n:find(needle) then
+                                if slot == "Idle1" and filled.Idle1 then
+                                    customSlots.Idle2 = item.id
+                                else
+                                    customSlots[slot] = item.id
+                                    filled[slot] = true
+                                end
+                                if slot == "Swim" and not filled.SwimIdle then
+                                    customSlots.SwimIdle = item.id
+                                end
+                            end
+                        end
+                    end
+                end
+                -- push into inputs
+                for key, inp in pairs(slotInputs) do
+                    if inp and inp.Set and customSlots[key] and customSlots[key] ~= 0 then
+                        inp:Set(tostring(customSlots[key]))
+                    end
+                end
+                updateSlotLabel()
+                N0IR:Notify({ Title = "Anims", Content = (details.name or name) .. " loaded into slots", Duration = 2 })
+            end)
+        end,
+    })
+
+    Anims:CreateButton({
+        Name = "Search animation packs",
+        Callback = function()
+            local q = ""
+            if searchInput and searchInput.Get then
+                q = tostring(searchInput:Get() or ""):gsub("^%s+", ""):gsub("%s+$", "")
+            end
+            if q == "" then
+                N0IR:Notify({ Title = "Anims", Content = "Type a search term", Duration = 2 })
+                return
+            end
+            N0IR:Notify({ Title = "Anims", Content = "Searching...", Duration = 1.2 })
+            task.spawn(function()
+                local encoded = HttpService:UrlEncode(q)
+                local urls = {
+                    "https://catalog.roblox.com/v1/search/items/details?Category=12&Subcategory=38&Keyword=" .. encoded .. "&Limit=30&SortType=0",
+                    "https://catalog.roblox.com/v1/search/items/details?Category=12&Subcategory=27&Keyword=" .. encoded .. "&Limit=30&SortType=0",
+                    "https://catalog.roproxy.com/v1/search/items/details?Category=12&Subcategory=38&Keyword=" .. encoded .. "&Limit=30&SortType=0",
+                }
+                local data
+                for _, url in ipairs(urls) do
+                    local ok, decoded = pcall(function()
+                        return HttpService:JSONDecode(game:HttpGet(url))
+                    end)
+                    if ok and decoded and type(decoded.data) == "table" and #decoded.data > 0 then
+                        data = decoded
+                        break
+                    end
+                end
+                if not data then
+                    N0IR:Notify({ Title = "Anims", Content = "No results / request failed", Duration = 2.5 })
+                    return
+                end
+                searchResults = {}
+                resultNames = {}
+                for _, item in ipairs(data.data) do
+                    local name = item.name or ("Bundle " .. tostring(item.id))
+                    local label = name
+                    if item.id then
+                        label = name .. "  ·  " .. tostring(item.id)
+                    end
+                    -- prefer bundles
+                    if item.itemType == "Bundle" or item.bundleType or (item.itemType == nil and item.id) then
+                        searchResults[label] = item
+                        table.insert(resultNames, label)
+                    end
+                end
+                if #resultNames == 0 then
+                    -- take any items
+                    for _, item in ipairs(data.data) do
+                        local name = item.name or tostring(item.id)
+                        local label = name .. "  ·  " .. tostring(item.id)
+                        searchResults[label] = item
+                        table.insert(resultNames, label)
+                    end
+                end
+                if resultDropdown and resultDropdown.SetOptions then
+                    resultDropdown:SetOptions(resultNames)
+                end
+                if #resultNames > 0 and resultDropdown and resultDropdown.Set then
+                    resultDropdown:Set(resultNames[1])
+                end
+                N0IR:Notify({ Title = "Anims", Content = tostring(#resultNames) .. " packs found", Duration = 2 })
+            end)
+        end,
+    })
+
+    Anims:CreateButton({
+        Name = "Apply selected search result",
+        Callback = function()
+            -- applying is done when selecting from dropdown (loads slots);
+            -- this just applies whatever is in custom slots
+            if applyPackIds(customSlots) then
+                N0IR:Notify({ Title = "Anims", Content = "Applied custom / search slots", Duration = 2 })
+            end
         end,
     })
 
@@ -1980,7 +2356,7 @@ function N0IR:MountUtilities(Window)
         Content = "NØIR UI Library v" .. N0IR.Version .. "\nMinimal black & white suite. Mount reanim or other modules via loadstring onto this window.",
     })
     Settings:CreateSection("Keybind")
-    local keyLbl = Settings:CreateLabel("Menu toggle  ·  RightControl")
+    local keyLbl = Settings:CreateLabel("Menu toggle  ·  M")
     local listening = false
     Settings:CreateButton({
         Name = "Set menu keybind",
@@ -1995,7 +2371,7 @@ function N0IR:MountUtilities(Window)
                 conn:Disconnect()
                 listening = false
                 if input.KeyCode == Enum.KeyCode.Escape then
-                    keyLbl:Set("Menu toggle  ·  " .. tostring((_G._N0IR_ToggleKey or Enum.KeyCode.RightControl).Name))
+                    keyLbl:Set("Menu toggle  ·  " .. tostring((_G._N0IR_ToggleKey or Enum.KeyCode.M).Name))
                     N0IR:Notify({ Title = "Keybind", Content = "Cancelled", Duration = 1.5 })
                     return
                 end
@@ -2017,6 +2393,7 @@ function N0IR:MountUtilities(Window)
         Home = Home,
         World = World,
         Player = Player,
+        Anims = Anims,
         Cmds = Cmds,
         Map = Map,
         Social = Social,
@@ -2041,7 +2418,7 @@ function N0IR:Init(opts)
         Loading = opts.Loading ~= false,
         LoadingText = opts.LoadingText or "loading modules",
         LoadingDuration = opts.LoadingDuration or 2.2,
-        ToggleKey = opts.ToggleKey or Enum.KeyCode.RightControl,
+        ToggleKey = opts.ToggleKey or Enum.KeyCode.M,
     })
     local modules = self:MountUtilities(win)
     return win, modules
