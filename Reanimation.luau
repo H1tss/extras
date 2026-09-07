@@ -4212,53 +4212,7 @@ local function _createPromptFrame(name, titleText, subText, height, onDismiss)
     return promptFrame, dismiss
 end
 
-promptTreehouseOnLoad = function()
-    task.spawn(function()
-        task.wait(1.5)
-        if not ScreenGui or not ScreenGui.Parent then return end
-
-        local promptFrame, dismiss = _createPromptFrame("TreehousePrompt", "Treehouse", "Would you like to spawn the Treehouse?", 86)
-
-        local yesBtn = Instance.new("TextButton"); yesBtn.Parent = promptFrame
-        yesBtn.Size = UDim2.new(0.5, -18, 0, 26); yesBtn.Position = UDim2.new(0, 14, 0, 48)
-        yesBtn.BackgroundColor3 = C.accent; yesBtn.BackgroundTransparency = 0.05
-        yesBtn.BorderSizePixel = 0; yesBtn.Font = Enum.Font.GothamBold
-        yesBtn.Text = "Yes"; yesBtn.TextColor3 = Color3.fromRGB(15, 15, 15)
-        yesBtn.TextSize = 11; yesBtn.ZIndex = 1202; yesBtn.AutoButtonColor = false
-        local yc = Instance.new("UICorner"); yc.CornerRadius = UDim.new(0, 6); yc.Parent = yesBtn
-
-        yesBtn.MouseEnter:Connect(function()
-            TweenService:Create(yesBtn, TweenInfo.new(0.12), { BackgroundTransparency = 0, BackgroundColor3 = Color3.fromRGB(180, 180, 180) }):Play()
-        end)
-        yesBtn.MouseLeave:Connect(function()
-            TweenService:Create(yesBtn, TweenInfo.new(0.12), { BackgroundTransparency = 0.05, BackgroundColor3 = C.accent }):Play()
-        end)
-
-        local noBtn = Instance.new("TextButton"); noBtn.Parent = promptFrame
-        noBtn.Size = UDim2.new(0.5, -18, 0, 26); noBtn.Position = UDim2.new(0.5, 4, 0, 48)
-        noBtn.BackgroundColor3 = C.bg2; noBtn.BackgroundTransparency = 0.2
-        noBtn.BorderSizePixel = 0; noBtn.Font = Enum.Font.GothamBold
-        noBtn.Text = "No"; noBtn.TextColor3 = C.text3
-        noBtn.TextSize = 11; noBtn.ZIndex = 1202; noBtn.AutoButtonColor = false
-        local nc = Instance.new("UICorner"); nc.CornerRadius = UDim.new(0, 6); nc.Parent = noBtn
-        local ns = Instance.new("UIStroke"); ns.Color = C.border; ns.Transparency = 0.7; ns.Thickness = 1; ns.Parent = noBtn
-
-        noBtn.MouseEnter:Connect(function()
-            TweenService:Create(noBtn, TweenInfo.new(0.12), { BackgroundColor3 = C.bg3, TextColor3 = C.white }):Play()
-        end)
-        noBtn.MouseLeave:Connect(function()
-            TweenService:Create(noBtn, TweenInfo.new(0.12), { BackgroundColor3 = C.bg2, TextColor3 = C.text3 }):Play()
-        end)
-
-        yesBtn.MouseButton1Click:Connect(function()
-            dismiss()
-            local fn = spawnTreehouse or _G._HaloSpawnTreehouse
-            if fn then fn() end
-        end)
-
-        noBtn.MouseButton1Click:Connect(dismiss)
-    end)
-end
+promptTreehouseOnLoad = function() end -- moved to N0IR UI lib
 
 promptCmdBarOnLoad = function()
     task.spawn(function()
@@ -15149,60 +15103,6 @@ local function buildSettingsUI()
         end))
     end)
 
-    -- Treehouse Management
-    local thFrame = new("Frame", sc, {Size = UDim2.new(1, -10, 0, 82), BackgroundColor3 = C.bg2, BackgroundTransparency = 0.45, BorderSizePixel = 0})
-    corner(thFrame, 8); stroke(thFrame, C.glassBorder, 1, 0.6)
-
-    new("TextLabel", thFrame, {Size = UDim2.new(1, -20, 0, 16), Position = UDim2.new(0, 10, 0, 6),
-        BackgroundTransparency = 1, Text = "Treehouse", TextColor3 = C.text, TextSize = 11,
-        Font = Enum.Font.GothamBold, TextXAlignment = Enum.TextXAlignment.Left})
-
-    new("TextLabel", thFrame, {Size = UDim2.new(1, -20, 0, 20), Position = UDim2.new(0, 10, 0, 22),
-        BackgroundTransparency = 1, Text = "Spawn the custom Treehouse model, teleport to it, or delete it.",
-        TextColor3 = C.text3, TextSize = 9, Font = Enum.Font.Gotham, TextXAlignment = Enum.TextXAlignment.Left, TextWrapped = true})
-
-    local thBtnSpawn = new("TextButton", thFrame, {Size = UDim2.new(0.32, -4, 0, 26), Position = UDim2.new(0, 10, 0, 46),
-        BackgroundColor3 = C.bg2, BackgroundTransparency = 0.2, BorderSizePixel = 0,
-        Font = Enum.Font.GothamBold, Text = "Spawn", TextColor3 = C.accent, TextSize = 10, AutoButtonColor = false})
-    corner(thBtnSpawn, 5); stroke(thBtnSpawn, C.border, 1, 0.7)
-
-    local thBtnTp = new("TextButton", thFrame, {Size = UDim2.new(0.32, -4, 0, 26), Position = UDim2.new(0.34, 6, 0, 46),
-        BackgroundColor3 = C.bg2, BackgroundTransparency = 0.2, BorderSizePixel = 0,
-        Font = Enum.Font.GothamBold, Text = "Teleport", TextColor3 = C.accent, TextSize = 10, AutoButtonColor = false})
-    corner(thBtnTp, 5); stroke(thBtnTp, C.border, 1, 0.7)
-
-    local thBtnDel = new("TextButton", thFrame, {Size = UDim2.new(0.32, -4, 0, 26), Position = UDim2.new(0.68, 2, 0, 46),
-        BackgroundColor3 = C.bg2, BackgroundTransparency = 0.2, BorderSizePixel = 0,
-        Font = Enum.Font.GothamBold, Text = "Delete", TextColor3 = C.pink, TextSize = 10, AutoButtonColor = false})
-    corner(thBtnDel, 5); stroke(thBtnDel, C.border, 1, 0.7)
-
-    local function addThBtnHover(btn, normalColor, hoverColor)
-        btn.MouseEnter:Connect(function()
-            TweenService:Create(btn, TweenInfo.new(0.12), {BackgroundColor3 = C.bg3, TextColor3 = hoverColor or C.white}):Play()
-        end)
-        btn.MouseLeave:Connect(function()
-            TweenService:Create(btn, TweenInfo.new(0.12), {BackgroundColor3 = C.bg2, TextColor3 = normalColor}):Play()
-        end)
-    end
-    addThBtnHover(thBtnSpawn, C.accent, C.white)
-    addThBtnHover(thBtnTp, C.accent, C.white)
-    addThBtnHover(thBtnDel, C.pink, Color3.fromRGB(180, 180, 180))
-
-    thBtnSpawn.MouseButton1Click:Connect(function()
-        local fn = spawnTreehouse or _G._HaloSpawnTreehouse
-        if fn then fn() end
-    end)
-
-    thBtnTp.MouseButton1Click:Connect(function()
-        local fn = teleportToTreehouse or _G._HaloTeleportToTreehouse
-        if fn then fn() end
-    end)
-
-    thBtnDel.MouseButton1Click:Connect(function()
-        local fn = deleteTreehouse or _G._HaloDeleteTreehouse
-        if fn then fn() end
-    end)
-
     -- Version info / Credits
     local infoFrame = new("Frame",sc,{Size=UDim2.new(1,-10,0,50),BackgroundColor3=C.bg2,BackgroundTransparency=0.6,BorderSizePixel=0})
     corner(infoFrame,8); stroke(infoFrame,C.glassBorder,1,0.6)
@@ -16027,7 +15927,7 @@ pcall(function()
     revSpdLbl.Text = "Reverse Speed: " .. string.format("%.1f", GlobalReverseSpeed) .. "x"
 end)
 Notify("Reanimation loaded!", 2.5)
-pcall(promptTreehouseOnLoad)
+-- treehouse prompt moved to N0IR UI lib
 pcall(promptCmdBarOnLoad)
 pcall(promptDiscordOnLoad)
 
@@ -17531,82 +17431,3 @@ task.spawn(function()
 end)
 
 -- ============================================================
--- FRIEND LEFT NOTIFY MODULE
--- ============================================================
-task.spawn(function()
-    pcall(function()
-        loadstring(game:HttpGet("https://darahub.pages.dev/Module/Library/GUI/NotifyToast.lua"))()
-    end)
-    local HttpService = game:GetService("HttpService")
-    local Players = game:GetService("Players")
-    local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
-    local request = request or http_request or (syn and syn.request) or (http and http.request) or (fluxus and fluxus.request)
-
-    local function getUserAvatarThumbnail(userId, size)
-        size = size or 150
-        local thumbnailUrl = string.format(
-            "https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=%d&size=%dx%d&format=Png&isCircular=false",
-            userId, size, size
-        )
-        if request then
-            local success, response = pcall(function()
-                return request({
-                    Url = thumbnailUrl,
-                    Method = "GET"
-                })
-            end)
-            if success and response and response.StatusCode == 200 then
-                local decodeSuccess, data = pcall(HttpService.JSONDecode, HttpService, response.Body)
-                if decodeSuccess and data and data.data and #data.data > 0 then
-                    return data.data[1].imageUrl
-                end
-            end
-        end
-        return "rbxasset://textures/ui/ui_logo.png" 
-    end
-
-    local function isFriend(userId)
-        local success, response = pcall(function()
-            if request then
-                local result = request({
-                    Url = "https://friends.roblox.com/v1/users/" .. LocalPlayer.UserId .. "/friends",
-                    Method = "GET"
-                })
-                if result and result.StatusCode == 200 then
-                    local data = HttpService:JSONDecode(result.Body)
-                    if data and data.data then
-                        for _, friend in pairs(data.data) do
-                            if friend.id == userId then
-                                return true
-                            end
-                        end
-                    end
-                end
-            end
-            if LocalPlayer.IsFriendsWith then
-                return LocalPlayer:IsFriendsWith(userId)
-            end
-            return false
-        end)
-        return success and response or false
-    end
-
-    Players.PlayerRemoving:Connect(function(player)
-        local displayName = player.DisplayName
-        local userId = player.UserId
-        if isFriend(userId) then
-            task.spawn(function()
-                local avatarIconUrl = getUserAvatarThumbnail(userId, 150)
-                if typeof(NotifyToast) == "function" then
-                    NotifyToast({
-                        title = displayName .. " Left this server",
-                        content = "", 
-                        icon = avatarIconUrl,
-                        iconCornerRadius = true,
-                        duration = 5
-                    })
-                end
-            end)
-        end
-    end)
-end)
