@@ -1083,6 +1083,49 @@ function N0IR:CreateWindow(opts)
         screen:Destroy()
     end
 
+    -- Toggle keybind (default M)
+    local toggleKey = opts.ToggleKey or Enum.KeyCode.M
+    if type(toggleKey) == "string" then
+        pcall(function() toggleKey = Enum.KeyCode[toggleKey] end)
+    end
+    _G._N0IR_ToggleKey = toggleKey
+    Window.ToggleKey = toggleKey
+
+    local function setWindowVisible(vis)
+        if vis then
+            screen.Enabled = true
+            win.Visible = true
+            win.BackgroundTransparency = 1
+            win.Size = UDim2.fromOffset(math.floor(width * 0.94), math.floor(height * 0.94))
+            tween(win, {
+                Size = UDim2.fromOffset(width, height),
+                BackgroundTransparency = 0.04,
+            }, 0.35)
+        else
+            tween(win, {
+                Size = UDim2.fromOffset(math.floor(width * 0.92), math.floor(height * 0.92)),
+                BackgroundTransparency = 1,
+            }, 0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+            task.delay(0.3, function()
+                win.Visible = false
+            end)
+        end
+    end
+
+    Window.SetVisible = setWindowVisible
+    Window.Toggle = function()
+        setWindowVisible(not win.Visible)
+    end
+
+    UserInputService.InputBegan:Connect(function(input, gp)
+        if gp then return end
+        if UserInputService:GetFocusedTextBox() then return end
+        local key = _G._N0IR_ToggleKey or Enum.KeyCode.M
+        if input.KeyCode == key then
+            Window.Toggle()
+        end
+    end)
+
     table.insert(self._windows, Window)
     return Window
 end
@@ -1325,17 +1368,23 @@ function N0IR:MountUtilities(Window)
 
     -- ---------- Commands tab ----------
     local Cmds = Window:CreateTab({ Name = "Commands" })
-    Cmds:CreateSection("Command Bar")
+    Cmds:CreateSection("Runner")
     Cmds:CreateParagraph({
-        Content = "Prefix:  ;   ·   Open with semicolon or type in chat\nExamples: ;ws 50  ·  ;goto name  ·  ;noclip  ·  ;fly  ·  ;rejoin",
+        Content = "Click Run on any command. Put numbers / player names in the argument box when needed.",
+    })
+
+    local argBox = Cmds:CreateInput({
+        Name = "Argument",
+        Placeholder = "e.g. 50  or  playerName",
+        Default = "",
     })
 
     local prefix = ";"
-    local cmdBarKey = Enum.KeyCode.Semicolon
+    local flying = false
+    local flyConn = nil
 
-    -- Lightweight command runner
     local function findPlayer(q)
-        if not q then return nil end
+        if not q or q == "" then return nil end
         q = q:lower()
         for _, p in ipairs(Players:GetPlayers()) do
             if p.Name:lower():sub(1, #q) == q or p.DisplayName:lower():sub(1, #q) == q then
@@ -1345,12 +1394,12 @@ function N0IR:MountUtilities(Window)
         return nil
     end
 
-    local flying = false
-    local flyConn = nil
-
     local function runCmd(msg)
-        msg = msg:lower():gsub("^%s+", ""):gsub("%s+$", "")
-        if msg:sub(1, 1) ~= prefix then return end
+        msg = tostring(msg or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
+        if msg == "" then return end
+        if msg:sub(1, 1) ~= prefix then
+            msg = prefix .. msg
+        end
         local body = msg:sub(2)
         local args = {}
         for w in body:gmatch("%S+") do table.insert(args, w) end
@@ -1362,37 +1411,104 @@ function N0IR:MountUtilities(Window)
         local hrp = char and char:FindFirstChild("HumanoidRootPart")
 
         if cmd == "ws" or cmd == "speed" then
-            if hum and tonumber(args[2]) then hum.WalkSpeed = tonumber(args[2]) end
+            local v = tonumber(args[2])
+            if hum and v then
+                hum.WalkSpeed = v
+                N0IR:Notify({ Title = "WalkSpeed", Content = tostring(v), Duration = 1.5 })
+            else
+                N0IR:Notify({ Title = "WalkSpeed", Content = "Need a number in Argument", Duration = 2 })
+            end
         elseif cmd == "jp" or cmd == "jumppower" then
-            if hum and tonumber(args[2]) then hum.UseJumpPower = true; hum.JumpPower = tonumber(args[2]) end
+            local v = tonumber(args[2])
+            if hum and v then
+                hum.UseJumpPower = true
+                hum.JumpPower = v
+                N0IR:Notify({ Title = "JumpPower", Content = tostring(v), Duration = 1.5 })
+            else
+                N0IR:Notify({ Title = "JumpPower", Content = "Need a number in Argument", Duration = 2 })
+            end
         elseif cmd == "goto" or cmd == "to" then
             local t = findPlayer(args[2])
             if t and t.Character and t.Character:FindFirstChild("HumanoidRootPart") and hrp then
                 hrp.CFrame = t.Character.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
+                N0IR:Notify({ Title = "Goto", Content = t.Name, Duration = 1.5 })
+            else
+                N0IR:Notify({ Title = "Goto", Content = "Player not found — set Argument", Duration = 2 })
             end
         elseif cmd == "view" then
             local t = findPlayer(args[2])
             if t and t.Character and t.Character:FindFirstChildOfClass("Humanoid") then
                 workspace.CurrentCamera.CameraSubject = t.Character:FindFirstChildOfClass("Humanoid")
+                N0IR:Notify({ Title = "View", Content = t.Name, Duration = 1.5 })
+            else
+                N0IR:Notify({ Title = "View", Content = "Player not found — set Argument", Duration = 2 })
             end
         elseif cmd == "unview" then
-            if hum then workspace.CurrentCamera.CameraSubject = hum end
+            if hum then
+                workspace.CurrentCamera.CameraSubject = hum
+                N0IR:Notify({ Title = "View", Content = "Reset", Duration = 1.2 })
+            end
         elseif cmd == "noclip" then
             N0IR.Flags.Noclip = true
+            -- fire player toggle if present via flag only; enable loop
+            if not _G._N0IR_NoclipConn then
+                _G._N0IR_NoclipOn = true
+                _G._N0IR_NoclipConn = RunService.Stepped:Connect(function()
+                    if not _G._N0IR_NoclipOn then return end
+                    local c = LocalPlayer.Character
+                    if not c then return end
+                    for _, p in ipairs(c:GetDescendants()) do
+                        if p:IsA("BasePart") then p.CanCollide = false end
+                    end
+                end)
+            else
+                _G._N0IR_NoclipOn = true
+            end
+            N0IR:Notify({ Title = "Noclip", Content = "ON", Duration = 1.2 })
         elseif cmd == "clip" then
+            _G._N0IR_NoclipOn = false
             N0IR.Flags.Noclip = false
+            local c = LocalPlayer.Character
+            if c then
+                for _, p in ipairs(c:GetDescendants()) do
+                    if p:IsA("BasePart") then p.CanCollide = true end
+                end
+            end
+            N0IR:Notify({ Title = "Noclip", Content = "OFF", Duration = 1.2 })
         elseif cmd == "rejoin" or cmd == "rj" then
-            pcall(function() TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer) end)
+            pcall(function()
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+            end)
+        elseif cmd == "hop" or cmd == "serverhop" then
+            pcall(function()
+                local servers = HttpService:JSONDecode(game:HttpGet(
+                    "https://games.roblox.com/v1/games/" .. tostring(game.PlaceId) .. "/servers/Public?sortOrder=Asc&limit=50"
+                ))
+                if servers and servers.data then
+                    for _, s in ipairs(servers.data) do
+                        if s.playing < s.maxPlayers and s.id ~= game.JobId then
+                            TeleportService:TeleportToPlaceInstance(game.PlaceId, s.id, LocalPlayer)
+                            return
+                        end
+                    end
+                end
+                TeleportService:Teleport(game.PlaceId, LocalPlayer)
+            end)
         elseif cmd == "fly" then
-            if flying then return end
+            if flying then
+                N0IR:Notify({ Title = "Fly", Content = "Already on — use Unfly", Duration = 1.5 })
+                return
+            end
+            if not hrp then return end
             flying = true
             local speed = tonumber(args[2]) or 50
             local bv = Instance.new("BodyVelocity")
+            bv.Name = "N0IR_FlyBV"
             bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
             bv.Velocity = Vector3.zero
             bv.Parent = hrp
             flyConn = RunService.RenderStepped:Connect(function()
-                if not flying or not hrp then return end
+                if not flying or not hrp or not hrp.Parent then return end
                 local dir = Vector3.zero
                 local cam = workspace.CurrentCamera
                 if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.CFrame.LookVector end
@@ -1403,29 +1519,148 @@ function N0IR:MountUtilities(Window)
                 if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir = dir - Vector3.new(0, 1, 0) end
                 bv.Velocity = dir.Magnitude > 0 and dir.Unit * speed or Vector3.zero
             end)
-            N0IR:Notify({ Title = "Fly", Content = "ON", Duration = 1.2 })
+            N0IR:Notify({ Title = "Fly", Content = "ON  ·  speed " .. tostring(speed), Duration = 1.5 })
         elseif cmd == "unfly" then
             flying = false
             if flyConn then flyConn:Disconnect(); flyConn = nil end
             if hrp then
                 for _, x in ipairs(hrp:GetChildren()) do
-                    if x:IsA("BodyVelocity") then x:Destroy() end
+                    if x:IsA("BodyVelocity") and (x.Name == "N0IR_FlyBV" or true) then
+                        if x.Name == "N0IR_FlyBV" then x:Destroy() end
+                    end
                 end
+                local f = hrp:FindFirstChild("N0IR_FlyBV")
+                if f then f:Destroy() end
             end
             N0IR:Notify({ Title = "Fly", Content = "OFF", Duration = 1.2 })
+        elseif cmd == "reset" or cmd == "respawn" then
+            if hum then hum.Health = 0 end
+        elseif cmd == "sit" then
+            if hum then hum.Sit = true end
+        elseif cmd == "unsit" then
+            if hum then hum.Sit = false end
+        elseif cmd == "fps" then
+            local n = tonumber(args[2]) or 0
+            pcall(function()
+                if setfpscap then setfpscap(n) end
+            end)
+            N0IR:Notify({ Title = "FPS Cap", Content = tostring(n), Duration = 1.5 })
         elseif cmd == "cmds" or cmd == "commands" then
-            N0IR:Notify({ Title = "Commands", Content = "ws jp goto view unview noclip clip fly unfly rejoin", Duration = 4 })
+            N0IR:Notify({ Title = "Commands", Content = "See the Commands tab list", Duration = 2 })
+        else
+            N0IR:Notify({ Title = "Unknown", Content = cmd, Duration = 1.5 })
         end
     end
 
-    -- Chat hook
+    -- Command catalog → UI rows with Run
+    local catalog = {
+        { cmd = "ws",        label = "WalkSpeed",     desc = "Set walk speed  ·  arg: number",        needsArg = true,  example = "50" },
+        { cmd = "jp",        label = "JumpPower",     desc = "Set jump power  ·  arg: number",        needsArg = true,  example = "75" },
+        { cmd = "goto",      label = "Goto player",   desc = "Teleport to player  ·  arg: name",      needsArg = true,  example = "" },
+        { cmd = "view",      label = "View player",   desc = "Spectate player  ·  arg: name",         needsArg = true,  example = "" },
+        { cmd = "unview",    label = "Unview",        desc = "Reset camera to yourself",              needsArg = false },
+        { cmd = "noclip",    label = "Noclip",        desc = "Walk through walls",                   needsArg = false },
+        { cmd = "clip",      label = "Clip",          desc = "Disable noclip",                       needsArg = false },
+        { cmd = "fly",       label = "Fly",           desc = "Start flying  ·  arg: speed (optional)", needsArg = false, example = "50" },
+        { cmd = "unfly",     label = "Unfly",         desc = "Stop flying",                          needsArg = false },
+        { cmd = "rejoin",    label = "Rejoin",        desc = "Rejoin this server",                   needsArg = false },
+        { cmd = "hop",       label = "Server hop",    desc = "Join a different server",              needsArg = false },
+        { cmd = "reset",     label = "Reset",         desc = "Kill / respawn character",             needsArg = false },
+        { cmd = "sit",       label = "Sit",           desc = "Force sit",                            needsArg = false },
+        { cmd = "unsit",     label = "Unsit",         desc = "Stand up",                             needsArg = false },
+        { cmd = "fps",       label = "FPS cap",       desc = "Cap framerate  ·  arg: number",        needsArg = true,  example = "60" },
+    }
+
+    Cmds:CreateSection("All commands")
+
+    local function makeCmdRow(entry)
+        -- custom row: name + desc + Run button
+        Cmds._order = (Cmds._order or 0) + 1
+        local page = Cmds.Page
+        local row = Instance.new("Frame")
+        row.Size = UDim2.new(1, 0, 0, 48)
+        row.BackgroundColor3 = T.bg1
+        row.BackgroundTransparency = 0.25
+        row.BorderSizePixel = 0
+        row.LayoutOrder = Cmds._order
+        row.Parent = page
+        corner(row, 8)
+        stroke(row, T.border, 1, 0.65)
+
+        local name = Instance.new("TextLabel")
+        name.BackgroundTransparency = 1
+        name.Position = UDim2.fromOffset(12, 6)
+        name.Size = UDim2.new(1, -90, 0, 16)
+        name.Font = Enum.Font.GothamBold
+        name.Text = entry.label .. "  ·  ;" .. entry.cmd
+        name.TextSize = 12
+        name.TextColor3 = T.text
+        name.TextXAlignment = Enum.TextXAlignment.Left
+        name.Parent = row
+
+        local desc = Instance.new("TextLabel")
+        desc.BackgroundTransparency = 1
+        desc.Position = UDim2.fromOffset(12, 24)
+        desc.Size = UDim2.new(1, -90, 0, 16)
+        desc.Font = Enum.Font.Gotham
+        desc.Text = entry.desc
+        desc.TextSize = 10
+        desc.TextColor3 = T.text3
+        desc.TextXAlignment = Enum.TextXAlignment.Left
+        desc.TextTruncate = Enum.TextTruncate.AtEnd
+        desc.Parent = row
+
+        local run = Instance.new("TextButton")
+        run.AnchorPoint = Vector2.new(1, 0.5)
+        run.Position = UDim2.new(1, -10, 0.5, 0)
+        run.Size = UDim2.fromOffset(64, 26)
+        run.BackgroundColor3 = T.accent
+        run.BorderSizePixel = 0
+        run.Font = Enum.Font.GothamBold
+        run.Text = "Run"
+        run.TextSize = 11
+        run.TextColor3 = Color3.fromRGB(10, 10, 10)
+        run.AutoButtonColor = false
+        run.Parent = row
+        corner(run, 6)
+
+        run.MouseEnter:Connect(function()
+            tween(run, { BackgroundTransparency = 0.15 }, 0.12)
+        end)
+        run.MouseLeave:Connect(function()
+            tween(run, { BackgroundTransparency = 0 }, 0.12)
+        end)
+        run.MouseButton1Click:Connect(function()
+            local arg = ""
+            if argBox and argBox.Get then
+                arg = tostring(argBox:Get() or ""):gsub("^%s+", ""):gsub("%s+$", "")
+            end
+            if entry.needsArg and arg == "" and entry.example and entry.example ~= "" then
+                -- don't auto-fill silently; notify
+            end
+            local line = entry.cmd
+            if arg ~= "" then
+                line = entry.cmd .. " " .. arg
+            elseif entry.example and entry.example ~= "" and entry.cmd == "fly" then
+                line = entry.cmd .. " " .. entry.example
+            end
+            runCmd(line)
+        end)
+    end
+
+    for _, entry in ipairs(catalog) do
+        makeCmdRow(entry)
+    end
+
+    -- Chat still works with ;
     pcall(function()
         LocalPlayer.Chatted:Connect(function(msg)
             runCmd(msg)
         end)
     end)
 
-    -- Floating command bar
+    -- Floating command bar ( ; key )
+    local cmdBarKey = Enum.KeyCode.Semicolon
     local cmdGui = Instance.new("ScreenGui")
     cmdGui.Name = "N0IR_CmdBar"
     cmdGui.ResetOnSpawn = false
@@ -1448,7 +1683,7 @@ function N0IR:MountUtilities(Window)
     input.Position = UDim2.fromOffset(12, 0)
     input.BackgroundTransparency = 1
     input.Font = Enum.Font.GothamMedium
-    input.PlaceholderText = "command  ·  ;cmds"
+    input.PlaceholderText = "command  ·  press ; to open"
     input.PlaceholderColor3 = T.text3
     input.Text = ""
     input.TextSize = 13
@@ -1478,7 +1713,7 @@ function N0IR:MountUtilities(Window)
         input.Text = ""
     end)
 
-    Cmds:CreateLabel("Press  ;  to open the command bar")
+    Cmds:CreateLabel("Tip  ·  press  ;  for the quick command bar")
 
     -- ---------- Map / Treehouse ----------
     local Map = Window:CreateTab({ Name = "Map" })
@@ -1699,6 +1934,33 @@ function N0IR:MountUtilities(Window)
     Settings:CreateParagraph({
         Content = "NØIR UI Library v" .. N0IR.Version .. "\nMinimal black & white suite. Mount reanim or other modules via loadstring onto this window.",
     })
+    Settings:CreateSection("Keybind")
+    local keyLbl = Settings:CreateLabel("Menu toggle  ·  M")
+    local listening = false
+    Settings:CreateButton({
+        Name = "Set menu keybind",
+        Callback = function()
+            if listening then return end
+            listening = true
+            keyLbl:Set("Press any key...")
+            N0IR:Notify({ Title = "Keybind", Content = "Press a key (Esc to cancel)", Duration = 2 })
+            local conn
+            conn = UserInputService.InputBegan:Connect(function(input, gp)
+                if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+                conn:Disconnect()
+                listening = false
+                if input.KeyCode == Enum.KeyCode.Escape then
+                    keyLbl:Set("Menu toggle  ·  " .. tostring((_G._N0IR_ToggleKey or Enum.KeyCode.M).Name))
+                    N0IR:Notify({ Title = "Keybind", Content = "Cancelled", Duration = 1.5 })
+                    return
+                end
+                _G._N0IR_ToggleKey = input.KeyCode
+                keyLbl:Set("Menu toggle  ·  " .. input.KeyCode.Name)
+                N0IR:Notify({ Title = "Keybind", Content = "Set to " .. input.KeyCode.Name, Duration = 2 })
+            end)
+        end,
+    })
+
     Settings:CreateButton({
         Name = "Notify Test",
         Callback = function()
@@ -1734,6 +1996,7 @@ function N0IR:Init(opts)
         Loading = opts.Loading ~= false,
         LoadingText = opts.LoadingText or "loading modules",
         LoadingDuration = opts.LoadingDuration or 2.2,
+        ToggleKey = opts.ToggleKey or Enum.KeyCode.M,
     })
     local modules = self:MountUtilities(win)
     return win, modules
