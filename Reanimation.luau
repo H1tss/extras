@@ -8,55 +8,40 @@ pcall(function()
 end)
 
 -- ============================================================
--- LOGO CACHE  (downloads once → N0IR/Logo.png in executor workspace)
+-- LOGO CACHE  (0 main-chunk locals — uses _G to stay under register limit)
+-- downloads once → N0IR/Logo.png in executor workspace
 -- ============================================================
-local LOGO_URL  = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/ZtLyM.png"
-local LOGO_DIR  = "N0IR"
-local LOGO_PATH = "N0IR/Logo.png"
-local _cachedLogoAsset = nil
-
-local function ensureLogoAsset()
-	if _cachedLogoAsset then
-		return _cachedLogoAsset
+_G._N0IR_EnsureLogoAsset = function()
+	if _G._N0IR_LogoAsset then
+		return _G._N0IR_LogoAsset
 	end
-
+	local url  = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/ZtLyM.png"
+	local dir  = "N0IR"
+	local path = "N0IR/Logo.png"
 	local onDisk = false
 	pcall(function()
-		if isfolder and not isfolder(LOGO_DIR) then
-			makefolder(LOGO_DIR)
-		end
-		if isfile and isfile(LOGO_PATH) then
-			onDisk = true
-		end
+		if isfolder and not isfolder(dir) then makefolder(dir) end
+		if isfile and isfile(path) then onDisk = true end
 	end)
-
 	if not onDisk then
-		local ok, data = pcall(function()
-			return game:HttpGet(LOGO_URL)
-		end)
+		local ok, data = pcall(function() return game:HttpGet(url) end)
 		if ok and data and #data > 100 then
 			pcall(function()
-				if isfolder and not isfolder(LOGO_DIR) then
-					makefolder(LOGO_DIR)
-				end
-				if writefile then
-					writefile(LOGO_PATH, data)
-				end
+				if isfolder and not isfolder(dir) then makefolder(dir) end
+				if writefile then writefile(path, data) end
 			end)
 			onDisk = true
 		end
 	end
-
 	if onDisk and getcustomasset then
-		local ok, asset = pcall(getcustomasset, LOGO_PATH)
+		local ok, asset = pcall(getcustomasset, path)
 		if ok and type(asset) == "string" and asset ~= "" then
-			_cachedLogoAsset = asset
+			_G._N0IR_LogoAsset = asset
 			return asset
 		end
 	end
-
-	_cachedLogoAsset = LOGO_URL
-	return LOGO_URL
+	_G._N0IR_LogoAsset = url
+	return url
 end
 
 do
@@ -129,7 +114,7 @@ do
 		logo.BackgroundTransparency = 1
 		logo.Position = UDim2.fromOffset(12, 10)
 		logo.Size = UDim2.fromOffset(22, 22)
-		logo.Image = ensureLogoAsset()
+		logo.Image = _G._N0IR_EnsureLogoAsset()
 		logo.ImageTransparency = 1
 		logo.ScaleType = Enum.ScaleType.Fit
 		logo.Parent = card
@@ -4737,7 +4722,7 @@ do
     titleLogo.AnchorPoint = Vector2.new(0, 0.5)
     titleLogo.Position = UDim2.new(0, 12, 0.5, 0)
     titleLogo.Size = UDim2.fromOffset(26, 26)
-    titleLogo.Image = ensureLogoAsset()
+    titleLogo.Image = _G._N0IR_EnsureLogoAsset()
     titleLogo.ScaleType = Enum.ScaleType.Fit
     titleLogo.ZIndex = 33
 
