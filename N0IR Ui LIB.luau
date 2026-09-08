@@ -1785,18 +1785,20 @@ function N0IR:MountUtilities(Window)
     local Cmds = Window:CreateTab({ Name = "Commands" })
     Cmds:CreateSection("Runner")
     Cmds:CreateParagraph({
-        Content = "Click Run on any command. Put numbers / player names in the argument box when needed.",
+        Content = "Click Run on any command. Commands that need a value show an input. Empty required args → notification. Chat prefix and cmd-bar key are configurable in Settings.",
     })
 
-    local argBox = Cmds:CreateInput({
-        Name = "Argument",
-        Placeholder = "e.g. 50  or  playerName",
-        Default = "",
-    })
+    -- Shared config (also written from Settings)
+    local prefix = tostring(_G._N0IR_CmdPrefix or ";")
+    local cmdBarKey = _G._N0IR_CmdBarKey or Enum.KeyCode.Semicolon
+    local menuToggleKey = _G._N0IR_ToggleKey or Enum.KeyCode.M
 
-    local prefix = ";"
     local flying = false
     local flyConn = nil
+    local spinConn = nil
+    local orbitConn = nil
+    local espFolder = nil
+    local godConn = nil
 
     local function findPlayer(q)
         if not q or q == "" then return nil end
@@ -1809,63 +1811,91 @@ function N0IR:MountUtilities(Window)
         return nil
     end
 
+    local function getChar()
+        return LocalPlayer.Character
+    end
+    local function getHum()
+        local c = getChar()
+        return c and c:FindFirstChildOfClass("Humanoid")
+    end
+    local function getHRP()
+        local c = getChar()
+        return c and (c:FindFirstChild("HumanoidRootPart") or c.PrimaryPart)
+    end
+
+    local function notify(title, content, dur)
+        N0IR:Notify({ Title = title, Content = content or "", Duration = dur or 1.8 })
+    end
+
+    -- ===================== COMMAND IMPLEMENTATIONS =====================
     local function runCmd(msg)
         msg = tostring(msg or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
         if msg == "" then return end
-        if msg:sub(1, 1) ~= prefix then
-            msg = prefix .. msg
+        -- strip configured prefix if present
+        if msg:sub(1, #prefix) == prefix:lower() then
+            msg = msg:sub(#prefix + 1):gsub("^%s+", "")
         end
-        local body = msg:sub(2)
         local args = {}
-        for w in body:gmatch("%S+") do table.insert(args, w) end
+        for w in msg:gmatch("%S+") do table.insert(args, w) end
         local cmd = args[1]
         if not cmd then return end
 
-        local char = LocalPlayer.Character
-        local hum = char and char:FindFirstChildOfClass("Humanoid")
-        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        local char = getChar()
+        local hum = getHum()
+        local hrp = getHRP()
 
-        if cmd == "ws" or cmd == "speed" then
+        if cmd == "ws" or cmd == "speed" or cmd == "walkspeed" then
             local v = tonumber(args[2])
-            if hum and v then
-                hum.WalkSpeed = v
-                N0IR:Notify({ Title = "WalkSpeed", Content = tostring(v), Duration = 1.5 })
-            else
-                N0IR:Notify({ Title = "WalkSpeed", Content = "Need a number in Argument", Duration = 2 })
-            end
-        elseif cmd == "jp" or cmd == "jumppower" then
+            if not v then notify("WalkSpeed", "Need a number"); return end
+            if hum then hum.WalkSpeed = v; notify("WalkSpeed", tostring(v)) end
+
+        elseif cmd == "jp" or cmd == "jumppower" or cmd == "jump" then
             local v = tonumber(args[2])
-            if hum and v then
-                hum.UseJumpPower = true
+            if not v then notify("JumpPower", "Need a number"); return end
+            if hum then
+                pcall(function() hum.UseJumpPower = true end)
                 hum.JumpPower = v
-                N0IR:Notify({ Title = "JumpPower", Content = tostring(v), Duration = 1.5 })
-            else
-                N0IR:Notify({ Title = "JumpPower", Content = "Need a number in Argument", Duration = 2 })
+                pcall(function() hum.JumpHeight = v / 3.5 end)
+                notify("JumpPower", tostring(v))
             end
+
+        elseif cmd == "hh" or cmd == "hipheight" then
+            local v = tonumber(args[2])
+            if not v then notify("HipHeight", "Need a number"); return end
+            if hum then hum.HipHeight = v; notify("HipHeight", tostring(v)) end
+
         elseif cmd == "goto" or cmd == "to" then
             local t = findPlayer(args[2])
-            if t and t.Character and t.Character:FindFirstChild("HumanoidRootPart") and hrp then
+            if not t then notify("Goto", "Player not found — set argument"); return end
+            if t.Character and t.Character:FindFirstChild("HumanoidRootPart") and hrp then
                 hrp.CFrame = t.Character.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
-                N0IR:Notify({ Title = "Goto", Content = t.Name, Duration = 1.5 })
-            else
-                N0IR:Notify({ Title = "Goto", Content = "Player not found — set Argument", Duration = 2 })
+                notify("Goto", t.Name)
             end
-        elseif cmd == "view" then
+
+        elseif cmd == "bring" then
             local t = findPlayer(args[2])
-            if t and t.Character and t.Character:FindFirstChildOfClass("Humanoid") then
-                workspace.CurrentCamera.CameraSubject = t.Character:FindFirstChildOfClass("Humanoid")
-                N0IR:Notify({ Title = "View", Content = t.Name, Duration = 1.5 })
-            else
-                N0IR:Notify({ Title = "View", Content = "Player not found — set Argument", Duration = 2 })
+            if not t then notify("Bring", "Player not found — set argument"); return end
+            if t.Character and t.Character:FindFirstChild("HumanoidRootPart") and hrp then
+                t.Character.HumanoidRootPart.CFrame = hrp.CFrame + Vector3.new(0, 0, -3)
+                notify("Bring", t.Name)
             end
+
+        elseif cmd == "view" or cmd == "spectate" then
+            local t = findPlayer(args[2])
+            if not t then notify("View", "Player not found — set argument"); return end
+            if t.Character and t.Character:FindFirstChildOfClass("Humanoid") then
+                workspace.CurrentCamera.CameraSubject = t.Character:FindFirstChildOfClass("Humanoid")
+                notify("View", t.Name)
+            end
+
         elseif cmd == "unview" then
             if hum then
                 workspace.CurrentCamera.CameraSubject = hum
-                N0IR:Notify({ Title = "View", Content = "Reset", Duration = 1.2 })
+                notify("View", "Reset")
             end
+
         elseif cmd == "noclip" then
             N0IR.Flags.Noclip = true
-            -- fire player toggle if present via flag only; enable loop
             if not _G._N0IR_NoclipConn then
                 _G._N0IR_NoclipOn = true
                 _G._N0IR_NoclipConn = RunService.Stepped:Connect(function()
@@ -1879,7 +1909,8 @@ function N0IR:MountUtilities(Window)
             else
                 _G._N0IR_NoclipOn = true
             end
-            N0IR:Notify({ Title = "Noclip", Content = "ON", Duration = 1.2 })
+            notify("Noclip", "ON")
+
         elseif cmd == "clip" then
             _G._N0IR_NoclipOn = false
             N0IR.Flags.Noclip = false
@@ -1889,31 +1920,10 @@ function N0IR:MountUtilities(Window)
                     if p:IsA("BasePart") then p.CanCollide = true end
                 end
             end
-            N0IR:Notify({ Title = "Noclip", Content = "OFF", Duration = 1.2 })
-        elseif cmd == "rejoin" or cmd == "rj" then
-            pcall(function()
-                TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
-            end)
-        elseif cmd == "hop" or cmd == "serverhop" then
-            pcall(function()
-                local servers = HttpService:JSONDecode(game:HttpGet(
-                    "https://games.roblox.com/v1/games/" .. tostring(game.PlaceId) .. "/servers/Public?sortOrder=Asc&limit=50"
-                ))
-                if servers and servers.data then
-                    for _, s in ipairs(servers.data) do
-                        if s.playing < s.maxPlayers and s.id ~= game.JobId then
-                            TeleportService:TeleportToPlaceInstance(game.PlaceId, s.id, LocalPlayer)
-                            return
-                        end
-                    end
-                end
-                TeleportService:Teleport(game.PlaceId, LocalPlayer)
-            end)
+            notify("Noclip", "OFF")
+
         elseif cmd == "fly" then
-            if flying then
-                N0IR:Notify({ Title = "Fly", Content = "Already on — use Unfly", Duration = 1.5 })
-                return
-            end
+            if flying then notify("Fly", "Already on — use unfly"); return end
             if not hrp then return end
             flying = true
             local speed = tonumber(args[2]) or 50
@@ -1934,66 +1944,751 @@ function N0IR:MountUtilities(Window)
                 if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir = dir - Vector3.new(0, 1, 0) end
                 bv.Velocity = dir.Magnitude > 0 and dir.Unit * speed or Vector3.zero
             end)
-            N0IR:Notify({ Title = "Fly", Content = "ON  ·  speed " .. tostring(speed), Duration = 1.5 })
+            notify("Fly", "ON  ·  speed " .. tostring(speed))
+
         elseif cmd == "unfly" then
             flying = false
             if flyConn then flyConn:Disconnect(); flyConn = nil end
             if hrp then
-                for _, x in ipairs(hrp:GetChildren()) do
-                    if x:IsA("BodyVelocity") and (x.Name == "N0IR_FlyBV" or true) then
-                        if x.Name == "N0IR_FlyBV" then x:Destroy() end
-                    end
-                end
                 local f = hrp:FindFirstChild("N0IR_FlyBV")
                 if f then f:Destroy() end
             end
-            N0IR:Notify({ Title = "Fly", Content = "OFF", Duration = 1.2 })
-        elseif cmd == "reset" or cmd == "respawn" then
+            notify("Fly", "OFF")
+
+        elseif cmd == "rejoin" or cmd == "rj" then
+            pcall(function()
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+            end)
+
+        elseif cmd == "hop" or cmd == "serverhop" then
+            pcall(function()
+                local servers = HttpService:JSONDecode(game:HttpGet(
+                    "https://games.roblox.com/v1/games/" .. tostring(game.PlaceId) .. "/servers/Public?sortOrder=Asc&limit=50"
+                ))
+                if servers and servers.data then
+                    for _, s in ipairs(servers.data) do
+                        if s.playing < s.maxPlayers and s.id ~= game.JobId then
+                            TeleportService:TeleportToPlaceInstance(game.PlaceId, s.id, LocalPlayer)
+                            return
+                        end
+                    end
+                end
+                TeleportService:Teleport(game.PlaceId, LocalPlayer)
+            end)
+
+        elseif cmd == "reset" or cmd == "respawn" or cmd == "killme" then
             if hum then hum.Health = 0 end
+
         elseif cmd == "sit" then
             if hum then hum.Sit = true end
         elseif cmd == "unsit" then
             if hum then hum.Sit = false end
-        elseif cmd == "fps" then
-            local n = tonumber(args[2]) or 0
-            pcall(function()
-                if setfpscap then setfpscap(n) end
+
+        elseif cmd == "fps" or cmd == "fpscap" then
+            local n = tonumber(args[2])
+            if not n then notify("FPS Cap", "Need a number"); return end
+            pcall(function() if setfpscap then setfpscap(n) end end)
+            notify("FPS Cap", tostring(n))
+
+        elseif cmd == "fov" then
+            local n = tonumber(args[2])
+            if not n then notify("FOV", "Need a number"); return end
+            workspace.CurrentCamera.FieldOfView = n
+            notify("FOV", tostring(n))
+
+        elseif cmd == "gravity" then
+            local n = tonumber(args[2])
+            if not n then notify("Gravity", "Need a number"); return end
+            workspace.Gravity = n
+            notify("Gravity", tostring(n))
+
+        elseif cmd == "time" or cmd == "clocktime" then
+            local n = tonumber(args[2])
+            if not n then notify("Time", "Need a number 0-24"); return end
+            game:GetService("Lighting").ClockTime = n
+            notify("Time", tostring(n))
+
+        elseif cmd == "day" then
+            game:GetService("Lighting").ClockTime = 14
+            notify("Time", "Day")
+        elseif cmd == "night" then
+            game:GetService("Lighting").ClockTime = 0
+            notify("Time", "Night")
+
+        elseif cmd == "fullbright" or cmd == "fb" then
+            local L = game:GetService("Lighting")
+            L.Brightness = 2
+            L.ClockTime = 14
+            L.FogEnd = 100000
+            L.GlobalShadows = false
+            L.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+            notify("Fullbright", "ON")
+
+        elseif cmd == "nofog" then
+            game:GetService("Lighting").FogEnd = 100000
+            notify("Fog", "Cleared")
+
+        elseif cmd == "esp" then
+            if espFolder then espFolder:Destroy(); espFolder = nil end
+            espFolder = Instance.new("Folder")
+            espFolder.Name = "N0IR_ESP"
+            espFolder.Parent = getHost()
+            local function addEsp(plr)
+                if plr == LocalPlayer then return end
+                local function attach()
+                    local c = plr.Character
+                    if not c then return end
+                    local h = c:FindFirstChild("Head") or c:FindFirstChild("HumanoidRootPart")
+                    if not h then return end
+                    local bb = Instance.new("BillboardGui")
+                    bb.Name = plr.Name
+                    bb.AlwaysOnTop = true
+                    bb.Size = UDim2.fromOffset(120, 30)
+                    bb.StudsOffset = Vector3.new(0, 2.5, 0)
+                    bb.Adornee = h
+                    bb.Parent = espFolder
+                    local tl = Instance.new("TextLabel")
+                    tl.Size = UDim2.fromScale(1, 1)
+                    tl.BackgroundTransparency = 1
+                    tl.Text = plr.DisplayName
+                    tl.TextColor3 = Color3.new(1, 1, 1)
+                    tl.TextStrokeTransparency = 0.4
+                    tl.Font = Enum.Font.GothamBold
+                    tl.TextSize = 12
+                    tl.Parent = bb
+                end
+                attach()
+                plr.CharacterAdded:Connect(function() task.wait(0.5); attach() end)
+            end
+            for _, p in ipairs(Players:GetPlayers()) do addEsp(p) end
+            Players.PlayerAdded:Connect(addEsp)
+            notify("ESP", "ON")
+
+        elseif cmd == "unesp" or cmd == "noesp" then
+            if espFolder then espFolder:Destroy(); espFolder = nil end
+            notify("ESP", "OFF")
+
+        elseif cmd == "god" then
+            if godConn then godConn:Disconnect() end
+            godConn = RunService.Heartbeat:Connect(function()
+                local h = getHum()
+                if h then h.Health = h.MaxHealth end
             end)
-            N0IR:Notify({ Title = "FPS Cap", Content = tostring(n), Duration = 1.5 })
-        elseif cmd == "cmds" or cmd == "commands" then
-            N0IR:Notify({ Title = "Commands", Content = "See the Commands tab list", Duration = 2 })
+            notify("God", "ON")
+        elseif cmd == "ungod" then
+            if godConn then godConn:Disconnect(); godConn = nil end
+            notify("God", "OFF")
+
+        elseif cmd == "invisible" or cmd == "invis" then
+            if char then
+                for _, p in ipairs(char:GetDescendants()) do
+                    if p:IsA("BasePart") or p:IsA("Decal") then
+                        p.Transparency = 1
+                    elseif p:IsA("ParticleEmitter") or p:IsA("Trail") then
+                        p.Enabled = false
+                    end
+                end
+                notify("Invisible", "ON (local)")
+            end
+        elseif cmd == "visible" or cmd == "vis" then
+            if char then
+                for _, p in ipairs(char:GetDescendants()) do
+                    if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
+                        p.Transparency = 0
+                    elseif p:IsA("Decal") then
+                        p.Transparency = 0
+                    end
+                end
+                notify("Visible", "ON")
+            end
+
+        elseif cmd == "freeze" then
+            local t = findPlayer(args[2]) or LocalPlayer
+            local th = t.Character and t.Character:FindFirstChild("HumanoidRootPart")
+            if th then th.Anchored = true; notify("Freeze", t.Name) else notify("Freeze", "No target") end
+        elseif cmd == "thaw" or cmd == "unfreeze" then
+            local t = findPlayer(args[2]) or LocalPlayer
+            local th = t.Character and t.Character:FindFirstChild("HumanoidRootPart")
+            if th then th.Anchored = false; notify("Thaw", t.Name) end
+
+        elseif cmd == "fling" then
+            local t = findPlayer(args[2])
+            if not t or not t.Character then notify("Fling", "Player not found"); return end
+            local thrp = t.Character:FindFirstChild("HumanoidRootPart")
+            if not thrp or not hrp then return end
+            local bv = Instance.new("BodyAngularVelocity")
+            bv.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
+            bv.AngularVelocity = Vector3.new(0, 9e4, 0)
+            bv.Parent = thrp
+            task.delay(0.4, function() if bv then bv:Destroy() end end)
+            notify("Fling", t.Name)
+
+        elseif cmd == "spin" then
+            local spd = tonumber(args[2]) or 20
+            if spinConn then spinConn:Disconnect() end
+            if not hrp then return end
+            local bav = Instance.new("BodyAngularVelocity")
+            bav.Name = "N0IR_Spin"
+            bav.MaxTorque = Vector3.new(0, math.huge, 0)
+            bav.AngularVelocity = Vector3.new(0, spd, 0)
+            bav.Parent = hrp
+            spinConn = RunService.Heartbeat:Connect(function()
+                if not hrp or not hrp.Parent then if spinConn then spinConn:Disconnect() end end
+            end)
+            notify("Spin", "ON · " .. tostring(spd))
+        elseif cmd == "unspin" then
+            if spinConn then spinConn:Disconnect(); spinConn = nil end
+            if hrp then local s = hrp:FindFirstChild("N0IR_Spin"); if s then s:Destroy() end end
+            notify("Spin", "OFF")
+
+        elseif cmd == "orbit" then
+            local t = findPlayer(args[2])
+            if not t then notify("Orbit", "Player not found"); return end
+            local rad = tonumber(args[3]) or 8
+            if orbitConn then orbitConn:Disconnect() end
+            local a = 0
+            orbitConn = RunService.RenderStepped:Connect(function(dt)
+                local thrp = t.Character and t.Character:FindFirstChild("HumanoidRootPart")
+                local me = getHRP()
+                if not thrp or not me then return end
+                a = a + dt * 2
+                me.CFrame = CFrame.new(thrp.Position + Vector3.new(math.cos(a) * rad, 2, math.sin(a) * rad))
+            end)
+            notify("Orbit", t.Name)
+        elseif cmd == "unorbit" then
+            if orbitConn then orbitConn:Disconnect(); orbitConn = nil end
+            notify("Orbit", "OFF")
+
+        elseif cmd == "tppos" or cmd == "tp" then
+            local x, y, z = tonumber(args[2]), tonumber(args[3]), tonumber(args[4])
+            if not (x and y and z) then notify("TP", "Need x y z"); return end
+            if hrp then hrp.CFrame = CFrame.new(x, y, z); notify("TP", string.format("%.1f %.1f %.1f", x, y, z)) end
+
+        elseif cmd == "tools" or cmd == "btools" then
+            local backpack = LocalPlayer:FindFirstChildOfClass("Backpack")
+            if not backpack then return end
+            for _, name in ipairs({"Move", "Clone", "Delete"}) do
+                local t = Instance.new("HopperBin")
+                t.BinType = Enum.BinType[name] or Enum.BinType.Script
+                t.Name = name
+                t.Parent = backpack
+            end
+            -- fallback classic handles
+            pcall(function()
+                local function make(n)
+                    local tool = Instance.new("Tool")
+                    tool.RequiresHandle = false
+                    tool.Name = n
+                    tool.Parent = backpack
+                end
+                make("N0IR_Move")
+            end)
+            notify("Tools", "Given")
+
+        elseif cmd == "clear" or cmd == "clr" then
+            pcall(function()
+                for _, g in ipairs(getHost():GetChildren()) do
+                    if g.Name:find("N0IR_") and g.Name ~= "N0IR_Window" and g.Name ~= "N0IR_CmdBar" then
+                        g:Destroy()
+                    end
+                end
+            end)
+            notify("Clear", "Done")
+
+        elseif cmd == "refresh" or cmd == "re" then
+            local hum2 = getHum()
+            if hum2 then hum2.Health = 0 end
+            notify("Refresh", "Respawning")
+
+        elseif cmd == "notify" or cmd == "say" then
+            local text = table.concat(args, " ", 2)
+            if text == "" then notify("Say", "Need text"); return end
+            notify("Message", text, 3)
+
+
+        elseif cmd == "infinitejump" or cmd == "infjump" then
+            if _G._N0IR_InfJumpConn then _G._N0IR_InfJumpConn:Disconnect() end
+            _G._N0IR_InfJumpOn = true
+            _G._N0IR_InfJumpConn = UserInputService.JumpRequest:Connect(function()
+                if not _G._N0IR_InfJumpOn then return end
+                local h = getHum()
+                if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end
+            end)
+            notify("InfJump", "ON")
+        elseif cmd == "uninfinitejump" or cmd == "uninfjump" then
+            _G._N0IR_InfJumpOn = false
+            if _G._N0IR_InfJumpConn then _G._N0IR_InfJumpConn:Disconnect(); _G._N0IR_InfJumpConn = nil end
+            notify("InfJump", "OFF")
+
+        elseif cmd == "clicktp" or cmd == "ctp" then
+            if _G._N0IR_ClickTPConn then _G._N0IR_ClickTPConn:Disconnect() end
+            _G._N0IR_ClickTPOn = true
+            _G._N0IR_ClickTPConn = UserInputService.InputBegan:Connect(function(inp, gp)
+                if gp or not _G._N0IR_ClickTPOn then return end
+                if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+                    local m = LocalPlayer:GetMouse()
+                    local me = getHRP()
+                    if me and m.Hit then me.CFrame = CFrame.new(m.Hit.Position + Vector3.new(0, 3, 0)) end
+                end
+            end)
+            notify("ClickTP", "ON — click to teleport")
+        elseif cmd == "unclicktp" or cmd == "unctp" then
+            _G._N0IR_ClickTPOn = false
+            if _G._N0IR_ClickTPConn then _G._N0IR_ClickTPConn:Disconnect(); _G._N0IR_ClickTPConn = nil end
+            notify("ClickTP", "OFF")
+
+        elseif cmd == "platformstand" or cmd == "plat" then
+            local h = getHum()
+            if h then h.PlatformStand = true; notify("PlatformStand", "ON") end
+        elseif cmd == "unplatformstand" or cmd == "unplat" then
+            local h = getHum()
+            if h then h.PlatformStand = false; notify("PlatformStand", "OFF") end
+
+        elseif cmd == "xray" then
+            for _, v in ipairs(workspace:GetDescendants()) do
+                if v:IsA("BasePart") and not v:IsDescendantOf(LocalPlayer.Character or workspace) then
+                    pcall(function()
+                        if not v:GetAttribute("N0IR_XRayOrig") then
+                            v:SetAttribute("N0IR_XRayOrig", v.LocalTransparencyModifier)
+                        end
+                        v.LocalTransparencyModifier = 0.7
+                    end)
+                end
+            end
+            notify("XRay", "ON")
+        elseif cmd == "unxray" then
+            for _, v in ipairs(workspace:GetDescendants()) do
+                if v:IsA("BasePart") and v:GetAttribute("N0IR_XRayOrig") ~= nil then
+                    pcall(function()
+                        v.LocalTransparencyModifier = v:GetAttribute("N0IR_XRayOrig")
+                        v:SetAttribute("N0IR_XRayOrig", nil)
+                    end)
+                end
+            end
+            notify("XRay", "OFF")
+
+        elseif cmd == "brightness" then
+            local n = tonumber(args[2])
+            if not n then notify("Brightness", "Need a number"); return end
+            game:GetService("Lighting").Brightness = n
+            notify("Brightness", tostring(n))
+        elseif cmd == "ambient" then
+            local r,g,b = tonumber(args[2]), tonumber(args[3]), tonumber(args[4])
+            if not (r and g and b) then notify("Ambient", "Need r g b 0-255"); return end
+            game:GetService("Lighting").Ambient = Color3.fromRGB(r,g,b)
+            notify("Ambient", string.format("%d %d %d", r,g,b))
+        elseif cmd == "exposure" then
+            local n = tonumber(args[2])
+            if not n then notify("Exposure", "Need a number"); return end
+            game:GetService("Lighting").ExposureCompensation = n
+            notify("Exposure", tostring(n))
+
+        elseif cmd == "loopws" then
+            local v = tonumber(args[2])
+            if not v then notify("LoopWS", "Need a number"); return end
+            if _G._N0IR_LoopWS then _G._N0IR_LoopWS:Disconnect() end
+            _G._N0IR_LoopWS = RunService.Heartbeat:Connect(function()
+                local h = getHum(); if h then h.WalkSpeed = v end
+            end)
+            notify("LoopWS", tostring(v))
+        elseif cmd == "unloopws" then
+            if _G._N0IR_LoopWS then _G._N0IR_LoopWS:Disconnect(); _G._N0IR_LoopWS = nil end
+            notify("LoopWS", "OFF")
+        elseif cmd == "loopjp" then
+            local v = tonumber(args[2])
+            if not v then notify("LoopJP", "Need a number"); return end
+            if _G._N0IR_LoopJP then _G._N0IR_LoopJP:Disconnect() end
+            _G._N0IR_LoopJP = RunService.Heartbeat:Connect(function()
+                local h = getHum()
+                if h then pcall(function() h.UseJumpPower = true end); h.JumpPower = v end
+            end)
+            notify("LoopJP", tostring(v))
+        elseif cmd == "unloopjp" then
+            if _G._N0IR_LoopJP then _G._N0IR_LoopJP:Disconnect(); _G._N0IR_LoopJP = nil end
+            notify("LoopJP", "OFF")
+
+        elseif cmd == "copy" or cmd == "copychar" then
+            local t = findPlayer(args[2])
+            if not t then notify("Copy", "Player not found"); return end
+            pcall(function()
+                local desc = t.Character and t.Character:FindFirstChildOfClass("Humanoid") and t.Character.Humanoid:GetAppliedDescription()
+                if desc and getHum() then getHum():ApplyDescription(desc) end
+            end)
+            notify("Copy", t and t.Name or "?")
+
+        elseif cmd == "watch" then
+            local t = findPlayer(args[2])
+            if not t then notify("Watch", "Player not found"); return end
+            if t.Character and t.Character:FindFirstChildOfClass("Humanoid") then
+                workspace.CurrentCamera.CameraSubject = t.Character.Humanoid
+                notify("Watch", t.Name)
+            end
+
+        elseif cmd == "maxzoom" then
+            local n = tonumber(args[2])
+            if not n then notify("MaxZoom", "Need a number"); return end
+            LocalPlayer.CameraMaxZoomDistance = n
+            notify("MaxZoom", tostring(n))
+        elseif cmd == "minzoom" then
+            local n = tonumber(args[2])
+            if not n then notify("MinZoom", "Need a number"); return end
+            LocalPlayer.CameraMinZoomDistance = n
+            notify("MinZoom", tostring(n))
+
+        elseif cmd == "firstperson" or cmd == "fp" then
+            LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
+            notify("Camera", "First person")
+        elseif cmd == "thirdperson" or cmd == "tp3" then
+            LocalPlayer.CameraMode = Enum.CameraMode.Classic
+            LocalPlayer.CameraMinZoomDistance = 0.5
+            notify("Camera", "Third person")
+
+        elseif cmd == "shiftlock" then
+            LocalPlayer.DevEnableMouseLock = true
+            notify("ShiftLock", "Enabled (if game allows)")
+        elseif cmd == "unlock" then
+            pcall(function()
+                local h = getHum(); if h then h.Sit = false end
+                local me = getHRP(); if me then me.Anchored = false end
+            end)
+            notify("Unlock", "Done")
+
+        elseif cmd == "antiragdoll" then
+            if _G._N0IR_AntiRag then _G._N0IR_AntiRag:Disconnect() end
+            _G._N0IR_AntiRag = RunService.Heartbeat:Connect(function()
+                local h = getHum()
+                if h then
+                    h:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+                    h:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+                    h:ChangeState(Enum.HumanoidStateType.GettingUp)
+                end
+            end)
+            notify("AntiRagdoll", "ON")
+        elseif cmd == "unantiragdoll" then
+            if _G._N0IR_AntiRag then _G._N0IR_AntiRag:Disconnect(); _G._N0IR_AntiRag = nil end
+            notify("AntiRagdoll", "OFF")
+
+        elseif cmd == "antiafk" or cmd == "anti-afk" then
+            if _G._N0IR_AntiAFK then _G._N0IR_AntiAFK:Disconnect() end
+            local vu = game:GetService("VirtualUser")
+            _G._N0IR_AntiAFK = LocalPlayer.Idled:Connect(function()
+                pcall(function()
+                    vu:CaptureController()
+                    vu:ClickButton2(Vector2.new())
+                end)
+            end)
+            notify("AntiAFK", "ON")
+
+        elseif cmd == "lowgfx" then
+            local L = game:GetService("Lighting")
+            settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+            L.GlobalShadows = false
+            L.FogEnd = 9e9
+            for _, v in ipairs(L:GetChildren()) do
+                if v:IsA("BlurEffect") or v:IsA("SunRaysEffect") or v:IsA("BloomEffect") or v:IsA("ColorCorrectionEffect") then
+                    v.Enabled = false
+                end
+            end
+            notify("GFX", "Low")
+        elseif cmd == "highgfx" then
+            settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic
+            notify("GFX", "Automatic / high")
+
+        elseif cmd == "volume" then
+            local n = tonumber(args[2])
+            if not n then notify("Volume", "Need 0-10"); return end
+            UserSettings():GetService("UserGameSettings").MasterVolume = math.clamp(n / 10, 0, 1)
+            notify("Volume", tostring(n))
+
+        elseif cmd == "annoy" or cmd == "spamchat" then
+            local text = table.concat(args, " ", 2)
+            if text == "" then notify("Spam", "Need text"); return end
+            task.spawn(function()
+                for i = 1, 5 do
+                    pcall(function()
+                        game:GetService("ReplicatedStorage"):FindFirstChild("DefaultChatSystemChatEvents")
+                        -- soft attempt
+                        local ev = game:GetService("TextChatService")
+                        if ev and ev.ChatInputBarConfiguration then
+                            -- modern chat can't easily spam; just notify
+                        end
+                    end)
+                    task.wait(0.4)
+                end
+            end)
+            notify("Spam", "Attempted (limited by chat API)")
+
+        elseif cmd == "ping" then
+            local ok, p = pcall(function() return game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValueString() end)
+            notify("Ping", ok and tostring(p) or "n/a")
+
+        elseif cmd == "age" then
+            local t = findPlayer(args[2]) or LocalPlayer
+            notify("Account age", t.Name .. " · " .. tostring(t.AccountAge) .. " days")
+
+        elseif cmd == "id" or cmd == "userid" then
+            local t = findPlayer(args[2]) or LocalPlayer
+            notify("UserId", t.Name .. " · " .. tostring(t.UserId))
+
+        elseif cmd == "jobid" then
+            notify("JobId", tostring(game.JobId))
+        elseif cmd == "placeid" then
+            notify("PlaceId", tostring(game.PlaceId))
+
+        elseif cmd == "re" or cmd == "refreshchar" then
+            local h = getHum(); if h then h.Health = 0 end
+
+        elseif cmd == "stun" then
+            local h = getHum(); if h then h:ChangeState(Enum.HumanoidStateType.Physics); notify("Stun", "ON") end
+        elseif cmd == "unstun" then
+            local h = getHum(); if h then h:ChangeState(Enum.HumanoidStateType.RunningNoPhysics); notify("Stun", "OFF") end
+
+        elseif cmd == "swim" then
+            local h = getHum(); if h then h:ChangeState(Enum.HumanoidStateType.Swimming); notify("Swim", "state") end
+
+        elseif cmd == "climb" then
+            local h = getHum(); if h then h:ChangeState(Enum.HumanoidStateType.Climbing) end
+
+        elseif cmd == "power" or cmd == "super" then
+            local h = getHum()
+            if h then h.WalkSpeed = 100; h.JumpPower = 120; notify("Power", "boosted") end
+
+        elseif cmd == "normal" or cmd == "defaults" then
+            local h = getHum()
+            if h then
+                h.WalkSpeed = 16; h.JumpPower = 50
+                pcall(function() h.JumpHeight = 7.2 end)
+                workspace.Gravity = 196.2
+                notify("Defaults", "restored")
+            end
+
+        elseif cmd == "freezeall" then
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer and p.Character then
+                    local r = p.Character:FindFirstChild("HumanoidRootPart")
+                    if r then r.Anchored = true end
+                end
+            end
+            notify("Freeze", "all others")
+        elseif cmd == "thawall" then
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p.Character then
+                    local r = p.Character:FindFirstChild("HumanoidRootPart")
+                    if r then r.Anchored = false end
+                end
+            end
+            notify("Thaw", "all")
+
+        elseif cmd == "exit" or cmd == "leave" then
+            pcall(function() game:Shutdown() end)
+
+        -- ========== ADULT / RP ANIMATION COMMANDS (need player) ==========
+        elseif cmd == "headbang" or cmd == "headfuck" or cmd == "bang" or cmd == "fuck"
+            or cmd == "suck" or cmd == "blowjob" or cmd == "lickbutt" or cmd == "peg" then
+            local t = findPlayer(args[2])
+            if not t then
+                notify(cmd, "Need a username / display name")
+                return
+            end
+            local thrp = t.Character and t.Character:FindFirstChild("HumanoidRootPart")
+            local me = getHRP()
+            local myHum = getHum()
+            if not thrp or not me or not myHum then
+                notify(cmd, "Characters not ready")
+                return
+            end
+
+            -- stop previous
+            if _G._N0IR_AdultConn then _G._N0IR_AdultConn:Disconnect(); _G._N0IR_AdultConn = nil end
+            if _G._N0IR_AdultTrack then pcall(function() _G._N0IR_AdultTrack:Stop() end); _G._N0IR_AdultTrack = nil end
+
+            local offsets = {
+                headbang = CFrame.new(0, -0.2, -1.1) * CFrame.Angles(math.rad(-20), 0, 0),
+                headfuck = CFrame.new(0, -0.2, -1.1) * CFrame.Angles(math.rad(-20), 0, 0),
+                bang = CFrame.new(0, 0, -1.2) * CFrame.Angles(math.rad(10), math.rad(180), 0),
+                fuck = CFrame.new(0, 0, -1.2) * CFrame.Angles(math.rad(10), math.rad(180), 0),
+                suck = CFrame.new(0, -0.9, -0.9) * CFrame.Angles(math.rad(70), 0, 0),
+                blowjob = CFrame.new(0, -0.9, -0.9) * CFrame.Angles(math.rad(70), 0, 0),
+                lickbutt = CFrame.new(0, -0.7, 1.0) * CFrame.Angles(math.rad(40), math.rad(180), 0),
+                peg = CFrame.new(0, 0, 1.15) * CFrame.Angles(0, 0, 0),
+            }
+            local off = offsets[cmd] or offsets.bang
+
+            -- optional anim assets (R6-ish dance/emote fallbacks — may not load in all games)
+            local animIds = {
+                headbang = "rbxassetid://5918726674",
+                headfuck = "rbxassetid://5918726674",
+                bang = "rbxassetid://5918726674",
+                fuck = "rbxassetid://5918726674",
+                suck = "rbxassetid://698251653",
+                blowjob = "rbxassetid://698251653",
+                lickbutt = "rbxassetid://698251653",
+                peg = "rbxassetid://5918726674",
+            }
+
+            pcall(function()
+                local animator = myHum:FindFirstChildOfClass("Animator") or myHum
+                local anim = Instance.new("Animation")
+                anim.AnimationId = animIds[cmd] or animIds.bang
+                local track = animator:LoadAnimation(anim)
+                track.Looped = true
+                track.Priority = Enum.AnimationPriority.Action
+                track:Play()
+                _G._N0IR_AdultTrack = track
+            end)
+
+            local t0 = tick()
+            _G._N0IR_AdultConn = RunService.RenderStepped:Connect(function()
+                local target = t.Character and t.Character:FindFirstChild("HumanoidRootPart")
+                local selfHRP = getHRP()
+                if not target or not selfHRP then return end
+                -- subtle bob
+                local bob = math.sin((tick() - t0) * 10) * 0.04
+                selfHRP.CFrame = target.CFrame * off * CFrame.new(0, bob, 0)
+            end)
+            notify(cmd, "→ " .. t.DisplayName .. "  ·  ;stopadult to cancel")
+
+        elseif cmd == "stopadult" or cmd == "unbang" or cmd == "unfuck" or cmd == "stopanim" then
+            if _G._N0IR_AdultConn then _G._N0IR_AdultConn:Disconnect(); _G._N0IR_AdultConn = nil end
+            if _G._N0IR_AdultTrack then pcall(function() _G._N0IR_AdultTrack:Stop() end); _G._N0IR_AdultTrack = nil end
+            notify("Adult", "stopped")
+
+        elseif cmd == "cmds" or cmd == "commands" or cmd == "help" then
+            -- open / focus Commands tab listing (already visible); also toast
+            notify("Commands", "See Commands tab — every cmd has Run + arg box if needed", 3)
+            -- ensure window visible
+            if Window and Window.Frame then
+                Window.Frame.Visible = true
+            end
+            -- try to activate Commands tab
+            for _, t in ipairs(Window.Tabs or {}) do
+                if t.Name == "Commands" and t.Button then
+                    pcall(function() t.Button:Activate() end)
+                    -- simulate click
+                    for _, conn in pairs(getconnections and getconnections(t.Button.MouseButton1Click) or {}) do
+                        pcall(function() conn:Fire() end)
+                    end
+                end
+            end
+
+        elseif cmd == "prefix" then
+            local p = args[2]
+            if not p or p == "" then notify("Prefix", "Current: " .. prefix); return end
+            prefix = p
+            _G._N0IR_CmdPrefix = p
+            notify("Prefix", "Set to '" .. p .. "'")
+
         else
-            N0IR:Notify({ Title = "Unknown", Content = cmd, Duration = 1.5 })
+            notify("Unknown", cmd)
         end
     end
 
-    -- Command catalog → UI rows with Run
+    -- Command catalog
     local catalog = {
-        { cmd = "ws",        label = "WalkSpeed",     desc = "Set walk speed  ·  arg: number",        needsArg = true,  example = "50" },
-        { cmd = "jp",        label = "JumpPower",     desc = "Set jump power  ·  arg: number",        needsArg = true,  example = "75" },
-        { cmd = "goto",      label = "Goto player",   desc = "Teleport to player  ·  arg: name",      needsArg = true,  example = "" },
-        { cmd = "view",      label = "View player",   desc = "Spectate player  ·  arg: name",         needsArg = true,  example = "" },
-        { cmd = "unview",    label = "Unview",        desc = "Reset camera to yourself",              needsArg = false },
-        { cmd = "noclip",    label = "Noclip",        desc = "Walk through walls",                   needsArg = false },
-        { cmd = "clip",      label = "Clip",          desc = "Disable noclip",                       needsArg = false },
-        { cmd = "fly",       label = "Fly",           desc = "Start flying  ·  arg: speed (optional)", needsArg = false, example = "50" },
-        { cmd = "unfly",     label = "Unfly",         desc = "Stop flying",                          needsArg = false },
-        { cmd = "rejoin",    label = "Rejoin",        desc = "Rejoin this server",                   needsArg = false },
-        { cmd = "hop",       label = "Server hop",    desc = "Join a different server",              needsArg = false },
-        { cmd = "reset",     label = "Reset",         desc = "Kill / respawn character",             needsArg = false },
-        { cmd = "sit",       label = "Sit",           desc = "Force sit",                            needsArg = false },
-        { cmd = "unsit",     label = "Unsit",         desc = "Stand up",                             needsArg = false },
-        { cmd = "fps",       label = "FPS cap",       desc = "Cap framerate  ·  arg: number",        needsArg = true,  example = "60" },
+        { cmd = "ws",        label = "WalkSpeed",     desc = "Set walk speed",              needsArg = true,  example = "50" },
+        { cmd = "jp",        label = "JumpPower",     desc = "Set jump power",              needsArg = true,  example = "75" },
+        { cmd = "hh",        label = "HipHeight",     desc = "Set hip height",              needsArg = true,  example = "2" },
+        { cmd = "loopws",    label = "Loop WalkSpeed", desc = "Force WS every frame",      needsArg = true,  example = "50" },
+        { cmd = "unloopws",  label = "Unloop WS",     desc = "Stop loop walkspeed",         needsArg = false },
+        { cmd = "loopjp",    label = "Loop JumpPower", desc = "Force JP every frame",      needsArg = true,  example = "75" },
+        { cmd = "unloopjp",  label = "Unloop JP",     desc = "Stop loop jumppower",         needsArg = false },
+        { cmd = "power",     label = "Power boost",   desc = "WS 100 + JP 120",             needsArg = false },
+        { cmd = "normal",    label = "Defaults",      desc = "Reset WS/JP/gravity",         needsArg = false },
+        { cmd = "goto",      label = "Goto player",   desc = "Teleport to player",          needsArg = true,  example = "" },
+        { cmd = "bring",     label = "Bring player",  desc = "Bring player to you",         needsArg = true,  example = "" },
+        { cmd = "tppos",     label = "TP position",   desc = "Teleport to x y z",           needsArg = true,  example = "0 50 0" },
+        { cmd = "view",      label = "View player",   desc = "Spectate player",             needsArg = true,  example = "" },
+        { cmd = "unview",    label = "Unview",        desc = "Reset camera",                needsArg = false },
+        { cmd = "watch",     label = "Watch",         desc = "Camera on player",            needsArg = true,  example = "" },
+        { cmd = "noclip",    label = "Noclip",        desc = "Walk through walls",          needsArg = false },
+        { cmd = "clip",      label = "Clip",          desc = "Disable noclip",              needsArg = false },
+        { cmd = "fly",       label = "Fly",           desc = "Start flying (opt speed)",    needsArg = false, example = "50" },
+        { cmd = "unfly",     label = "Unfly",         desc = "Stop flying",                 needsArg = false },
+        { cmd = "infjump",   label = "Infinite jump", desc = "Jump mid-air forever",        needsArg = false },
+        { cmd = "uninfjump", label = "Uninfjump",     desc = "Disable infinite jump",       needsArg = false },
+        { cmd = "clicktp",   label = "Click TP",      desc = "Click to teleport",           needsArg = false },
+        { cmd = "unclicktp", label = "Unclick TP",    desc = "Disable click teleport",      needsArg = false },
+        { cmd = "rejoin",    label = "Rejoin",        desc = "Rejoin this server",          needsArg = false },
+        { cmd = "hop",       label = "Server hop",    desc = "Join a different server",     needsArg = false },
+        { cmd = "reset",     label = "Reset",         desc = "Kill / respawn character",    needsArg = false },
+        { cmd = "re",        label = "Refresh",       desc = "Respawn character",           needsArg = false },
+        { cmd = "sit",       label = "Sit",           desc = "Force sit",                   needsArg = false },
+        { cmd = "unsit",     label = "Unsit",         desc = "Stand up",                    needsArg = false },
+        { cmd = "plat",      label = "PlatformStand", desc = "Enable platform stand",       needsArg = false },
+        { cmd = "unplat",    label = "UnplatformStand", desc = "Disable platform stand",    needsArg = false },
+        { cmd = "stun",      label = "Stun",          desc = "Physics stun state",          needsArg = false },
+        { cmd = "unstun",    label = "Unstun",        desc = "Clear stun",                  needsArg = false },
+        { cmd = "fps",       label = "FPS cap",       desc = "Cap framerate",               needsArg = true,  example = "60" },
+        { cmd = "fov",       label = "FOV",           desc = "Camera field of view",        needsArg = true,  example = "90" },
+        { cmd = "gravity",   label = "Gravity",       desc = "Workspace gravity",           needsArg = true,  example = "196.2" },
+        { cmd = "time",      label = "Clock time",    desc = "Lighting clock 0-24",         needsArg = true,  example = "14" },
+        { cmd = "day",       label = "Day",           desc = "Set daytime",                 needsArg = false },
+        { cmd = "night",     label = "Night",         desc = "Set nighttime",               needsArg = false },
+        { cmd = "fullbright",label = "Fullbright",    desc = "Brighten world",              needsArg = false },
+        { cmd = "nofog",     label = "No fog",        desc = "Remove fog",                  needsArg = false },
+        { cmd = "brightness",label = "Brightness",    desc = "Lighting brightness",         needsArg = true,  example = "2" },
+        { cmd = "ambient",   label = "Ambient",       desc = "Ambient r g b",               needsArg = true,  example = "128 128 128" },
+        { cmd = "exposure",  label = "Exposure",      desc = "Exposure compensation",       needsArg = true,  example = "0" },
+        { cmd = "xray",      label = "XRay",          desc = "See through parts",           needsArg = false },
+        { cmd = "unxray",    label = "UnXRay",        desc = "Disable xray",                needsArg = false },
+        { cmd = "lowgfx",    label = "Low GFX",       desc = "Performance graphics",        needsArg = false },
+        { cmd = "highgfx",   label = "High GFX",      desc = "Restore quality",             needsArg = false },
+        { cmd = "esp",       label = "ESP",           desc = "Name tags on players",        needsArg = false },
+        { cmd = "unesp",     label = "No ESP",        desc = "Remove ESP",                  needsArg = false },
+        { cmd = "god",       label = "God mode",      desc = "Infinite health",             needsArg = false },
+        { cmd = "ungod",     label = "Ungod",         desc = "Disable god",                 needsArg = false },
+        { cmd = "invis",     label = "Invisible",     desc = "Local invisibility",          needsArg = false },
+        { cmd = "vis",       label = "Visible",       desc = "Restore visibility",          needsArg = false },
+        { cmd = "freeze",    label = "Freeze",        desc = "Anchor player (name opt)",    needsArg = false, example = "" },
+        { cmd = "thaw",      label = "Thaw",          desc = "Unanchor player",             needsArg = false },
+        { cmd = "freezeall", label = "Freeze all",    desc = "Anchor every other player",   needsArg = false },
+        { cmd = "thawall",   label = "Thaw all",      desc = "Unanchor everyone",           needsArg = false },
+        { cmd = "fling",     label = "Fling",         desc = "Fling a player",              needsArg = true,  example = "" },
+        { cmd = "spin",      label = "Spin",          desc = "Spin character (opt speed)",  needsArg = false, example = "20" },
+        { cmd = "unspin",    label = "Unspin",        desc = "Stop spin",                   needsArg = false },
+        { cmd = "orbit",     label = "Orbit",         desc = "Orbit player · name [r]",     needsArg = true,  example = "" },
+        { cmd = "unorbit",   label = "Unorbit",       desc = "Stop orbit",                  needsArg = false },
+        { cmd = "copy",      label = "Copy avatar",   desc = "Copy player appearance",      needsArg = true,  example = "" },
+        { cmd = "tools",     label = "BTools",        desc = "Give building tools",         needsArg = false },
+        { cmd = "clear",     label = "Clear",         desc = "Clear N0IR extras",           needsArg = false },
+        { cmd = "antiragdoll", label = "Anti ragdoll", desc = "Block ragdoll states",      needsArg = false },
+        { cmd = "unantiragdoll", label = "Un anti-ragdoll", desc = "Allow ragdoll",        needsArg = false },
+        { cmd = "antiafk",   label = "Anti AFK",      desc = "Prevent idle kick",           needsArg = false },
+        { cmd = "fp",        label = "First person",  desc = "Lock first person",           needsArg = false },
+        { cmd = "tp3",       label = "Third person",  desc = "Classic camera",              needsArg = false },
+        { cmd = "maxzoom",   label = "Max zoom",      desc = "Camera max zoom distance",    needsArg = true,  example = "128" },
+        { cmd = "minzoom",   label = "Min zoom",      desc = "Camera min zoom distance",    needsArg = true,  example = "0.5" },
+        { cmd = "shiftlock", label = "Shift lock",    desc = "Enable mouse lock",           needsArg = false },
+        { cmd = "unlock",    label = "Unlock",        desc = "Unsit + unanchor self",       needsArg = false },
+        { cmd = "volume",    label = "Volume",        desc = "Master volume 0-10",          needsArg = true,  example = "5" },
+        { cmd = "ping",      label = "Ping",          desc = "Show data ping",              needsArg = false },
+        { cmd = "age",       label = "Account age",   desc = "Days since join (opt name)",  needsArg = false, example = "" },
+        { cmd = "id",        label = "UserId",        desc = "Show user id (opt name)",     needsArg = false, example = "" },
+        { cmd = "jobid",     label = "JobId",         desc = "Current server job id",       needsArg = false },
+        { cmd = "placeid",   label = "PlaceId",       desc = "Current place id",            needsArg = false },
+        { cmd = "prefix",    label = "Set prefix",    desc = "Change chat command prefix",  needsArg = true,  example = ";" },
+        { cmd = "cmds",      label = "Commands list", desc = "Open / focus this menu",      needsArg = false },
+        { cmd = "exit",      label = "Exit game",     desc = "Leave the experience",        needsArg = false },
+        -- Adult / RP (require username or display name)
+        { cmd = "headbang",  label = "Headbang",      desc = "RP · target player",          needsArg = true,  example = "username" },
+        { cmd = "headfuck",  label = "Headfuck",      desc = "RP · target player",          needsArg = true,  example = "username" },
+        { cmd = "bang",      label = "Bang",          desc = "RP · target player",          needsArg = true,  example = "username" },
+        { cmd = "fuck",      label = "Fuck",          desc = "RP · target player",          needsArg = true,  example = "username" },
+        { cmd = "suck",      label = "Suck",          desc = "RP · target player",          needsArg = true,  example = "username" },
+        { cmd = "blowjob",   label = "Blowjob",       desc = "RP · target player",          needsArg = true,  example = "username" },
+        { cmd = "lickbutt",  label = "Lickbutt",      desc = "RP · target player",          needsArg = true,  example = "username" },
+        { cmd = "peg",       label = "Peg",           desc = "RP · target player",          needsArg = true,  example = "username" },
+        { cmd = "stopadult", label = "Stop adult",    desc = "Cancel RP attach / anim",     needsArg = false },
     }
 
     Cmds:CreateSection("All commands")
 
     local function makeCmdRow(entry)
-        -- custom row: name + desc + Run button
         Cmds._order = (Cmds._order or 0) + 1
         local page = Cmds.Page
+        local rowH = entry.needsArg and 78 or 48
         local row = Instance.new("Frame")
-        row.Size = UDim2.new(1, 0, 0, 48)
+        row.Size = UDim2.new(1, 0, 0, rowH)
         row.BackgroundColor3 = T.bg1
         row.BackgroundTransparency = 0.25
         row.BorderSizePixel = 0
@@ -2007,7 +2702,7 @@ function N0IR:MountUtilities(Window)
         name.Position = UDim2.fromOffset(12, 6)
         name.Size = UDim2.new(1, -90, 0, 16)
         name.Font = Enum.Font.GothamBold
-        name.Text = entry.label .. "  ·  ;" .. entry.cmd
+        name.Text = entry.label .. "  ·  " .. prefix .. entry.cmd
         name.TextSize = 12
         name.TextColor3 = T.text
         name.TextXAlignment = Enum.TextXAlignment.Left
@@ -2024,6 +2719,24 @@ function N0IR:MountUtilities(Window)
         desc.TextXAlignment = Enum.TextXAlignment.Left
         desc.TextTruncate = Enum.TextTruncate.AtEnd
         desc.Parent = row
+
+        local argBox
+        if entry.needsArg then
+            argBox = Instance.new("TextBox")
+            argBox.Position = UDim2.fromOffset(12, 44)
+            argBox.Size = UDim2.new(1, -100, 0, 24)
+            argBox.BackgroundColor3 = T.bg2
+            argBox.BorderSizePixel = 0
+            argBox.Font = Enum.Font.Gotham
+            argBox.PlaceholderText = entry.example ~= "" and ("value  e.g. " .. entry.example) or "argument required"
+            argBox.PlaceholderColor3 = T.text3
+            argBox.Text = ""
+            argBox.TextSize = 11
+            argBox.TextColor3 = T.text
+            argBox.ClearTextOnFocus = false
+            argBox.Parent = row
+            corner(argBox, 6)
+        end
 
         local run = Instance.new("TextButton")
         run.AnchorPoint = Vector2.new(1, 0.5)
@@ -2047,17 +2760,17 @@ function N0IR:MountUtilities(Window)
         end)
         run.MouseButton1Click:Connect(function()
             local arg = ""
-            if argBox and argBox.Get then
-                arg = tostring(argBox:Get() or ""):gsub("^%s+", ""):gsub("%s+$", "")
+            if argBox then
+                arg = tostring(argBox.Text or ""):gsub("^%s+", ""):gsub("%s+$", "")
             end
-            if entry.needsArg and arg == "" and entry.example and entry.example ~= "" then
-                -- don't auto-fill silently; notify
+            if entry.needsArg and arg == "" then
+                -- allow optional examples only for fly/spin style (needsArg=false for those)
+                notify("Argument required", "Put a value in the textbox for " .. entry.label, 2.5)
+                return
             end
             local line = entry.cmd
             if arg ~= "" then
                 line = entry.cmd .. " " .. arg
-            elseif entry.example and entry.example ~= "" and entry.cmd == "fly" then
-                line = entry.cmd .. " " .. entry.example
             end
             runCmd(line)
         end)
@@ -2067,15 +2780,17 @@ function N0IR:MountUtilities(Window)
         makeCmdRow(entry)
     end
 
-    -- Chat still works with ;
+    -- Chat still works with configured prefix
     pcall(function()
         LocalPlayer.Chatted:Connect(function(msg)
-            runCmd(msg)
+            local low = msg:lower()
+            if low:sub(1, #prefix) == prefix:lower() then
+                runCmd(msg)
+            end
         end)
     end)
 
-    -- Floating command bar ( ; key )
-    local cmdBarKey = Enum.KeyCode.Semicolon
+    -- Floating command bar
     local cmdGui = Instance.new("ScreenGui")
     cmdGui.Name = "N0IR_CmdBar"
     cmdGui.ResetOnSpawn = false
@@ -2098,7 +2813,7 @@ function N0IR:MountUtilities(Window)
     input.Position = UDim2.fromOffset(12, 0)
     input.BackgroundTransparency = 1
     input.Font = Enum.Font.GothamMedium
-    input.PlaceholderText = "command  ·  press ; to open"
+    input.PlaceholderText = "command  ·  press key to open"
     input.PlaceholderColor3 = T.text3
     input.Text = ""
     input.TextSize = 13
@@ -2109,7 +2824,8 @@ function N0IR:MountUtilities(Window)
 
     UserInputService.InputBegan:Connect(function(inp, gp)
         if gp then return end
-        if inp.KeyCode == cmdBarKey then
+        local key = _G._N0IR_CmdBarKey or cmdBarKey
+        if inp.KeyCode == key then
             task.defer(function()
                 input:CaptureFocus()
                 input.Text = ""
@@ -2122,23 +2838,162 @@ function N0IR:MountUtilities(Window)
         tween(bar, { Position = UDim2.new(0.5, 0, 1, 60) }, 0.3)
         if enter and input.Text ~= "" then
             local t = input.Text
-            if t:sub(1, 1) ~= prefix then t = prefix .. t end
             runCmd(t)
         end
         input.Text = ""
     end)
 
-    Cmds:CreateLabel("Tip  ·  press  ;  for the quick command bar")
+    Cmds:CreateLabel("Tip  ·  open cmd bar with your keybind (Settings) · type cmds to focus this list")
+
+    -- ---------- VC Bypass ----------
+    local VC = Window:CreateTab({ Name = "VC Bypass" })
+    VC:CreateSection("Voice chat bypass")
+    VC:CreateParagraph({
+        Content = "Two methods. (masklol) rewires the mic mute UI / voice internals. (uni's) loads an external loader. Use at your own risk — may break after Roblox updates.",
+    })
+
+    local VCBypassEnabled = false
+    local VCBypassConns = {}
+    local VCBypassObjs = {}
+
+    local function cleanupVCBypass()
+        for _, conn in ipairs(VCBypassConns) do
+            pcall(function() conn:Enable() end)
+        end
+        table.clear(VCBypassConns)
+        if VCBypassObjs.cloned then pcall(function() VCBypassObjs.cloned:Destroy() end) end
+        if VCBypassObjs.hidden then pcall(function() VCBypassObjs.hidden:Destroy() end) end
+        if VCBypassObjs.original and VCBypassObjs.container then
+            pcall(function() VCBypassObjs.original.Parent = VCBypassObjs.container end)
+        end
+        pcall(function()
+            local vcs = (cloneref or function(...) return ... end)(game:GetService("VoiceChatService"))
+            vcs:leaveVoice()
+            task.wait(0.5)
+            vcs:joinVoice()
+        end)
+        VCBypassObjs = {}
+        VCBypassEnabled = false
+    end
+
+    local function applyUnicornsVCBypass()
+        pcall(function()
+            loadstring(game:HttpGet("https://shield.xao.wtf/api/loader/550af30c-aaa3-4338-acab-f44010a5ef09"))()
+        end)
+        N0IR:Notify({ Title = "VC Bypass", Content = "(uni's) loader executed", Duration = 2.5 })
+    end
+
+    local function applyMasklolVCBypass()
+        if VCBypassEnabled then
+            N0IR:Notify({ Title = "VC Bypass", Content = "Already enabled", Duration = 2 })
+            return
+        end
+        VCBypassEnabled = true
+        task.spawn(function()
+            local ok, err = pcall(function()
+                local clonereference = cloneref or function(...) return ... end
+                local clonefunction = clonefunction or function(...) return ... end
+                local voicechatservice = clonereference(game:GetService("VoiceChatService"))
+                local voicechatinternal = clonereference(game:GetService("VoiceChatInternal"))
+                local coregui = game:GetService("CoreGui")
+                local getconnectionsfunc = getconnections and clonefunction(getconnections) or getconnections
+
+                local mutedimage = "rbxasset://textures/ui/VoiceChat/MicLight/Muted.png"
+                local hiddenfolder = Instance.new("Folder")
+                hiddenfolder.Name = "N0IRVCBypass"
+                hiddenfolder.Parent = game:GetService("RobloxReplicatedStorage")
+                VCBypassObjs.hidden = hiddenfolder
+
+                local topbarapp = coregui:WaitForChild("TopBarApp", 15)
+                topbarapp = topbarapp and topbarapp:FindFirstChild("TopBarApp") or topbarapp
+                if not topbarapp then
+                    voicechatservice:joinVoice()
+                    N0IR:Notify({ Title = "VC Bypass", Content = "TopBar not found — joined voice only", Duration = 3 })
+                    return
+                end
+                local unibarleft = topbarapp:FindFirstChild("UnibarLeftFrame") or topbarapp:WaitForChild("UnibarLeftFrame", 8)
+                local unibarmenu = unibarleft and (unibarleft:FindFirstChild("UnibarMenu") or unibarleft:FindFirstChild("ChromeMenu"))
+                local unibarcontainer
+                pcall(function()
+                    unibarcontainer = unibarmenu:WaitForChild("2", 8):WaitForChild("3", 8)
+                end)
+                local micmutebutton = unibarcontainer and unibarcontainer:FindFirstChild("toggle_mic_mute", true)
+
+                local function geticonlabel(button)
+                    button = button or micmutebutton
+                    return button:WaitForChild("IntegrationIconFrame", 8):WaitForChild("IntegrationIcon", 8)["1"]
+                end
+                local function getcurrentmutestate()
+                    return voicechatinternal:IsPublishPaused()
+                end
+                local function setmutestate(state)
+                    voicechatinternal:PublishPause(state)
+                end
+
+                if not micmutebutton then
+                    voicechatservice:joinVoice()
+                    pcall(function()
+                        unibarcontainer = unibarmenu
+                        micmutebutton = unibarcontainer and unibarcontainer:FindFirstChild("toggle_mic_mute", true)
+                    end)
+                end
+
+                if micmutebutton and unibarcontainer then
+                    local clonedmutebutton = micmutebutton:Clone()
+                    micmutebutton.Parent = hiddenfolder
+                    clonedmutebutton.Name = "toggle_mic_mute_new"
+                    clonedmutebutton.Parent = unibarcontainer
+                    VCBypassObjs.cloned = clonedmutebutton
+                    VCBypassObjs.original = micmutebutton
+                    VCBypassObjs.container = unibarcontainer
+
+                    local clonedicon = geticonlabel(clonedmutebutton)
+                    local originalicon = geticonlabel(micmutebutton)
+                    setmutestate(true)
+                    clonedicon.Image = mutedimage
+                    local hit = clonedmutebutton:FindFirstChild("IconHitArea_toggle_mic_mute", true)
+                    if hit then
+                        hit.Activated:Connect(function()
+                            local newstate = not getcurrentmutestate()
+                            setmutestate(newstate)
+                            if newstate then
+                                clonedicon.Image = mutedimage
+                            else
+                                clonedicon.Image = originalicon.Image
+                            end
+                        end)
+                    end
+                    N0IR:Notify({ Title = "VC Bypass", Content = "(masklol) applied", Duration = 2.5 })
+                else
+                    voicechatservice:joinVoice()
+                    N0IR:Notify({ Title = "VC Bypass", Content = "Mic button missing — joined voice", Duration = 3 })
+                end
+            end)
+            if not ok then
+                VCBypassEnabled = false
+                N0IR:Notify({ Title = "VC Bypass", Content = "Failed: " .. tostring(err), Duration = 3 })
+            end
+        end)
+    end
+
+    VC:CreateButton({
+        Name = "(masklol) VC Bypass",
+        Callback = applyMasklolVCBypass,
+    })
+    VC:CreateButton({
+        Name = "(uni's) VC Bypass",
+        Callback = applyUnicornsVCBypass,
+    })
 
     -- ---------- Map / Treehouse ----------
     local Map = Window:CreateTab({ Name = "Map" })
     Map:CreateSection("Treehouse")
     Map:CreateParagraph({
-        Content = "Spawn / teleport / remove the Halo treehouse model in workspace.",
+        Content = "Spawn / teleport / remove the N0IR treehouse model in workspace.",
     })
 
     local TREEHOUSE_ASSET_ID = 7860328354
-    _G._HaloTreehouseModel = _G._HaloTreehouseModel
+    _G._N0IRTreehouseModel = _G._N0IRTreehouseModel
 
     local function getTreehouseSpawnPosition()
         local spawnPart = workspace:FindFirstChild("ModelSpawn")
@@ -2166,13 +3021,13 @@ function N0IR:MountUtilities(Window)
     end
 
     local function spawnTreehouse()
-        if _G._HaloTreehouseModel and _G._HaloTreehouseModel.Parent then
+        if _G._N0IRTreehouseModel and _G._N0IRTreehouseModel.Parent then
             N0IR:Notify({ Title = "Treehouse", Content = "Already spawned", Duration = 2 })
-            return _G._HaloTreehouseModel
+            return _G._N0IRTreehouseModel
         end
-        local existing = workspace:FindFirstChild("HaloTreehouse")
+        local existing = workspace:FindFirstChild("N0IRTreehouse")
         if existing then
-            _G._HaloTreehouseModel = existing
+            _G._N0IRTreehouseModel = existing
             N0IR:Notify({ Title = "Treehouse", Content = "Already in workspace", Duration = 2 })
             return existing
         end
@@ -2184,23 +3039,23 @@ function N0IR:MountUtilities(Window)
             return nil
         end
         local model = objects[1]
-        model.Name = "HaloTreehouse"
+        model.Name = "N0IRTreehouse"
         model.Parent = workspace
         prepareTreehouseModel(model, getTreehouseSpawnPosition())
-        _G._HaloTreehouseModel = model
+        _G._N0IRTreehouseModel = model
         N0IR:Notify({ Title = "Treehouse", Content = "Spawned", Duration = 2.5 })
         return model
     end
 
     local function deleteTreehouse()
         local deleted = false
-        if _G._HaloTreehouseModel and _G._HaloTreehouseModel.Parent then
-            pcall(function() _G._HaloTreehouseModel:Destroy() end)
-            _G._HaloTreehouseModel = nil
+        if _G._N0IRTreehouseModel and _G._N0IRTreehouseModel.Parent then
+            pcall(function() _G._N0IRTreehouseModel:Destroy() end)
+            _G._N0IRTreehouseModel = nil
             deleted = true
         end
         for _, item in ipairs(workspace:GetChildren()) do
-            if item.Name == "HaloTreehouse" then
+            if item.Name == "N0IRTreehouse" then
                 pcall(function() item:Destroy() end)
                 deleted = true
             end
@@ -2213,7 +3068,7 @@ function N0IR:MountUtilities(Window)
     end
 
     local function teleportToTreehouse()
-        local model = _G._HaloTreehouseModel or workspace:FindFirstChild("HaloTreehouse")
+        local model = _G._N0IRTreehouseModel or workspace:FindFirstChild("N0IRTreehouse")
         if not model or not model.Parent then
             model = spawnTreehouse()
             if not model then return end
@@ -2255,9 +3110,9 @@ function N0IR:MountUtilities(Window)
         end
     end
 
-    _G._HaloSpawnTreehouse = spawnTreehouse
-    _G._HaloDeleteTreehouse = deleteTreehouse
-    _G._HaloTeleportToTreehouse = teleportToTreehouse
+    _G._N0IRSpawnTreehouse = spawnTreehouse
+    _G._N0IRDeleteTreehouse = deleteTreehouse
+    _G._N0IRTeleportToTreehouse = teleportToTreehouse
 
     Map:CreateButton({ Name = "Spawn Treehouse", Callback = spawnTreehouse })
     Map:CreateButton({ Name = "Teleport to Treehouse", Callback = teleportToTreehouse })
@@ -2349,30 +3204,75 @@ function N0IR:MountUtilities(Window)
     Settings:CreateParagraph({
         Content = "NØIR UI Library v" .. N0IR.Version .. "\nMinimal black & white suite. Mount reanim or other modules via loadstring onto this window.",
     })
-    Settings:CreateSection("Keybind")
-    local keyLbl = Settings:CreateLabel("Menu toggle  ·  M")
+    Settings:CreateSection("Keybinds")
+    local keyLbl = Settings:CreateLabel("Menu toggle  ·  " .. tostring((_G._N0IR_ToggleKey or Enum.KeyCode.M).Name))
+    local cmdKeyLbl = Settings:CreateLabel("Cmd bar key  ·  " .. tostring((_G._N0IR_CmdBarKey or Enum.KeyCode.Semicolon).Name))
     local listening = false
+
+    local function listenKey(labelObj, storeKey, pretty)
+        if listening then return end
+        listening = true
+        labelObj:Set("Press any key...")
+        N0IR:Notify({ Title = "Keybind", Content = "Press a key (Esc to cancel)", Duration = 2 })
+        local conn
+        conn = UserInputService.InputBegan:Connect(function(input, gp)
+            if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+            conn:Disconnect()
+            listening = false
+            if input.KeyCode == Enum.KeyCode.Escape then
+                local cur = _G[storeKey] or (storeKey == "_N0IR_ToggleKey" and Enum.KeyCode.M or Enum.KeyCode.Semicolon)
+                labelObj:Set(pretty .. "  ·  " .. cur.Name)
+                N0IR:Notify({ Title = "Keybind", Content = "Cancelled", Duration = 1.5 })
+                return
+            end
+            _G[storeKey] = input.KeyCode
+            labelObj:Set(pretty .. "  ·  " .. input.KeyCode.Name)
+            N0IR:Notify({ Title = "Keybind", Content = pretty .. " → " .. input.KeyCode.Name, Duration = 2 })
+        end)
+    end
+
     Settings:CreateButton({
-        Name = "Set menu keybind",
+        Name = "Set menu toggle key",
         Callback = function()
-            if listening then return end
-            listening = true
-            keyLbl:Set("Press any key...")
-            N0IR:Notify({ Title = "Keybind", Content = "Press a key (Esc to cancel)", Duration = 2 })
-            local conn
-            conn = UserInputService.InputBegan:Connect(function(input, gp)
-                if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-                conn:Disconnect()
-                listening = false
-                if input.KeyCode == Enum.KeyCode.Escape then
-                    keyLbl:Set("Menu toggle  ·  " .. tostring((_G._N0IR_ToggleKey or Enum.KeyCode.M).Name))
-                    N0IR:Notify({ Title = "Keybind", Content = "Cancelled", Duration = 1.5 })
-                    return
-                end
-                _G._N0IR_ToggleKey = input.KeyCode
-                keyLbl:Set("Menu toggle  ·  " .. input.KeyCode.Name)
-                N0IR:Notify({ Title = "Keybind", Content = "Set to " .. input.KeyCode.Name, Duration = 2 })
-            end)
+            listenKey(keyLbl, "_N0IR_ToggleKey", "Menu toggle")
+        end,
+    })
+    Settings:CreateButton({
+        Name = "Set command bar key",
+        Callback = function()
+            listenKey(cmdKeyLbl, "_N0IR_CmdBarKey", "Cmd bar key")
+        end,
+    })
+
+    Settings:CreateSection("Command prefix")
+    local prefixLbl = Settings:CreateLabel("Current prefix  ·  " .. tostring(_G._N0IR_CmdPrefix or ";"))
+    local prefixInput = Settings:CreateInput({
+        Name = "Prefix",
+        Placeholder = "e.g. ;  or  !  or  .",
+        Default = tostring(_G._N0IR_CmdPrefix or ";"),
+        Callback = function(text)
+            text = tostring(text or ""):gsub("^%s+", ""):gsub("%s+$", "")
+            if text == "" then
+                N0IR:Notify({ Title = "Prefix", Content = "Cannot be empty", Duration = 2 })
+                return
+            end
+            _G._N0IR_CmdPrefix = text
+            prefixLbl:Set("Current prefix  ·  " .. text)
+            N0IR:Notify({ Title = "Prefix", Content = "Set to '" .. text .. "'", Duration = 2 })
+        end,
+    })
+    Settings:CreateButton({
+        Name = "Apply prefix from box",
+        Callback = function()
+            local text = prefixInput and prefixInput:Get() or ""
+            text = tostring(text):gsub("^%s+", ""):gsub("%s+$", "")
+            if text == "" then
+                N0IR:Notify({ Title = "Prefix", Content = "Type a prefix in the box", Duration = 2 })
+                return
+            end
+            _G._N0IR_CmdPrefix = text
+            prefixLbl:Set("Current prefix  ·  " .. text)
+            N0IR:Notify({ Title = "Prefix", Content = "Set to '" .. text .. "'", Duration = 2 })
         end,
     })
 
@@ -2389,6 +3289,7 @@ function N0IR:MountUtilities(Window)
         Player = Player,
         Anims = Anims,
         Cmds = Cmds,
+        VC = VC,
         Map = Map,
         Social = Social,
         Settings = Settings,
