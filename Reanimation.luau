@@ -7,6 +7,57 @@ pcall(function()
 	end
 end)
 
+-- ============================================================
+-- LOGO CACHE  (downloads once → N0IR/Logo.png in executor workspace)
+-- ============================================================
+local LOGO_URL  = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/ZtLyM.png"
+local LOGO_DIR  = "N0IR"
+local LOGO_PATH = "N0IR/Logo.png"
+local _cachedLogoAsset = nil
+
+local function ensureLogoAsset()
+	if _cachedLogoAsset then
+		return _cachedLogoAsset
+	end
+
+	local onDisk = false
+	pcall(function()
+		if isfolder and not isfolder(LOGO_DIR) then
+			makefolder(LOGO_DIR)
+		end
+		if isfile and isfile(LOGO_PATH) then
+			onDisk = true
+		end
+	end)
+
+	if not onDisk then
+		local ok, data = pcall(function()
+			return game:HttpGet(LOGO_URL)
+		end)
+		if ok and data and #data > 100 then
+			pcall(function()
+				if isfolder and not isfolder(LOGO_DIR) then
+					makefolder(LOGO_DIR)
+				end
+				if writefile then
+					writefile(LOGO_PATH, data)
+				end
+			end)
+			onDisk = true
+		end
+	end
+
+	if onDisk and getcustomasset then
+		local ok, asset = pcall(getcustomasset, LOGO_PATH)
+		if ok and type(asset) == "string" and asset ~= "" then
+			_cachedLogoAsset = asset
+			return asset
+		end
+	end
+
+	_cachedLogoAsset = LOGO_URL
+	return LOGO_URL
+end
 
 do
 	local MarketplaceService = game:GetService("MarketplaceService")
@@ -72,10 +123,21 @@ do
 		is2.Transparency = 0.82
 		is2.Parent = innerLS
 
+		-- Logo (cached to N0IR/Logo.png)
+		local logo = Instance.new("ImageLabel")
+		logo.Name = "Logo"
+		logo.BackgroundTransparency = 1
+		logo.Position = UDim2.fromOffset(12, 10)
+		logo.Size = UDim2.fromOffset(22, 22)
+		logo.Image = ensureLogoAsset()
+		logo.ImageTransparency = 1
+		logo.ScaleType = Enum.ScaleType.Fit
+		logo.Parent = card
+
 		local brand = Instance.new("TextLabel")
 		brand.BackgroundTransparency = 1
-		brand.Position = UDim2.fromOffset(14, 12)
-		brand.Size = UDim2.new(1, -28, 0, 16)
+		brand.Position = UDim2.fromOffset(40, 12)
+		brand.Size = UDim2.new(1, -54, 0, 16)
 		brand.Font = Enum.Font.GothamBlack
 		brand.TextSize = 13
 		brand.TextXAlignment = Enum.TextXAlignment.Left
@@ -159,6 +221,7 @@ do
 		for _, t in ipairs({brand, placeLbl, idLbl, log, pct, stamp}) do
 			t.TextTransparency = 1
 		end
+		logo.ImageTransparency = 1
 		stroke.Transparency = 1
 		track.BackgroundTransparency = 1
 		fill.BackgroundTransparency = 1
@@ -167,6 +230,7 @@ do
 			TweenService:Create(stroke, TweenInfo.new(0.3), {Transparency = 0.2}):Play()
 			TweenService:Create(track, TweenInfo.new(0.3), {BackgroundTransparency = 0}):Play()
 			TweenService:Create(fill, TweenInfo.new(0.3), {BackgroundTransparency = 0}):Play()
+			TweenService:Create(logo, TweenInfo.new(0.3), {ImageTransparency = 0}):Play()
 			for _, t in ipairs({brand, placeLbl, idLbl, log, pct, stamp}) do
 				TweenService:Create(t, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
 			end
@@ -211,6 +275,7 @@ do
 				local p = math.min((tick() - phaseT) / 0.45, 1)
 				card.BackgroundTransparency = 0.05 + p * 0.95
 				stroke.Transparency = 0.2 + p * 0.8
+				logo.ImageTransparency = p
 				for _, t in ipairs({brand, placeLbl, idLbl, log, pct, stamp}) do
 					t.TextTransparency = p
 				end
@@ -4664,10 +4729,22 @@ do
     accentBar.ZIndex = 33
     do local ac = Instance.new("UICorner"); ac.CornerRadius = UDim.new(0, 1); ac.Parent = accentBar end
 
+    -- Logo (cached to N0IR/Logo.png)
+    local titleLogo = Instance.new("ImageLabel")
+    titleLogo.Name = "Logo"
+    titleLogo.Parent = TitleBar
+    titleLogo.BackgroundTransparency = 1
+    titleLogo.AnchorPoint = Vector2.new(0, 0.5)
+    titleLogo.Position = UDim2.new(0, 12, 0.5, 0)
+    titleLogo.Size = UDim2.fromOffset(26, 26)
+    titleLogo.Image = ensureLogoAsset()
+    titleLogo.ScaleType = Enum.ScaleType.Fit
+    titleLogo.ZIndex = 33
+
     -- Brand wordmark
     local t = Instance.new("TextLabel"); t.Parent = TitleBar
     t.BackgroundTransparency = 1
-    t.Position = UDim2.new(0, 16, 0, 4)
+    t.Position = UDim2.new(0, 44, 0, 4)
     t.Size = UDim2.new(0, 120, 0, 20)
     t.Font = Enum.Font.GothamBlack
     t.Text = "NØIR"
@@ -4678,7 +4755,7 @@ do
 
     local sub = Instance.new("TextLabel"); sub.Parent = TitleBar
     sub.BackgroundTransparency = 1
-    sub.Position = UDim2.new(0, 16, 0, 22)
+    sub.Position = UDim2.new(0, 44, 0, 22)
     sub.Size = UDim2.new(0, 140, 0, 16)
     sub.Font = Enum.Font.Code
     sub.Text = "REANIM"
@@ -4690,7 +4767,7 @@ do
     -- Subtle version chip
     local ver = Instance.new("TextLabel"); ver.Parent = TitleBar
     ver.BackgroundTransparency = 1
-    ver.Position = UDim2.new(0, 78, 0, 6)
+    ver.Position = UDim2.new(0, 106, 0, 6)
     ver.Size = UDim2.new(0, 48, 0, 14)
     ver.Font = Enum.Font.Code
     ver.Text = "v1.0"
