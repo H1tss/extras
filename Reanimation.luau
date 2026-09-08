@@ -229,8 +229,8 @@ do
 		local logo = Instance.new("ImageLabel")
 		logo.Name = "Logo"
 		logo.BackgroundTransparency = 1
-		logo.Position = UDim2.fromOffset(1, -9)
-		logo.Size = UDim2.fromOffset(56, 56)
+		logo.Position = UDim2.fromOffset(10, 8)
+		logo.Size = UDim2.fromOffset(32, 32)
 		logo.Image = _G._N0IR_EnsureLogoAsset()
 		logo.ImageTransparency = 1
 		logo.ScaleType = Enum.ScaleType.Fit
@@ -238,8 +238,8 @@ do
 
 		local brand = Instance.new("TextLabel")
 		brand.BackgroundTransparency = 1
-		brand.Position = UDim2.fromOffset(52, 14)
-		brand.Size = UDim2.new(1, -66, 0, 16)
+		brand.Position = UDim2.fromOffset(48, 12)
+		brand.Size = UDim2.new(1, -62, 0, 16)
 		brand.Font = Enum.Font.GothamBlack
 		brand.TextSize = 13
 		brand.TextXAlignment = Enum.TextXAlignment.Left
@@ -4095,22 +4095,22 @@ function tw(obj, t, props, style, dir)
 end
 
 local C = {
-    -- NØIR silver-metal theme — sharp, clean, premium
-    bg0         = Color3.fromRGB(6, 6, 7),
-    bg1         = Color3.fromRGB(12, 12, 13),
-    bg2         = Color3.fromRGB(18, 18, 20),
-    bg3         = Color3.fromRGB(24, 24, 26),
-    bg4         = Color3.fromRGB(10, 10, 11),
-    border      = Color3.fromRGB(48, 48, 52),
-    glassBorder = Color3.fromRGB(185, 185, 192),
-    text        = Color3.fromRGB(225, 225, 230),
-    text2       = Color3.fromRGB(155, 155, 162),
-    text3       = Color3.fromRGB(95, 95, 102),
-    accent      = Color3.fromRGB(210, 210, 216),
+    -- NØIR mono theme — black / dark gray / white
+    bg0         = Color3.fromRGB(8, 8, 8),
+    bg1         = Color3.fromRGB(14, 14, 14),
+    bg2         = Color3.fromRGB(20, 20, 20),
+    bg3         = Color3.fromRGB(28, 28, 28),
+    bg4         = Color3.fromRGB(12, 12, 12),
+    border      = Color3.fromRGB(42, 42, 42),
+    glassBorder = Color3.fromRGB(200, 200, 200),
+    text        = Color3.fromRGB(245, 245, 245),
+    text2       = Color3.fromRGB(180, 180, 180),
+    text3       = Color3.fromRGB(110, 110, 110),
+    accent      = Color3.fromRGB(255, 255, 255),
     red         = Color3.fromRGB(185, 52, 52),
     yellow      = Color3.fromRGB(200, 175, 95),
-    green       = Color3.fromRGB(175, 175, 182),
-    white       = Color3.fromRGB(242, 242, 246),
+    green       = Color3.fromRGB(255, 255, 255), -- used as "on" accent → pure white
+    white       = Color3.fromRGB(255, 255, 255),
     easeOut     = Enum.EasingStyle.Quint,
     easeSpring  = Enum.EasingStyle.Back,
 }
@@ -4716,6 +4716,11 @@ do
     bg.ZIndex = 29
     bg.Visible = false
     bg.Parent = Menu
+    do
+        local c = Instance.new("UICorner")
+        c.CornerRadius = UDim.new(0, 10)
+        c.Parent = bg
+    end
     local veil = Instance.new("Frame")
     veil.Name = "N0IR_BgVeil"
     veil.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
@@ -4724,6 +4729,11 @@ do
     veil.Size = UDim2.fromScale(1, 1)
     veil.ZIndex = 29
     veil.Parent = Menu
+    do
+        local c = Instance.new("UICorner")
+        c.CornerRadius = UDim.new(0, 10)
+        c.Parent = veil
+    end
     if _G._N0IR_RegisterBgTarget then
         _G._N0IR_RegisterBgTarget(bg)
     end
@@ -4801,8 +4811,8 @@ do
     titleLogo.Parent = TitleBar
     titleLogo.BackgroundTransparency = 1
     titleLogo.AnchorPoint = Vector2.new(0, 0.5)
-    titleLogo.Position = UDim2.new(0, -11, 0.5, -5)
-    titleLogo.Size = UDim2.fromOffset(80, 80)
+    titleLogo.Position = UDim2.new(0, 10, 0.5, 0)
+    titleLogo.Size = UDim2.fromOffset(34, 34)
     titleLogo.Image = _G._N0IR_EnsureLogoAsset()
     titleLogo.ScaleType = Enum.ScaleType.Fit
     titleLogo.ZIndex = 33
@@ -4810,7 +4820,7 @@ do
     -- Product label (no NØIR text — logo covers brand)
     local sub = Instance.new("TextLabel"); sub.Parent = TitleBar
     sub.BackgroundTransparency = 1
-    sub.Position = UDim2.new(0, 56, 0, 8)
+    sub.Position = UDim2.new(0, 50, 0, 8)
     sub.Size = UDim2.new(0, 140, 0, 16)
     sub.Font = Enum.Font.Code
     sub.Text = "REANIM"
@@ -4822,7 +4832,7 @@ do
     -- Subtle version chip
     local ver = Instance.new("TextLabel"); ver.Parent = TitleBar
     ver.BackgroundTransparency = 1
-    ver.Position = UDim2.new(0, 56, 0, 24)
+    ver.Position = UDim2.new(0, 50, 0, 24)
     ver.Size = UDim2.new(0, 48, 0, 14)
     ver.Font = Enum.Font.Code
     ver.Text = "v1.0"
@@ -7012,7 +7022,7 @@ end
 
 local function acUpdateToggle()
     if acEnabled then
-        TweenService:Create(acToggleBg, TweenInfo.new(0.2), {BackgroundColor3 = C.green}):Play()
+        TweenService:Create(acToggleBg, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(245, 245, 245)}):Play()
         TweenService:Create(acKnob, TweenInfo.new(0.2), {Position = UDim2.new(1,-19,0,3)}):Play()
         if acSelectedPlayer then
             acStatus.Text = "COPYING " .. acSelectedPlayer.Name .. " | Dist: " .. string.format("%.1f", acDistance) .. " | H: " .. string.format("%+.1f", acHeight)
@@ -7203,13 +7213,14 @@ local function buildToggle(parent, title, subText, layoutOrder, defaultState, on
     sub.TextXAlignment = Enum.TextXAlignment.Left; sub.TextWrapped = true; sub.ZIndex = 33
     local bg = Instance.new("Frame"); bg.Parent = frame
     bg.Size = UDim2.new(0, 42, 0, 22); bg.Position = UDim2.new(1, -54, 0.5, -11)
-    bg.BackgroundColor3 = defaultState and Color3.fromRGB(185, 185, 192) or Color3.fromRGB(28, 28, 30)
+    bg.BackgroundColor3 = defaultState and Color3.fromRGB(245, 245, 245) or Color3.fromRGB(18, 18, 18)
     bg.BorderSizePixel = 0; bg.ZIndex = 33
     local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1, 0); c.Parent = bg
     local knob = Instance.new("Frame"); knob.Parent = bg
     knob.Size = UDim2.new(0, 16, 0, 16)
     knob.Position = defaultState and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
-    knob.BackgroundColor3 = Color3.fromRGB(245, 245, 250)
+    -- iOS: ON white+black knob | OFF black+gray knob
+    knob.BackgroundColor3 = defaultState and Color3.fromRGB(10, 10, 10) or Color3.fromRGB(140, 140, 140)
     knob.BorderSizePixel = 0; knob.ZIndex = 34
     local ck = Instance.new("UICorner"); ck.CornerRadius = UDim.new(1, 0); ck.Parent = knob
     local btn = Instance.new("TextButton"); btn.Parent = bg
@@ -7219,11 +7230,17 @@ local function buildToggle(parent, title, subText, layoutOrder, defaultState, on
         state = newState
         local ti = TweenInfo.new(0.24, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
         if state then
-            TweenService:Create(bg, ti, {BackgroundColor3 = Color3.fromRGB(185, 185, 192)}):Play()
-            TweenService:Create(knob, ti, {Position = UDim2.new(1, -21, 0.5, -9)}):Play()
+            TweenService:Create(bg, ti, {BackgroundColor3 = Color3.fromRGB(245, 245, 245)}):Play()
+            TweenService:Create(knob, ti, {
+                Position = UDim2.new(1, -21, 0.5, -9),
+                BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+            }):Play()
         else
-            TweenService:Create(bg, ti, {BackgroundColor3 = Color3.fromRGB(28, 28, 30)}):Play()
-            TweenService:Create(knob, ti, {Position = UDim2.new(0, 3, 0.5, -9)}):Play()
+            TweenService:Create(bg, ti, {BackgroundColor3 = Color3.fromRGB(18, 18, 18)}):Play()
+            TweenService:Create(knob, ti, {
+                Position = UDim2.new(0, 3, 0.5, -9),
+                BackgroundColor3 = Color3.fromRGB(140, 140, 140),
+            }):Play()
         end
     end
     btn.MouseButton1Click:Connect(function()
@@ -7297,7 +7314,7 @@ local function buildToggleSliderCard(parent, title, subText, minVal, maxVal, def
 
     local toggleBg = Instance.new("Frame"); toggleBg.Parent = frame
     toggleBg.Size = UDim2.new(0, 44, 0, 24); toggleBg.Position = UDim2.new(1, -56, 0, 10)
-    toggleBg.BackgroundColor3 = defaultState and Color3.fromRGB(185, 185, 192) or Color3.fromRGB(28, 28, 30)
+    toggleBg.BackgroundColor3 = defaultState and Color3.fromRGB(245, 245, 245) or Color3.fromRGB(18, 18, 18)
     toggleBg.BorderSizePixel = 0; toggleBg.ZIndex = 33
     do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1, 0); c.Parent = toggleBg end
 
@@ -7553,7 +7570,7 @@ local function buildToggleWithKey(parent, title, subText, layoutOrder, defaultSt
 
     local bg = Instance.new("Frame"); bg.Parent = frame
     bg.Size = UDim2.new(0, 44, 0, 24); bg.Position = UDim2.new(1, -56, 0.5, -12)
-    bg.BackgroundColor3 = defaultState and Color3.fromRGB(185, 185, 192) or Color3.fromRGB(28, 28, 30)
+    bg.BackgroundColor3 = defaultState and Color3.fromRGB(245, 245, 245) or Color3.fromRGB(18, 18, 18)
     bg.BorderSizePixel = 0; bg.ZIndex = 33
     do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1, 0); c.Parent = bg end
     local knob = Instance.new("Frame"); knob.Parent = bg
@@ -7740,7 +7757,7 @@ local function updateCamToggleState(state)
     _G._N0IRLimbsTorsoCamControl = state
     _G._N0IRTorsoCamSmoothedCF = nil
     if state then
-        TweenService:Create(camToggleBg, TweenInfo.new(0.2), {BackgroundColor3 = C.green}):Play()
+        TweenService:Create(camToggleBg, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(245, 245, 245)}):Play()
         TweenService:Create(camToggleKnob, TweenInfo.new(0.2), {Position = UDim2.new(1,-19,0,3)}):Play()
         if startLimbsSystem then startLimbsSystem() end
     else
@@ -8934,7 +8951,7 @@ local ArmStretchEnabled = _G._N0IRLeftArmStretching or _G._N0IRRightArmStretchin
 
 local function updateStretchState()
     if ArmStretchEnabled then
-        TweenService:Create(stToggleBg, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {BackgroundColor3 = C.green}):Play()
+        TweenService:Create(stToggleBg, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {BackgroundColor3 = Color3.fromRGB(245, 245, 245)}):Play()
         TweenService:Create(stToggleKnob, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {
             Position = UDim2.new(1, -21, 0.5, -9), BackgroundColor3 = C.white
         }):Play()
@@ -10035,23 +10052,31 @@ do
         sub.TextXAlignment = Enum.TextXAlignment.Left; sub.TextWrapped = true; sub.ZIndex = 33
         local bg = Instance.new("Frame"); bg.Parent = frame
         bg.Size = UDim2.new(0,42,0,22); bg.Position = UDim2.new(1,-54,0,15)
-        bg.BackgroundColor3 = defaultState and Color3.fromRGB(185, 185, 192) or Color3.fromRGB(28, 28, 30); bg.BorderSizePixel = 0; bg.ZIndex = 33
+        bg.BackgroundColor3 = defaultState and Color3.fromRGB(245, 245, 245) or Color3.fromRGB(18, 18, 18); bg.BorderSizePixel = 0; bg.ZIndex = 33
         local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1,0); c.Parent = bg
         local knob = Instance.new("Frame"); knob.Parent = bg
         knob.Size = UDim2.new(0,16,0,16); knob.Position = defaultState and UDim2.new(1,-19,0.5,-8) or UDim2.new(0,3,0.5,-8)
-        knob.BackgroundColor3 = Color3.fromRGB(245, 245, 250); knob.BorderSizePixel = 0; knob.ZIndex = 34
+        knob.BackgroundColor3 = defaultState and Color3.fromRGB(10, 10, 10) or Color3.fromRGB(140, 140, 140)
+        knob.BorderSizePixel = 0; knob.ZIndex = 34
         local ck = Instance.new("UICorner"); ck.CornerRadius = UDim.new(1,0); ck.Parent = knob
         local btn = Instance.new("TextButton"); btn.Parent = bg
         btn.Size = UDim2.new(1,0,1,0); btn.BackgroundTransparency = 1; btn.Text = ""; btn.ZIndex = 35
         local state = defaultState
         btn.MouseButton1Click:Connect(function()
             state = not state
+            local ti = TweenInfo.new(0.2)
             if state then
-                TweenService:Create(bg, TweenInfo.new(0.2), {BackgroundColor3 = C.green}):Play()
-                TweenService:Create(knob, TweenInfo.new(0.2), {Position = UDim2.new(1,-21,0.5,-9)}):Play()
+                TweenService:Create(bg, ti, {BackgroundColor3 = Color3.fromRGB(245, 245, 245)}):Play()
+                TweenService:Create(knob, ti, {
+                    Position = UDim2.new(1,-21,0.5,-9),
+                    BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+                }):Play()
             else
-                TweenService:Create(bg, TweenInfo.new(0.2), {BackgroundColor3 = C.bg3}):Play()
-                TweenService:Create(knob, TweenInfo.new(0.2), {Position = UDim2.new(0,3,0.5,-9)}):Play()
+                TweenService:Create(bg, ti, {BackgroundColor3 = Color3.fromRGB(18, 18, 18)}):Play()
+                TweenService:Create(knob, ti, {
+                    Position = UDim2.new(0,3,0.5,-9),
+                    BackgroundColor3 = Color3.fromRGB(140, 140, 140),
+                }):Play()
             end
             onChange(state)
         end)
@@ -12045,7 +12070,7 @@ local function updateShadersToggle(state)
     _G._N0IRShadersEnabled = state
     SaveShadersConfig()
     if state then
-        TweenService:Create(shadersToggleBg, TweenInfo.new(0.2), {BackgroundColor3 = C.green}):Play()
+        TweenService:Create(shadersToggleBg, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(245, 245, 245)}):Play()
         TweenService:Create(shadersKnob, TweenInfo.new(0.2), {Position = UDim2.new(1,-19,0,3)}):Play()
         Notify("Shaders enabled! Rejoin to apply effects.", 3)
     else
