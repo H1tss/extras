@@ -8,40 +8,157 @@ pcall(function()
 end)
 
 -- ============================================================
--- LOGO CACHE  (0 main-chunk locals — uses _G to stay under register limit)
--- downloads once → N0IR/Logo.png in executor workspace
+-- BRAND / LOGO / BACKGROUNDS — owned by NØIR UI Library when present
 -- ============================================================
-_G._N0IR_EnsureLogoAsset = function()
-	if _G._N0IR_LogoAsset then
-		return _G._N0IR_LogoAsset
+do
+	local defaultBgs = {
+		{ Name = "Clouds 3",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(3).jfif",  Path = "N0IR/Bg_03.jfif" },
+		{ Name = "Clouds 4",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(4).jfif",  Path = "N0IR/Bg_04.jfif" },
+		{ Name = "Clouds 5",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(5).jfif",  Path = "N0IR/Bg_05.jfif" },
+		{ Name = "Clouds 6",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(6).jfif",  Path = "N0IR/Bg_06.jfif" },
+		{ Name = "Clouds 7",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(7).jfif",  Path = "N0IR/Bg_07.jfif" },
+		{ Name = "Clouds 8",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(8).jfif",  Path = "N0IR/Bg_08.jfif" },
+		{ Name = "Clouds 9",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(9).jfif",  Path = "N0IR/Bg_09.jfif" },
+		{ Name = "Clouds 10", Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(10).jfif", Path = "N0IR/Bg_10.jfif" },
+		{ Name = "Clouds 11", Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(11).jfif", Path = "N0IR/Bg_11.jfif" },
+	}
+	_G._N0IR_Brand = _G._N0IR_Brand or {
+		LogoUrl  = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/D27xi.png",
+		LogoPath = "N0IR/Logo_D27xi.png",
+		LogoDir  = "N0IR",
+		BgIndex  = 1,
+		BgTransparency = 0.42,
+		Backgrounds = defaultBgs,
+	}
+	if not _G._N0IR_Brand.Backgrounds or #_G._N0IR_Brand.Backgrounds == 0 then
+		_G._N0IR_Brand.Backgrounds = defaultBgs
 	end
-	local url  = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/ZtLyM.png"
-	local dir  = "N0IR"
-	local path = "N0IR/Logo.png"
-	local onDisk = false
-	pcall(function()
-		if isfolder and not isfolder(dir) then makefolder(dir) end
-		if isfile and isfile(path) then onDisk = true end
-	end)
-	if not onDisk then
-		local ok, data = pcall(function() return game:HttpGet(url) end)
-		if ok and data and #data > 100 then
+	_G._N0IR_BgCache = _G._N0IR_BgCache or {}
+	_G._N0IR_BgTargets = _G._N0IR_BgTargets or {}
+
+	if type(_G._N0IR_EnsureLogoAsset) ~= "function" then
+		_G._N0IR_EnsureLogoAsset = function(force)
+			if force then _G._N0IR_LogoWM = nil end
+			if _G._N0IR_LogoWM then return _G._N0IR_LogoWM end
+			local cfg  = _G._N0IR_Brand or {}
+			local url  = cfg.LogoUrl or "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/D27xi.png"
+			local dir  = cfg.LogoDir or "N0IR"
+			local path = cfg.LogoPath or "N0IR/Logo_D27xi.png"
+			local onDisk = false
 			pcall(function()
 				if isfolder and not isfolder(dir) then makefolder(dir) end
-				if writefile then writefile(path, data) end
+				if isfile and isfile(path) then onDisk = true end
 			end)
-			onDisk = true
+			if not onDisk then
+				local ok, data = pcall(function() return game:HttpGet(url) end)
+				if ok and data and #data > 100 then
+					pcall(function()
+						if isfolder and not isfolder(dir) then makefolder(dir) end
+						if writefile then writefile(path, data) end
+					end)
+					onDisk = true
+				end
+			end
+			if onDisk and getcustomasset then
+				local ok, asset = pcall(getcustomasset, path)
+				if ok and type(asset) == "string" and asset ~= "" then
+					_G._N0IR_LogoWM = asset
+					return asset
+				end
+			end
+			_G._N0IR_LogoWM = url
+			return url
 		end
 	end
-	if onDisk and getcustomasset then
-		local ok, asset = pcall(getcustomasset, path)
-		if ok and type(asset) == "string" and asset ~= "" then
-			_G._N0IR_LogoAsset = asset
-			return asset
+
+	if type(_G._N0IR_EnsureBgAsset) ~= "function" then
+		_G._N0IR_EnsureBgAsset = function(index, force)
+			local cfg = _G._N0IR_Brand or {}
+			local list = cfg.Backgrounds or {}
+			index = tonumber(index) or 1
+			local entry = list[index]
+			if not entry then return nil end
+			local key = "bg_" .. tostring(index)
+			if force then _G._N0IR_BgCache[key] = nil end
+			if not force and _G._N0IR_BgCache[key] then return _G._N0IR_BgCache[key] end
+			local url, path, dir = entry.Url, entry.Path, cfg.LogoDir or "N0IR"
+			local onDisk = false
+			pcall(function()
+				if isfolder and not isfolder(dir) then makefolder(dir) end
+				if isfile and isfile(path) then onDisk = true end
+			end)
+			if not onDisk then
+				local ok, data = pcall(function() return game:HttpGet(url) end)
+				if ok and data and #data > 100 then
+					pcall(function()
+						if isfolder and not isfolder(dir) then makefolder(dir) end
+						if writefile then writefile(path, data) end
+					end)
+					onDisk = true
+				end
+			end
+			if onDisk and getcustomasset then
+				local ok, asset = pcall(getcustomasset, path)
+				if ok and type(asset) == "string" and asset ~= "" then
+					_G._N0IR_BgCache[key] = asset
+					return asset
+				end
+			end
+			_G._N0IR_BgCache[key] = url
+			return url
 		end
 	end
-	_G._N0IR_LogoAsset = url
-	return url
+
+	if type(_G._N0IR_RegisterBgTarget) ~= "function" then
+		_G._N0IR_RegisterBgTarget = function(img)
+			if not img then return end
+			local alive = {}
+			for _, t in ipairs(_G._N0IR_BgTargets or {}) do
+				if t and t.Parent then table.insert(alive, t) end
+			end
+			table.insert(alive, img)
+			_G._N0IR_BgTargets = alive
+		end
+	end
+
+	if type(_G._N0IR_SetBackground) ~= "function" then
+		_G._N0IR_SetBackground = function(index)
+			local cfg = _G._N0IR_Brand or {}
+			index = math.floor(tonumber(index) or 0)
+			local list = cfg.Backgrounds or {}
+			if index < 0 then index = 0 end
+			if index > #list then index = #list end
+			cfg.BgIndex = index
+			_G._N0IR_Brand = cfg
+			local asset = (index > 0) and _G._N0IR_EnsureBgAsset(index) or nil
+			local trans = tonumber(cfg.BgTransparency) or 0.42
+			for _, img in ipairs(_G._N0IR_BgTargets or {}) do
+				if img and img.Parent then
+					if index <= 0 or not asset then
+						img.Image = ""
+						img.Visible = false
+					else
+						img.Image = asset
+						img.ImageTransparency = trans
+						img.Visible = true
+					end
+				end
+			end
+			return index
+		end
+	end
+
+	if type(_G._N0IR_NextBackground) ~= "function" then
+		_G._N0IR_NextBackground = function()
+			local cfg = _G._N0IR_Brand or {}
+			local list = cfg.Backgrounds or {}
+			local n = #list
+			if n == 0 then return 0 end
+			local i = (tonumber(cfg.BgIndex) or 0) + 1
+			if i > n then i = 0 end
+			return _G._N0IR_SetBackground(i)
+		end
+	end
 end
 
 do
@@ -108,12 +225,12 @@ do
 		is2.Transparency = 0.82
 		is2.Parent = innerLS
 
-		-- Logo (cached to N0IR/Logo.png)
+		-- Logo only (wordmark already says NØIR)
 		local logo = Instance.new("ImageLabel")
 		logo.Name = "Logo"
 		logo.BackgroundTransparency = 1
-		logo.Position = UDim2.fromOffset(12, 10)
-		logo.Size = UDim2.fromOffset(22, 22)
+		logo.Position = UDim2.fromOffset(1, -9)
+		logo.Size = UDim2.fromOffset(56, 56)
 		logo.Image = _G._N0IR_EnsureLogoAsset()
 		logo.ImageTransparency = 1
 		logo.ScaleType = Enum.ScaleType.Fit
@@ -121,13 +238,13 @@ do
 
 		local brand = Instance.new("TextLabel")
 		brand.BackgroundTransparency = 1
-		brand.Position = UDim2.fromOffset(40, 12)
-		brand.Size = UDim2.new(1, -54, 0, 16)
+		brand.Position = UDim2.fromOffset(52, 14)
+		brand.Size = UDim2.new(1, -66, 0, 16)
 		brand.Font = Enum.Font.GothamBlack
 		brand.TextSize = 13
 		brand.TextXAlignment = Enum.TextXAlignment.Left
 		brand.TextColor3 = Color3.fromRGB(230, 230, 230)
-		brand.Text = "NØIR Reanim"
+		brand.Text = "Reanim"
 		brand.Parent = card
 
 		local placeLbl = Instance.new("TextLabel")
@@ -199,7 +316,7 @@ do
 		stamp.TextSize = 11
 		stamp.TextXAlignment = Enum.TextXAlignment.Right
 		stamp.TextColor3 = Color3.fromRGB(70, 70, 70)
-		stamp.Text = "NØIR"
+		stamp.Text = ""
 		stamp.Parent = gui
 
 		card.BackgroundTransparency = 1
@@ -4587,74 +4704,38 @@ do
     shadow.ZIndex = 29
 end
 
--- Resize Handle (curved grip bottom-right)
-local ResizeGrip = Instance.new("Frame")
-ResizeGrip.Name = "ResizeGrip"
-ResizeGrip.Parent = Menu
-ResizeGrip.BackgroundColor3 = C.bg3
-ResizeGrip.BackgroundTransparency = 0.25
-ResizeGrip.BorderSizePixel = 0
-ResizeGrip.Size = UDim2.new(0, 16, 0, 16)
-ResizeGrip.Position = UDim2.new(1, -16, 1, -16)
-ResizeGrip.ZIndex = 35
-ResizeGrip.Active = true
-local gripCorner = Instance.new("UICorner", ResizeGrip)
-gripCorner.CornerRadius = UDim.new(0, 4)
-local gripStroke = Instance.new("UIStroke", ResizeGrip)
-gripStroke.Color = C.glassBorder
-gripStroke.Thickness = 1
-gripStroke.Transparency = 0.4
-
--- Curved diagonal lines on grip for visual flair
-for i = 0, 2 do
-    local line = Instance.new("Frame", ResizeGrip)
-    line.BackgroundColor3 = C.text
-    line.BackgroundTransparency = 0.4
-    line.BorderSizePixel = 0
-    line.Size = UDim2.new(0, 8, 0, 1.5)
-    line.Position = UDim2.new(0, 3 + i*2.5, 0, 12 - i*2.5)
-    line.Rotation = -45
-    line.ZIndex = 36
+-- Window background (shared brand pack)
+do
+    local bg = Instance.new("ImageLabel")
+    bg.Name = "N0IR_Bg"
+    bg.BackgroundTransparency = 1
+    bg.Size = UDim2.fromScale(1, 1)
+    bg.Position = UDim2.fromScale(0, 0)
+    bg.ScaleType = Enum.ScaleType.Crop
+    bg.ImageTransparency = (_G._N0IR_Brand and _G._N0IR_Brand.BgTransparency) or 0.42
+    bg.ZIndex = 29
+    bg.Visible = false
+    bg.Parent = Menu
+    local veil = Instance.new("Frame")
+    veil.Name = "N0IR_BgVeil"
+    veil.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
+    veil.BackgroundTransparency = 0.35
+    veil.BorderSizePixel = 0
+    veil.Size = UDim2.fromScale(1, 1)
+    veil.ZIndex = 29
+    veil.Parent = Menu
+    if _G._N0IR_RegisterBgTarget then
+        _G._N0IR_RegisterBgTarget(bg)
+    end
+    task.defer(function()
+        local idx = (_G._N0IR_Brand and tonumber(_G._N0IR_Brand.BgIndex)) or 1
+        if _G._N0IR_SetBackground then
+            _G._N0IR_SetBackground(idx)
+        end
+    end)
 end
 
--- Resize logic
-local resizing = false
-local resizeStartPos
-local resizeStartSize
-
-ResizeGrip.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        resizing = true
-        resizeStartPos = input.Position
-        resizeStartSize = Menu.AbsoluteSize
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                resizing = false
-            end
-        end)
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if resizing and (input.UserInputType == Enum.UserInputType.MouseMovement) then
-        local delta = input.Position - resizeStartPos
-        local newW = math.clamp(resizeStartSize.X + delta.X, CONFIG.UI.MIN_WIDTH, 700)
-        local newH = math.clamp(resizeStartSize.Y + delta.Y, CONFIG.UI.MIN_HEIGHT, 800)
-        Menu.Size = UDim2.new(0, newW, 0, newH)
-        FULL_SIZE = UDim2.new(0, newW, 0, newH)
-        if not isMinimized then
-            MINI_SIZE = UDim2.new(0, newW, 0, 40)
-        end
-    end
-end)
-
-ResizeGrip.MouseEnter:Connect(function()
-    TweenService:Create(ResizeGrip, TweenInfo.new(0.15), {BackgroundTransparency = 0.3}):Play()
-end)
-ResizeGrip.MouseLeave:Connect(function()
-    TweenService:Create(ResizeGrip, TweenInfo.new(0.15), {BackgroundTransparency = 0.6}):Play()
-end)
-
+-- Resize grip removed (fixed size via CONFIG.UI.DEFAULT_WIDTH / DEFAULT_HEIGHT)
 
 -- Entrance animation (scale + fade)
 do
@@ -4714,45 +4795,34 @@ do
     accentBar.ZIndex = 33
     do local ac = Instance.new("UICorner"); ac.CornerRadius = UDim.new(0, 1); ac.Parent = accentBar end
 
-    -- Logo (cached to N0IR/Logo.png)
+    -- Logo only (wordmark already says NØIR)
     local titleLogo = Instance.new("ImageLabel")
     titleLogo.Name = "Logo"
     titleLogo.Parent = TitleBar
     titleLogo.BackgroundTransparency = 1
     titleLogo.AnchorPoint = Vector2.new(0, 0.5)
-    titleLogo.Position = UDim2.new(0, 12, 0.5, 0)
-    titleLogo.Size = UDim2.fromOffset(26, 26)
+    titleLogo.Position = UDim2.new(0, -11, 0.5, -5)
+    titleLogo.Size = UDim2.fromOffset(80, 80)
     titleLogo.Image = _G._N0IR_EnsureLogoAsset()
     titleLogo.ScaleType = Enum.ScaleType.Fit
     titleLogo.ZIndex = 33
 
-    -- Brand wordmark
-    local t = Instance.new("TextLabel"); t.Parent = TitleBar
-    t.BackgroundTransparency = 1
-    t.Position = UDim2.new(0, 44, 0, 4)
-    t.Size = UDim2.new(0, 120, 0, 20)
-    t.Font = Enum.Font.GothamBlack
-    t.Text = "NØIR"
-    t.TextColor3 = Color3.fromRGB(215, 215, 222)
-    t.TextSize = 15
-    t.TextXAlignment = Enum.TextXAlignment.Left
-    t.ZIndex = 33
-
+    -- Product label (no NØIR text — logo covers brand)
     local sub = Instance.new("TextLabel"); sub.Parent = TitleBar
     sub.BackgroundTransparency = 1
-    sub.Position = UDim2.new(0, 44, 0, 22)
+    sub.Position = UDim2.new(0, 56, 0, 8)
     sub.Size = UDim2.new(0, 140, 0, 16)
     sub.Font = Enum.Font.Code
     sub.Text = "REANIM"
     sub.TextColor3 = Color3.fromRGB(110, 110, 118)
-    sub.TextSize = 10
+    sub.TextSize = 11
     sub.TextXAlignment = Enum.TextXAlignment.Left
     sub.ZIndex = 33
 
     -- Subtle version chip
     local ver = Instance.new("TextLabel"); ver.Parent = TitleBar
     ver.BackgroundTransparency = 1
-    ver.Position = UDim2.new(0, 106, 0, 6)
+    ver.Position = UDim2.new(0, 56, 0, 24)
     ver.Size = UDim2.new(0, 48, 0, 14)
     ver.Font = Enum.Font.Code
     ver.Text = "v1.0"
@@ -10036,6 +10106,87 @@ do
             if Notify then Notify("Tab Grid", state and "Enabled" or "Disabled", 1.8) end
         end
     )
+
+    -- Background wallpaper (shared _G._N0IR_Brand pack)
+    do
+        local bgHeader = Instance.new("TextLabel")
+        bgHeader.Parent = SettingsPanel
+        bgHeader.BackgroundTransparency = 1
+        bgHeader.Size = UDim2.new(1, 0, 0, 18)
+        bgHeader.LayoutOrder = -6
+        bgHeader.Font = Enum.Font.GothamBold
+        bgHeader.TextSize = 11
+        bgHeader.Text = "Background"
+        bgHeader.TextColor3 = C.text
+        bgHeader.TextXAlignment = Enum.TextXAlignment.Left
+        bgHeader.ZIndex = 33
+
+        local list = (_G._N0IR_Brand and _G._N0IR_Brand.Backgrounds) or {}
+        local function bgName(i)
+            if not i or i <= 0 then return "None" end
+            local e = list[i]
+            return (e and e.Name) or ("BG " .. tostring(i))
+        end
+        local status = Instance.new("TextLabel")
+        status.Parent = SettingsPanel
+        status.BackgroundTransparency = 1
+        status.Size = UDim2.new(1, 0, 0, 16)
+        status.LayoutOrder = -5
+        status.Font = Enum.Font.Code
+        status.TextSize = 10
+        status.Text = "Active  ·  " .. bgName(_G._N0IR_Brand and _G._N0IR_Brand.BgIndex)
+        status.TextColor3 = C.text3
+        status.TextXAlignment = Enum.TextXAlignment.Left
+        status.ZIndex = 33
+
+        local function mkBtn(text, order, fn)
+            local b = Instance.new("TextButton")
+            b.Parent = SettingsPanel
+            b.Size = UDim2.new(1, 0, 0, 28)
+            b.LayoutOrder = order
+            b.BackgroundColor3 = C.bg2
+            b.BorderSizePixel = 0
+            b.Font = Enum.Font.GothamMedium
+            b.Text = text
+            b.TextSize = 11
+            b.TextColor3 = C.text
+            b.AutoButtonColor = false
+            b.ZIndex = 33
+            Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+            b.MouseButton1Click:Connect(function()
+                local i = fn()
+                status.Text = "Active  ·  " .. bgName(i)
+                if Notify then Notify("Background", bgName(i), 1.4) end
+            end)
+            return b
+        end
+
+        mkBtn("Next background", -4, function()
+            if _G._N0IR_NextBackground then return _G._N0IR_NextBackground() end
+            return 0
+        end)
+        mkBtn("Previous background", -3, function()
+            local cfg = _G._N0IR_Brand or {}
+            local list2 = cfg.Backgrounds or {}
+            local i = tonumber(cfg.BgIndex) or 0
+            i = i - 1
+            if i < 0 then i = #list2 end
+            if _G._N0IR_SetBackground then return _G._N0IR_SetBackground(i) end
+            return i
+        end)
+        mkBtn("No background", -2, function()
+            if _G._N0IR_SetBackground then return _G._N0IR_SetBackground(0) end
+            return 0
+        end)
+
+        -- one button per wallpaper
+        for i, e in ipairs(list) do
+            mkBtn("Set · " .. (e.Name or ("BG " .. i)), -1 + i, function()
+                if _G._N0IR_SetBackground then return _G._N0IR_SetBackground(i) end
+                return i
+            end)
+        end
+    end
 end
 
 -- ANIMATION MAKER — Moon Animator style (FK only, N0IR theme)
@@ -10743,7 +10894,7 @@ task.spawn(function()
         title.Position = UDim2.new(0, 12, 0, 0)
         title.Size = UDim2.new(0, 160, 1, 0)
         title.Font = Enum.Font.GothamBlack
-        title.Text = "NØIR  ·  Animator"
+        title.Text = "Animator"
         title.TextColor3 = Color3.fromRGB(240, 240, 240)
         title.TextSize = 13
         title.TextXAlignment = Enum.TextXAlignment.Left
