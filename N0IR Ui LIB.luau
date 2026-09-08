@@ -95,58 +95,186 @@ local function getHost()
 end
 
 -- ============================================================
--- LOGO CACHE  (downloads once → workspace/executor folder)
+-- NØIR SHARED BRAND  (UI LIBRARY OWNS THIS — change once, all suites follow)
+-- Reanim / Animator / future modules MUST use:
+--   _G._N0IR_EnsureLogoAsset()
+--   _G._N0IR_Brand
 -- ============================================================
-local LOGO_URL  = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/ZtLyM.png"
-local LOGO_DIR  = "N0IR"
-local LOGO_PATH = "N0IR/Logo.png"
-local _cachedLogoAsset = nil
+_G._N0IR_Brand = {
+    -- >>> CHANGE LOGO HERE ONLY <<<
+    LogoUrl  = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/D27xi.png",
+    LogoPath = "N0IR/Logo_D27xi.png",
+    LogoDir  = "N0IR",
+    -- Background pack (owned here — reanim / animator consume via _G)
+    BgIndex  = tonumber(_G._N0IR_Brand and _G._N0IR_Brand.BgIndex) or 1, -- 0 = none, 1..n = pack entry
+    BgTransparency = 0.42,
+    Backgrounds = {
+        { Name = "Clouds 3",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(3).jfif",  Path = "N0IR/Bg_03.jfif" },
+        { Name = "Clouds 4",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(4).jfif",  Path = "N0IR/Bg_04.jfif" },
+        { Name = "Clouds 5",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(5).jfif",  Path = "N0IR/Bg_05.jfif" },
+        { Name = "Clouds 6",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(6).jfif",  Path = "N0IR/Bg_06.jfif" },
+        { Name = "Clouds 7",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(7).jfif",  Path = "N0IR/Bg_07.jfif" },
+        { Name = "Clouds 8",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(8).jfif",  Path = "N0IR/Bg_08.jfif" },
+        { Name = "Clouds 9",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(9).jfif",  Path = "N0IR/Bg_09.jfif" },
+        { Name = "Clouds 10", Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(10).jfif", Path = "N0IR/Bg_10.jfif" },
+        { Name = "Clouds 11", Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(11).jfif", Path = "N0IR/Bg_11.jfif" },
+    },
+}
 
-local function ensureLogoAsset()
-    if _cachedLogoAsset then
-        return _cachedLogoAsset
+_G._N0IR_BgCache = _G._N0IR_BgCache or {}
+_G._N0IR_BgTargets = _G._N0IR_BgTargets or {}
+
+local function _n0irCacheHttpAsset(url, path, dir, cacheKey, force)
+    if not force and cacheKey and _G._N0IR_BgCache[cacheKey] then
+        return _G._N0IR_BgCache[cacheKey]
     end
-
-    -- already on disk?
+    dir = dir or "N0IR"
     local onDisk = false
     pcall(function()
-        if isfolder and not isfolder(LOGO_DIR) then
-            makefolder(LOGO_DIR)
-        end
-        if isfile and isfile(LOGO_PATH) then
-            onDisk = true
-        end
+        if isfolder and not isfolder(dir) then makefolder(dir) end
+        if isfile and isfile(path) then onDisk = true end
     end)
-
-    if not onDisk then
-        local ok, data = pcall(function()
-            return game:HttpGet(LOGO_URL)
-        end)
+    if force or not onDisk then
+        local ok, data = pcall(function() return game:HttpGet(url) end)
         if ok and data and #data > 100 then
             pcall(function()
-                if isfolder and not isfolder(LOGO_DIR) then
-                    makefolder(LOGO_DIR)
-                end
-                if writefile then
-                    writefile(LOGO_PATH, data)
-                end
+                if isfolder and not isfolder(dir) then makefolder(dir) end
+                if writefile then writefile(path, data) end
             end)
             onDisk = true
         end
     end
-
-    -- prefer local custom asset (works offline after first run)
     if onDisk and getcustomasset then
-        local ok, asset = pcall(getcustomasset, LOGO_PATH)
+        local ok, asset = pcall(getcustomasset, path)
         if ok and type(asset) == "string" and asset ~= "" then
-            _cachedLogoAsset = asset
+            if cacheKey then _G._N0IR_BgCache[cacheKey] = asset end
             return asset
         end
     end
+    if cacheKey then _G._N0IR_BgCache[cacheKey] = url end
+    return url
+end
 
-    -- fallback: direct URL (some executors / Studio allow it)
-    _cachedLogoAsset = LOGO_URL
-    return LOGO_URL
+_G._N0IR_EnsureLogoAsset = function(force)
+    if force then
+        _G._N0IR_LogoWM = nil
+    end
+    if _G._N0IR_LogoWM then
+        return _G._N0IR_LogoWM
+    end
+    local cfg  = _G._N0IR_Brand or {}
+    local url  = cfg.LogoUrl or "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/D27xi.png"
+    local dir  = cfg.LogoDir or "N0IR"
+    local path = cfg.LogoPath or "N0IR/Logo_D27xi.png"
+    local asset = _n0irCacheHttpAsset(url, path, dir, nil, force)
+    _G._N0IR_LogoWM = asset
+    return asset
+end
+
+_G._N0IR_ForceLogo = function()
+    _G._N0IR_LogoWM = nil
+    pcall(function()
+        local path = (_G._N0IR_Brand and _G._N0IR_Brand.LogoPath) or "N0IR/Logo_D27xi.png"
+        if isfile and isfile(path) and delfile then delfile(path) end
+    end)
+    return _G._N0IR_EnsureLogoAsset(true)
+end
+
+-- index: 1..n from Backgrounds pack
+_G._N0IR_EnsureBgAsset = function(index, force)
+    local cfg = _G._N0IR_Brand or {}
+    local list = cfg.Backgrounds or {}
+    index = tonumber(index) or 1
+    local entry = list[index]
+    if not entry then return nil end
+    local key = "bg_" .. tostring(index)
+    if force then _G._N0IR_BgCache[key] = nil end
+    return _n0irCacheHttpAsset(entry.Url, entry.Path, cfg.LogoDir or "N0IR", key, force)
+end
+
+_G._N0IR_RegisterBgTarget = function(img)
+    if not img then return end
+    _G._N0IR_BgTargets = _G._N0IR_BgTargets or {}
+    -- prune dead refs
+    local alive = {}
+    for _, t in ipairs(_G._N0IR_BgTargets) do
+        if t and t.Parent then table.insert(alive, t) end
+    end
+    table.insert(alive, img)
+    _G._N0IR_BgTargets = alive
+end
+
+_G._N0IR_SetBackground = function(index)
+    local cfg = _G._N0IR_Brand or {}
+    index = math.floor(tonumber(index) or 0)
+    local list = cfg.Backgrounds or {}
+    if index < 0 then index = 0 end
+    if index > #list then index = #list end
+    cfg.BgIndex = index
+    _G._N0IR_Brand = cfg
+
+    local asset = nil
+    if index > 0 then
+        asset = _G._N0IR_EnsureBgAsset(index)
+    end
+    local trans = tonumber(cfg.BgTransparency) or 0.42
+
+    for _, img in ipairs(_G._N0IR_BgTargets or {}) do
+        if img and img.Parent then
+            if index <= 0 or not asset then
+                img.Image = ""
+                img.Visible = false
+            else
+                img.Image = asset
+                img.ImageTransparency = trans
+                img.Visible = true
+            end
+        end
+    end
+    return index
+end
+
+_G._N0IR_NextBackground = function()
+    local cfg = _G._N0IR_Brand or {}
+    local list = cfg.Backgrounds or {}
+    local n = #list
+    if n == 0 then return 0 end
+    local i = tonumber(cfg.BgIndex) or 0
+    i = i + 1
+    if i > n then i = 0 end -- wraps to none
+    return _G._N0IR_SetBackground(i)
+end
+
+local function ensureLogoAsset(force)
+    return _G._N0IR_EnsureLogoAsset(force)
+end
+
+local function attachWindowBackground(parent)
+    local bg = Instance.new("ImageLabel")
+    bg.Name = "N0IR_Bg"
+    bg.BackgroundTransparency = 1
+    bg.Size = UDim2.fromScale(1, 1)
+    bg.Position = UDim2.fromScale(0, 0)
+    bg.ScaleType = Enum.ScaleType.Crop
+    bg.ImageTransparency = (_G._N0IR_Brand and _G._N0IR_Brand.BgTransparency) or 0.42
+    bg.ZIndex = 0
+    bg.Visible = false
+    bg.Parent = parent
+    -- dim overlay so controls stay readable
+    local veil = Instance.new("Frame")
+    veil.Name = "N0IR_BgVeil"
+    veil.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
+    veil.BackgroundTransparency = 0.35
+    veil.BorderSizePixel = 0
+    veil.Size = UDim2.fromScale(1, 1)
+    veil.ZIndex = 0
+    veil.Parent = parent
+    _G._N0IR_RegisterBgTarget(bg)
+    local idx = (_G._N0IR_Brand and tonumber(_G._N0IR_Brand.BgIndex)) or 1
+    task.defer(function()
+        _G._N0IR_SetBackground(idx)
+    end)
+    return bg
 end
 
 -- ============================================================
@@ -196,32 +324,21 @@ function N0IR:LoadingScreen(opts)
     stack.BackgroundTransparency = 1
     stack.Parent = gui
 
-    -- Logo (cached to N0IR/Logo.png in executor workspace)
+    -- Logo only (wordmark already says NØIR — no title text)
     local logo = Instance.new("ImageLabel")
     logo.Name = "Logo"
     logo.AnchorPoint = Vector2.new(0.5, 0)
     logo.Position = UDim2.new(0.5, 0, 0, 0)
-    logo.Size = UDim2.fromOffset(64, 64)
+    logo.Size = UDim2.fromOffset(120, 120)
     logo.BackgroundTransparency = 1
     logo.Image = ensureLogoAsset()
     logo.ImageTransparency = 1
     logo.ScaleType = Enum.ScaleType.Fit
     logo.Parent = stack
 
-    local brand = Instance.new("TextLabel")
-    brand.BackgroundTransparency = 1
-    brand.Position = UDim2.fromOffset(0, 72)
-    brand.Size = UDim2.new(1, 0, 0, 36)
-    brand.Font = Enum.Font.GothamBlack
-    brand.Text = title
-    brand.TextSize = 28
-    brand.TextColor3 = T.text
-    brand.TextTransparency = 1
-    brand.Parent = stack
-
     local sub = Instance.new("TextLabel")
     sub.BackgroundTransparency = 1
-    sub.Position = UDim2.fromOffset(0, 110)
+    sub.Position = UDim2.fromOffset(0, 118)
     sub.Size = UDim2.new(1, 0, 0, 18)
     sub.Font = Enum.Font.GothamMedium
     sub.Text = subtitle
@@ -232,7 +349,7 @@ function N0IR:LoadingScreen(opts)
 
     local place = Instance.new("TextLabel")
     place.BackgroundTransparency = 1
-    place.Position = UDim2.fromOffset(0, 130)
+    place.Position = UDim2.fromOffset(0, 138)
     place.Size = UDim2.new(1, 0, 0, 16)
     place.Font = Enum.Font.Code
     place.Text = placeName .. "  ·  " .. tostring(game.PlaceId)
@@ -244,7 +361,7 @@ function N0IR:LoadingScreen(opts)
 
     -- Progress track
     local track = Instance.new("Frame")
-    track.Position = UDim2.fromOffset(0, 160)
+    track.Position = UDim2.fromOffset(0, 164)
     track.Size = UDim2.new(1, 0, 0, 3)
     track.BackgroundColor3 = T.bg3
     track.BackgroundTransparency = 1
@@ -262,7 +379,7 @@ function N0IR:LoadingScreen(opts)
 
     local pct = Instance.new("TextLabel")
     pct.BackgroundTransparency = 1
-    pct.Position = UDim2.fromOffset(0, 168)
+    pct.Position = UDim2.fromOffset(0, 172)
     pct.Size = UDim2.new(1, 0, 0, 16)
     pct.Font = Enum.Font.Code
     pct.Text = "0%"
@@ -274,7 +391,6 @@ function N0IR:LoadingScreen(opts)
     -- Fade in
     tween(veil, { BackgroundTransparency = 0.45 }, 0.4)
     tween(logo, { ImageTransparency = 0 }, 0.4)
-    tween(brand, { TextTransparency = 0 }, 0.45)
     tween(sub, { TextTransparency = 0 }, 0.5)
     tween(place, { TextTransparency = 0 }, 0.55)
     tween(track, { BackgroundTransparency = 0 }, 0.5)
@@ -295,7 +411,6 @@ function N0IR:LoadingScreen(opts)
             task.delay(0.15, function()
                 tween(veil, { BackgroundTransparency = 1 }, 0.4)
                 tween(logo, { ImageTransparency = 1 }, 0.35)
-                tween(brand, { TextTransparency = 1 }, 0.35)
                 tween(sub, { TextTransparency = 1 }, 0.3)
                 tween(place, { TextTransparency = 1 }, 0.3)
                 tween(track, { BackgroundTransparency = 1 }, 0.3)
@@ -439,6 +554,7 @@ function N0IR:CreateWindow(opts)
     win.Parent = screen
     corner(win, 12)
     stroke(win, T.border, 1, 0.25)
+    attachWindowBackground(win)
 
     -- Entrance
     win.Size = UDim2.fromOffset(math.floor(width * 0.92), math.floor(height * 0.92))
@@ -468,43 +584,29 @@ function N0IR:CreateWindow(opts)
         cover.Parent = titleBar
     end
 
-    -- Title bar logo (uses same cached asset)
+    -- Title bar logo only (wordmark already says NØIR)
     local titleLogo = Instance.new("ImageLabel")
     titleLogo.Name = "Logo"
     titleLogo.AnchorPoint = Vector2.new(0, 0.5)
     titleLogo.Position = UDim2.new(0, 12, 0.5, 0)
-    titleLogo.Size = UDim2.fromOffset(28, 28)
+    titleLogo.Size = UDim2.fromOffset(42, 42)
     titleLogo.BackgroundTransparency = 1
     titleLogo.Image = ensureLogoAsset()
     titleLogo.ScaleType = Enum.ScaleType.Fit
     titleLogo.Parent = titleBar
 
-    local titleLbl = Instance.new("TextLabel")
-    titleLbl.BackgroundTransparency = 1
-    titleLbl.Position = UDim2.fromOffset(48, 0)
-    titleLbl.Size = UDim2.new(0, 120, 1, 0)
-    titleLbl.Font = Enum.Font.GothamBlack
-    titleLbl.Text = title
-    titleLbl.TextSize = 16
-    titleLbl.TextColor3 = T.text
-    titleLbl.TextXAlignment = Enum.TextXAlignment.Left
-    titleLbl.Parent = titleBar
-
+    -- Optional subtitle only (never repeat NØIR / N0IR brand text)
     if subTitle ~= "" then
         local subLbl = Instance.new("TextLabel")
         subLbl.BackgroundTransparency = 1
-        subLbl.Position = UDim2.fromOffset(48 + titleLbl.TextBounds.X + 10, 0)
-        subLbl.Size = UDim2.new(0, 160, 1, 0)
+        subLbl.Position = UDim2.fromOffset(58, 0)
+        subLbl.Size = UDim2.new(0, 200, 1, 0)
         subLbl.Font = Enum.Font.GothamMedium
         subLbl.Text = subTitle
         subLbl.TextSize = 11
         subLbl.TextColor3 = T.text3
         subLbl.TextXAlignment = Enum.TextXAlignment.Left
         subLbl.Parent = titleBar
-        -- fix after render
-        task.defer(function()
-            subLbl.Position = UDim2.fromOffset(48 + titleLbl.TextBounds.X + 12, 0)
-        end)
     end
 
     -- Window controls
@@ -3421,6 +3523,52 @@ function N0IR:MountUtilities(Window)
     Settings:CreateSection("About")
     Settings:CreateParagraph({
         Content = "NØIR UI Library v" .. N0IR.Version .. "\nMinimal black & white suite. Mount reanim or other modules via loadstring onto this window.",
+    })
+    Settings:CreateSection("Background")
+    local bgNames = { "None" }
+    do
+        local list = (_G._N0IR_Brand and _G._N0IR_Brand.Backgrounds) or {}
+        for i, e in ipairs(list) do
+            table.insert(bgNames, (e.Name or ("BG " .. i)))
+        end
+    end
+    local curBg = tonumber(_G._N0IR_Brand and _G._N0IR_Brand.BgIndex) or 1
+    local curBgName = (curBg <= 0) and "None" or (bgNames[curBg + 1] or "None")
+    local bgLbl = Settings:CreateLabel("Active  ·  " .. curBgName)
+    Settings:CreateDropdown({
+        Name = "Wallpaper",
+        Options = bgNames,
+        Default = curBgName,
+        Callback = function(name)
+            local idx = 0
+            for i, n in ipairs(bgNames) do
+                if n == name then
+                    idx = i - 1 -- None=0, first bg=1
+                    break
+                end
+            end
+            if _G._N0IR_SetBackground then
+                _G._N0IR_SetBackground(idx)
+            end
+            bgLbl:Set("Active  ·  " .. name)
+            N0IR:Notify({ Title = "Background", Content = name, Duration = 1.5 })
+        end,
+    })
+    Settings:CreateButton({
+        Name = "Next background",
+        Callback = function()
+            local i = _G._N0IR_NextBackground and _G._N0IR_NextBackground() or 0
+            local name = (i <= 0) and "None" or (bgNames[i + 1] or ("BG " .. i))
+            bgLbl:Set("Active  ·  " .. name)
+            N0IR:Notify({ Title = "Background", Content = name, Duration = 1.2 })
+        end,
+    })
+    Settings:CreateButton({
+        Name = "No background",
+        Callback = function()
+            if _G._N0IR_SetBackground then _G._N0IR_SetBackground(0) end
+            bgLbl:Set("Active  ·  None")
+        end,
     })
     Settings:CreateSection("Keybinds")
     local keyLbl = Settings:CreateLabel("Menu toggle  ·  " .. tostring((_G._N0IR_ToggleKey or Enum.KeyCode.M).Name))
