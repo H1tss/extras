@@ -2854,273 +2854,172 @@ function N0IR:MountUtilities(Window)
     Cmds:CreateLabel("Tip  ·  open cmd bar with your keybind (Settings) · type cmds to focus this list")
 
     -- ---------- VC Bypass (NØIR) ----------
+    -- Same method as masklol: exact Unibar path, clone mic, hide original,
+    -- PublishPause on IconHitArea. Only visuals / branding differ.
     local VC = Window:CreateTab({ Name = "VC Bypass" })
-    VC:CreateSection("NØIR Voice Chat Bypass")
+    VC:CreateSection("NØIR Anti-VC")
     VC:CreateParagraph({
-        Content = "Native NØIR anti-VC built from the masklol approach — cleaner path discovery, custom mic icons, auto re-hook when the topbar rebuilds. No external loaders.",
+        Content = "Uses the proven Unibar mic-clone method. Custom NØIR mic icons. One click enable.",
     })
 
-    -- =========================================================
-    -- CUSTOM MIC ICONS  (upload your own → paste rbxassetid here)
-    -- =========================================================
-    local N0IR_VC_ICONS = {
-        -- muted  (shown when publish is paused / "safe" state)
-        muted   = "rbxassetid://17739458468",
-        -- unmuted (shown when mic is live)
-        unmuted = "rbxassetid://17739459022",
-        -- fallbacks if custom ids fail to load
-        mutedFallback   = "rbxasset://textures/ui/VoiceChat/MicLight/Muted.png",
-        unmutedFallback = "rbxasset://textures/ui/VoiceChat/MicLight/Light.png",
+    -- Custom icons (fallback to stock Roblox mic textures if id fails)
+    local N0IR_MIC = {
+        Muted   = "rbxassetid://17739458468",
+        UnMuted = "rbxassetid://17739459022",
+        -- stock fallbacks
+        MutedStock   = "rbxasset://textures/ui/VoiceChat/MicLight/Muted.png",
+        UnMutedStock = "rbxasset://textures/ui/VoiceChat/MicLight/Unmuted0.png",
     }
 
-    local VCState = {
-        enabled = false,
-        objs = {},
-        conns = {},
-        statusLbl = nil,
-        watchConn = nil,
-    }
+    local VC_WAIT = 15
+    local vcEnabled = false
+    local vcObjs = {}
 
-    local function vcStatus(msg)
-        if VCState.statusLbl and VCState.statusLbl.Set then
-            VCState.statusLbl:Set("Status  ·  " .. msg)
-        end
-        N0IR:Notify({ Title = "NØIR VC", Content = msg, Duration = 2.2 })
+    local function n0irMicImage(which)
+        return which == "muted" and N0IR_MIC.Muted or N0IR_MIC.UnMuted
     end
 
-    local function vcDisconnectAll()
-        for _, c in ipairs(VCState.conns) do
-            pcall(function() c:Disconnect() end)
-        end
-        table.clear(VCState.conns)
-        if VCState.watchConn then
-            pcall(function() VCState.watchConn:Disconnect() end)
-            VCState.watchConn = nil
-        end
-    end
-
-    local function vcCleanupSoft()
-        -- restore original button if we hid it; destroy clone
-        local o = VCState.objs
-        if o.cloned then pcall(function() o.cloned:Destroy() end) end
-        if o.original and o.container and o.original.Parent == nil then
-            pcall(function() o.original.Parent = o.container end)
-        elseif o.original and o.hidden and o.original.Parent == o.hidden then
-            pcall(function() o.original.Parent = o.container end)
-        end
-        if o.hidden then pcall(function() o.hidden:Destroy() end) end
-        VCState.objs = {}
-    end
-
-    local function safeCloneRef(svc)
-        if cloneref then return cloneref(svc) end
-        return svc
-    end
-
-    local function findMicButton()
-        local coregui = game:GetService("CoreGui")
-        local candidates = {}
-
-        local function dig(root, depth)
-            if not root or depth > 8 then return end
-            for _, ch in ipairs(root:GetChildren()) do
-                local n = string.lower(ch.Name)
-                if n:find("toggle_mic_mute", 1, true) or n == "mic" or n:find("mute", 1, true) and n:find("mic", 1, true) then
-                    table.insert(candidates, ch)
-                end
-                dig(ch, depth + 1)
-            end
-        end
-
-        -- modern topbar layouts
-        pcall(function()
-            local tba = coregui:FindFirstChild("TopBarApp")
-            if tba then
-                dig(tba, 0)
-                local inner = tba:FindFirstChild("TopBarApp")
-                if inner then dig(inner, 0) end
-            end
-        end)
-        pcall(function()
-            local chrome = coregui:FindFirstChild("Chrome") or coregui:FindFirstChild("Unibar")
-            if chrome then dig(chrome, 0) end
-        end)
-
-        -- prefer exact name match
-        for _, c in ipairs(candidates) do
-            if c.Name == "toggle_mic_mute" or c.Name:lower() == "toggle_mic_mute" then
-                return c, c.Parent
-            end
-        end
-        if #candidates > 0 then
-            return candidates[1], candidates[1].Parent
-        end
-        return nil, nil
-    end
-
-    local function getIconLabel(button)
-        if not button then return nil end
-        local icon = button:FindFirstChild("IntegrationIconFrame", true)
-        if icon then
-            local ii = icon:FindFirstChild("IntegrationIcon")
-            if ii then
-                local leaf = ii:FindFirstChild("1") or ii:FindFirstChildWhichIsA("ImageLabel")
-                if leaf then return leaf end
-            end
-            local any = icon:FindFirstChildWhichIsA("ImageLabel", true)
-            if any then return any end
-        end
-        return button:FindFirstChildWhichIsA("ImageLabel", true)
-    end
-
-    local function applyIcon(imgLabel, which)
-        if not imgLabel then return end
-        local primary = which == "muted" and N0IR_VC_ICONS.muted or N0IR_VC_ICONS.unmuted
-        local fallback = which == "muted" and N0IR_VC_ICONS.mutedFallback or N0IR_VC_ICONS.unmutedFallback
-        imgLabel.Image = primary
-        -- if custom fails at runtime, ImageRect/empty — soft fallback after a beat
-        task.delay(0.6, function()
-            if imgLabel and imgLabel.Parent and (imgLabel.IsLoaded == false or imgLabel.Image == "") then
-                imgLabel.Image = fallback
-            end
-        end)
-    end
-
-    local function hookMuteToggle(cloned, voiceInternal, iconLabel)
-        local function toggle()
-            local paused = false
-            pcall(function() paused = voiceInternal:IsPublishPaused() end)
-            local newState = not paused
-            pcall(function() voiceInternal:PublishPause(newState) end)
-            applyIcon(iconLabel, newState and "muted" or "unmuted")
-        end
-
-        local hit = cloned:FindFirstChild("IconHitArea_toggle_mic_mute", true)
-            or cloned:FindFirstChildWhichIsA("TextButton", true)
-            or cloned:FindFirstChildWhichIsA("ImageButton", true)
-            or cloned
-
-        if hit and hit:IsA("GuiButton") then
-            table.insert(VCState.conns, hit.Activated:Connect(toggle))
-            table.insert(VCState.conns, hit.MouseButton1Click:Connect(toggle))
-        elseif cloned:IsA("GuiButton") then
-            table.insert(VCState.conns, cloned.Activated:Connect(toggle))
-            table.insert(VCState.conns, cloned.MouseButton1Click:Connect(toggle))
-        end
-    end
-
-    local function tryApplyOnce()
-        local voiceService = safeCloneRef(game:GetService("VoiceChatService"))
-        local voiceInternal = safeCloneRef(game:GetService("VoiceChatInternal"))
-
-        -- ensure we are in voice channel
-        pcall(function() voiceService:joinVoice() end)
-        task.wait(0.35)
-
-        local micBtn, container = findMicButton()
-        if not micBtn then
-            return false, "mic button not found (topbar not ready)"
-        end
-
-        -- hidden stash
-        local hidden = Instance.new("Folder")
-        hidden.Name = "N0IR_VC_Hidden"
-        hidden.Parent = game:GetService("RobloxReplicatedStorage")
-        VCState.objs.hidden = hidden
-
-        local cloned = micBtn:Clone()
-        cloned.Name = "n0ir_toggle_mic_mute"
-        micBtn.Parent = hidden
-        cloned.Parent = container
-        VCState.objs.cloned = cloned
-        VCState.objs.original = micBtn
-        VCState.objs.container = container
-
-        local icon = getIconLabel(cloned)
-        VCState.objs.icon = icon
-
-        -- start muted (safer default for bypass)
-        pcall(function() voiceInternal:PublishPause(true) end)
-        applyIcon(icon, "muted")
-
-        hookMuteToggle(cloned, voiceInternal, icon)
-
-        -- silence noisy default connections on original if executor allows
-        pcall(function()
-            if getconnections then
-                for _, c in ipairs(getconnections(micBtn.Activated)) do pcall(function() c:Disable() end) end
-                for _, c in ipairs(getconnections(micBtn.MouseButton1Click)) do pcall(function() c:Disable() end) end
-            end
-        end)
-
-        return true, "active"
-    end
-
-    local function enableN0IRVCBypass()
-        if VCState.enabled then
-            vcStatus("already active")
+    local function applyN0IRVCBypass()
+        if vcEnabled then
+            N0IR:Notify({ Title = "NØIR VC", Content = "Already enabled", Duration = 2 })
             return
         end
-        VCState.enabled = true
-        vcDisconnectAll()
-        vcCleanupSoft()
 
         task.spawn(function()
             local ok, err = pcall(function()
-                local success, msg = tryApplyOnce()
-                if not success then
-                    -- retry a few times — topbar often mounts late
-                    for i = 1, 5 do
-                        task.wait(0.8)
-                        success, msg = tryApplyOnce()
-                        if success then break end
-                    end
-                end
-                if not success then
-                    VCState.enabled = false
-                    vcStatus("failed · " .. tostring(msg))
-                    return
-                end
-                vcStatus("enabled · custom icons")
+                local clonereference = cloneref or function(...) return ... end
+                local voicechatservice = clonereference(game:GetService("VoiceChatService"))
+                local voicechatinternal = clonereference(game:GetService("VoiceChatInternal"))
+                local coregui = game:GetService("CoreGui")
 
-                -- watch for topbar rebuild (Roblox likes to refresh Unibar)
-                local lastCheck = 0
-                VCState.watchConn = RunService.Heartbeat:Connect(function()
-                    if not VCState.enabled then return end
-                    if tick() - lastCheck < 2.5 then return end
-                    lastCheck = tick()
-                    local clone = VCState.objs.cloned
-                    if not clone or not clone.Parent then
-                        -- rehook
-                        vcDisconnectAll()
-                        vcCleanupSoft()
-                        local s, m = tryApplyOnce()
-                        if s then
-                            -- re-bind watch is already running
+                -- join voice first so the mic control exists
+                pcall(function() voicechatservice:joinVoice() end)
+                task.wait(0.4)
+
+                local topbarapp = coregui:WaitForChild("TopBarApp", VC_WAIT)
+                topbarapp = topbarapp:WaitForChild("TopBarApp", VC_WAIT)
+
+                local unibarleft = topbarapp:WaitForChild("UnibarLeftFrame", VC_WAIT)
+                local unibarmenu = unibarleft:FindFirstChild("UnibarMenu")
+                    or unibarleft:WaitForChild("UnibarMenu", VC_WAIT)
+                if not unibarmenu then
+                    unibarmenu = unibarleft:FindFirstChild("ChromeMenu")
+                        or unibarleft:WaitForChild("ChromeMenu", 5)
+                end
+                if not unibarmenu then
+                    error("UnibarMenu not found")
+                end
+
+                local unibarcontainer
+                pcall(function()
+                    unibarcontainer = unibarmenu:WaitForChild("2", VC_WAIT):WaitForChild("3", VC_WAIT)
+                end)
+                if not unibarcontainer then
+                    -- some clients nest differently
+                    pcall(function()
+                        local a = unibarmenu:FindFirstChild("2")
+                        unibarcontainer = a and (a:FindFirstChild("3") or a)
+                    end)
+                end
+                if not unibarcontainer then
+                    unibarcontainer = unibarmenu
+                end
+
+                local micmutebutton = unibarcontainer:FindFirstChild("toggle_mic_mute", true)
+                if not micmutebutton then
+                    micmutebutton = unibarcontainer:WaitForChild("toggle_mic_mute", VC_WAIT)
+                end
+                if not micmutebutton then
+                    error("toggle_mic_mute not found")
+                end
+
+                local function geticonlabel(button)
+                    local frame = button:WaitForChild("IntegrationIconFrame", VC_WAIT)
+                    local integ = frame:WaitForChild("IntegrationIcon", VC_WAIT)
+                    return integ:FindFirstChild("1") or integ:FindFirstChildWhichIsA("ImageLabel")
+                end
+
+                local function getcurrentmutestate()
+                    return voicechatinternal:IsPublishPaused()
+                end
+
+                local function setmutestate(state)
+                    voicechatinternal:PublishPause(state)
+                end
+
+                -- stash original, place clone in same slot (masklol method)
+                local hiddenfolder = Instance.new("Folder")
+                hiddenfolder.Name = "N0IR_VC_Hidden"
+                hiddenfolder.Parent = game:GetService("RobloxReplicatedStorage")
+
+                local clonedmutebutton = micmutebutton:Clone()
+                micmutebutton.Parent = hiddenfolder
+                clonedmutebutton.Name = "n0ir_toggle_mic_mute"
+                clonedmutebutton.Visible = true
+                clonedmutebutton.Parent = unibarcontainer
+
+                vcObjs.hidden = hiddenfolder
+                vcObjs.original = micmutebutton
+                vcObjs.cloned = clonedmutebutton
+                vcObjs.container = unibarcontainer
+
+                local clonedicon = geticonlabel(clonedmutebutton)
+                local originalicon = geticonlabel(micmutebutton)
+
+                -- start muted; NØIR custom art
+                setmutestate(true)
+                if clonedicon then
+                    clonedicon.Image = n0irMicImage("muted")
+                    -- soft stock fallback
+                    task.delay(0.75, function()
+                        if clonedicon and clonedicon.Parent and clonedicon.IsLoaded == false then
+                            clonedicon.Image = N0IR_MIC.MutedStock
+                        end
+                    end)
+                end
+
+                local hit = clonedmutebutton:WaitForChild("IconHitArea_toggle_mic_mute", VC_WAIT)
+                hit.Activated:Connect(function()
+                    local newstate = not getcurrentmutestate()
+                    setmutestate(newstate)
+                    if clonedicon then
+                        if newstate then
+                            clonedicon.Image = n0irMicImage("muted")
+                        else
+                            -- prefer custom unmuted; else original icon image
+                            local img = n0irMicImage("unmuted")
+                            clonedicon.Image = img
+                            task.delay(0.75, function()
+                                if clonedicon and clonedicon.Parent and clonedicon.IsLoaded == false then
+                                    if originalicon then
+                                        clonedicon.Image = originalicon.Image
+                                    else
+                                        clonedicon.Image = N0IR_MIC.UnMutedStock
+                                    end
+                                end
+                            end)
                         end
                     end
                 end)
+
+                vcEnabled = true
             end)
-            if not ok then
-                VCState.enabled = false
-                vcStatus("error · " .. tostring(err))
+
+            if ok then
+                N0IR:Notify({ Title = "NØIR VC", Content = "Bypass enabled", Duration = 2 })
+            else
+                vcEnabled = false
+                N0IR:Notify({ Title = "NØIR VC", Content = "Failed: " .. tostring(err), Duration = 3 })
             end
         end)
     end
 
-    VCState.statusLbl = VC:CreateLabel("Status  ·  idle")
-
     VC:CreateButton({
         Name = "Enable NØIR VC Bypass",
-        Callback = enableN0IRVCBypass,
+        Callback = applyN0IRVCBypass,
     })
 
-    VC:CreateParagraph({
-        Content = "Icons: muted " .. N0IR_VC_ICONS.muted .. "  ·  unmuted " .. N0IR_VC_ICONS.unmuted .. "\nSwap the ids at the top of this module (N0IR_VC_ICONS) for your own uploads.",
-    })
-
-    -- also expose for commands
-    _G._N0IR_EnableVCBypass = enableN0IRVCBypass
+    _G._N0IR_EnableVCBypass = applyN0IRVCBypass
 
     -- ---------- Map / Treehouse ----------
     local Map = Window:CreateTab({ Name = "Map" })
