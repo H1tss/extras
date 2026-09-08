@@ -289,6 +289,46 @@ local function attachWindowBackground(parent, radius)
 end
 
 -- ============================================================
+-- KEYBIND PERSISTENCE  (N0IR/keybinds.json)
+-- ============================================================
+local KEYBINDS_PATH = "N0IR/keybinds.json"
+local function _n0irSaveKeybinds()
+    pcall(function()
+        if isfolder and not isfolder("N0IR") then makefolder("N0IR") end
+        local HttpService = game:GetService("HttpService")
+        local data = {
+            ToggleKey = (_G._N0IR_ToggleKey and _G._N0IR_ToggleKey.Name) or "M",
+            CmdBarKey = (_G._N0IR_CmdBarKey and _G._N0IR_CmdBarKey.Name) or "Semicolon",
+            CmdPrefix = tostring(_G._N0IR_CmdPrefix or ";"),
+        }
+        if writefile then
+            writefile(KEYBINDS_PATH, HttpService:JSONEncode(data))
+        end
+    end)
+end
+_G._N0IR_SaveKeybinds = _n0irSaveKeybinds
+
+local function _n0irLoadKeybinds()
+    pcall(function()
+        if not (isfile and isfile(KEYBINDS_PATH)) then return end
+        local HttpService = game:GetService("HttpService")
+        local raw = readfile(KEYBINDS_PATH)
+        local data = HttpService:JSONDecode(raw)
+        if type(data) ~= "table" then return end
+        if type(data.ToggleKey) == "string" and Enum.KeyCode[data.ToggleKey] then
+            _G._N0IR_ToggleKey = Enum.KeyCode[data.ToggleKey]
+        end
+        if type(data.CmdBarKey) == "string" and Enum.KeyCode[data.CmdBarKey] then
+            _G._N0IR_CmdBarKey = Enum.KeyCode[data.CmdBarKey]
+        end
+        if type(data.CmdPrefix) == "string" and data.CmdPrefix ~= "" then
+            _G._N0IR_CmdPrefix = data.CmdPrefix
+        end
+    end)
+end
+_n0irLoadKeybinds()
+
+-- ============================================================
 -- LOADING SCREEN (fullscreen, half-transparent, NØIR)
 -- ============================================================
 function N0IR:LoadingScreen(opts)
@@ -1280,10 +1320,13 @@ function N0IR:CreateWindow(opts)
         screen:Destroy()
     end
 
-    -- Toggle keybind (default M)
-    local toggleKey = opts.ToggleKey or Enum.KeyCode.M
+    -- Toggle keybind (prefer saved → opts → default M)
+    local toggleKey = opts.ToggleKey or _G._N0IR_ToggleKey or Enum.KeyCode.M
     if type(toggleKey) == "string" then
         pcall(function() toggleKey = Enum.KeyCode[toggleKey] end)
+    end
+    if typeof(toggleKey) ~= "EnumItem" then
+        toggleKey = Enum.KeyCode.M
     end
     _G._N0IR_ToggleKey = toggleKey
     Window.ToggleKey = toggleKey
@@ -2687,10 +2730,28 @@ function N0IR:MountUtilities(Window)
                 notify(cmd, "Need a username / display name")
                 return
             end
+
+            local function resolveMyRoot()
+                -- Prefer reanim clone root when present
+                local clone
+                pcall(function()
+                    if ReanimateAPI and ReanimateAPI.get_clone then
+                        clone = ReanimateAPI.get_clone(LocalPlayer)
+                    elseif _G.ReanimateAPI and _G.ReanimateAPI.get_clone then
+                        clone = _G.ReanimateAPI.get_clone(LocalPlayer)
+                    end
+                end)
+                if clone then
+                    local r = clone:FindFirstChild("HumanoidRootPart")
+                    if r then return r end
+                end
+                return getHRP()
+            end
+
             local thrp = t.Character and t.Character:FindFirstChild("HumanoidRootPart")
-            local me = getHRP()
+            local me = resolveMyRoot()
             local myHum = getHum()
-            if not thrp or not me or not myHum then
+            if not thrp or not me then
                 notify(cmd, "Characters not ready")
                 return
             end
@@ -2700,48 +2761,51 @@ function N0IR:MountUtilities(Window)
             if _G._N0IR_AdultTrack then pcall(function() _G._N0IR_AdultTrack:Stop() end); _G._N0IR_AdultTrack = nil end
 
             local offsets = {
-                headbang = CFrame.new(0, -0.2, -1.1) * CFrame.Angles(math.rad(-20), 0, 0),
-                headfuck = CFrame.new(0, -0.2, -1.1) * CFrame.Angles(math.rad(-20), 0, 0),
-                bang = CFrame.new(0, 0, -1.2) * CFrame.Angles(math.rad(10), math.rad(180), 0),
-                fuck = CFrame.new(0, 0, -1.2) * CFrame.Angles(math.rad(10), math.rad(180), 0),
-                suck = CFrame.new(0, -0.9, -0.9) * CFrame.Angles(math.rad(70), 0, 0),
-                blowjob = CFrame.new(0, -0.9, -0.9) * CFrame.Angles(math.rad(70), 0, 0),
-                lickbutt = CFrame.new(0, -0.7, 1.0) * CFrame.Angles(math.rad(40), math.rad(180), 0),
-                peg = CFrame.new(0, 0, 1.15) * CFrame.Angles(0, 0, 0),
+                headbang = CFrame.new(0, -0.15, -1.05) * CFrame.Angles(math.rad(-25), 0, 0),
+                headfuck = CFrame.new(0, -0.15, -1.05) * CFrame.Angles(math.rad(-25), 0, 0),
+                bang = CFrame.new(0, 0, -1.15) * CFrame.Angles(math.rad(8), math.rad(180), 0),
+                fuck = CFrame.new(0, 0, -1.15) * CFrame.Angles(math.rad(8), math.rad(180), 0),
+                suck = CFrame.new(0, -0.95, -0.85) * CFrame.Angles(math.rad(75), 0, 0),
+                blowjob = CFrame.new(0, -0.95, -0.85) * CFrame.Angles(math.rad(75), 0, 0),
+                lickbutt = CFrame.new(0, -0.65, 1.05) * CFrame.Angles(math.rad(35), math.rad(180), 0),
+                peg = CFrame.new(0, 0, 1.2) * CFrame.Angles(math.rad(5), 0, 0),
             }
             local off = offsets[cmd] or offsets.bang
+            local bobAmp = (cmd == "headbang" or cmd == "headfuck") and 0.08 or 0.06
+            local bobSpd = (cmd == "headbang" or cmd == "headfuck") and 14 or 11
 
-            -- optional anim assets (R6-ish dance/emote fallbacks — may not load in all games)
-            local animIds = {
-                headbang = "rbxassetid://5918726674",
-                headfuck = "rbxassetid://5918726674",
-                bang = "rbxassetid://5918726674",
-                fuck = "rbxassetid://5918726674",
-                suck = "rbxassetid://698251653",
-                blowjob = "rbxassetid://698251653",
-                lickbutt = "rbxassetid://698251653",
-                peg = "rbxassetid://5918726674",
-            }
-
+            -- Try animator on real humanoid (may fail under reanim — OK)
             pcall(function()
-                local animator = myHum:FindFirstChildOfClass("Animator") or myHum
+                if not myHum then return end
+                local animator = myHum:FindFirstChildOfClass("Animator")
+                if not animator then
+                    animator = Instance.new("Animator")
+                    animator.Parent = myHum
+                end
                 local anim = Instance.new("Animation")
-                anim.AnimationId = animIds[cmd] or animIds.bang
+                -- use built-in emote-style ids as soft fallback
+                anim.AnimationId = (cmd == "suck" or cmd == "blowjob" or cmd == "lickbutt")
+                    and "rbxassetid://698251653"
+                    or "rbxassetid://5918726674"
                 local track = animator:LoadAnimation(anim)
                 track.Looped = true
-                track.Priority = Enum.AnimationPriority.Action
-                track:Play()
+                track.Priority = Enum.AnimationPriority.Action4
+                track:Play(0.1, 1, 1.1)
                 _G._N0IR_AdultTrack = track
             end)
 
+            -- Always drive position procedurally (works with reanim + normal)
             local t0 = tick()
-            _G._N0IR_AdultConn = RunService.RenderStepped:Connect(function()
+            _G._N0IR_AdultConn = RunService.Heartbeat:Connect(function()
                 local target = t.Character and t.Character:FindFirstChild("HumanoidRootPart")
-                local selfHRP = getHRP()
+                local selfHRP = resolveMyRoot()
                 if not target or not selfHRP then return end
-                -- subtle bob
-                local bob = math.sin((tick() - t0) * 10) * 0.04
-                selfHRP.CFrame = target.CFrame * off * CFrame.new(0, bob, 0)
+                local bob = math.sin((tick() - t0) * bobSpd) * bobAmp
+                local thrust = math.sin((tick() - t0) * bobSpd) * 0.05
+                local cf = target.CFrame * off * CFrame.new(0, bob, thrust)
+                selfHRP.CFrame = cf
+                selfHRP.AssemblyLinearVelocity = Vector3.zero
+                selfHRP.AssemblyAngularVelocity = Vector3.zero
             end)
             notify(cmd, "→ " .. t.DisplayName .. "  ·  ;stopadult to cancel")
 
@@ -3027,23 +3091,44 @@ function N0IR:MountUtilities(Window)
     input.ClearTextOnFocus = false
     input.Parent = bar
 
+    local _cmdOpenIgnore = false
     UserInputService.InputBegan:Connect(function(inp, gp)
-        if gp then return end
         local key = _G._N0IR_CmdBarKey or cmdBarKey
-        if inp.KeyCode == key then
-            task.defer(function()
-                input:CaptureFocus()
-                input.Text = ""
-                tween(bar, { Position = UDim2.new(0.5, 0, 1, -18) }, 0.3)
-            end)
+        if inp.KeyCode ~= key then return end
+        -- Always sink this key so it never types into the TextBox
+        if UserInputService:GetFocusedTextBox() == input then
+            -- already open: close on second press
+            input:ReleaseFocus()
+            return
+        end
+        if UserInputService:GetFocusedTextBox() then return end
+        _cmdOpenIgnore = true
+        input.Text = ""
+        tween(bar, { Position = UDim2.new(0.5, 0, 1, -18) }, 0.3)
+        task.defer(function()
+            input:CaptureFocus()
+            input.Text = ""
+            -- clear again next frames in case the open-key was inserted
+            for _ = 1, 3 do
+                task.wait()
+                if _cmdOpenIgnore then input.Text = "" end
+            end
+            _cmdOpenIgnore = false
+        end)
+    end)
+
+    input:GetPropertyChangedSignal("Text"):Connect(function()
+        if _cmdOpenIgnore then
+            input.Text = ""
         end
     end)
 
     input.FocusLost:Connect(function(enter)
         tween(bar, { Position = UDim2.new(0.5, 0, 1, 60) }, 0.3)
+        _cmdOpenIgnore = false
         if enter and input.Text ~= "" then
-            local t = input.Text
-            runCmd(t)
+            local txt = input.Text
+            runCmd(txt)
         end
         input.Text = ""
     end)
@@ -3607,7 +3692,8 @@ function N0IR:MountUtilities(Window)
             end
             _G[storeKey] = input.KeyCode
             labelObj:Set(pretty .. "  ·  " .. input.KeyCode.Name)
-            N0IR:Notify({ Title = "Keybind", Content = pretty .. " → " .. input.KeyCode.Name, Duration = 2 })
+            if _G._N0IR_SaveKeybinds then _G._N0IR_SaveKeybinds() end
+            N0IR:Notify({ Title = "Keybind", Content = pretty .. " → " .. input.KeyCode.Name .. "  ·  saved", Duration = 2 })
         end)
     end
 
@@ -3637,6 +3723,7 @@ function N0IR:MountUtilities(Window)
                 return
             end
             _G._N0IR_CmdPrefix = text
+            if _G._N0IR_SaveKeybinds then _G._N0IR_SaveKeybinds() end
             prefixLbl:Set("Current prefix  ·  " .. text)
             N0IR:Notify({ Title = "Prefix", Content = "Set to '" .. text .. "'", Duration = 2 })
         end,
