@@ -1,6 +1,6 @@
 pcall(function()
 	if queue_on_teleport then
-		local ok, src = pcall(readfile, "TheMagicalUnicorn.lua")
+		local ok, src = pcall(readfile, "N0IR.lua")
 		if ok and src then
 			queue_on_teleport(src)
 		end
@@ -47,18 +47,30 @@ do
 		-- no full-screen background — only the card is visible over the game
 
 		local card = Instance.new("Frame")
-		card.Size = UDim2.fromOffset(320, 148)
-		card.Position = UDim2.new(0, 28, 1, -176)
-		card.BackgroundColor3 = Color3.fromRGB(14, 14, 14)
-		card.BackgroundTransparency = 0.05
+		card.Size = UDim2.fromOffset(300, 138)
+		card.Position = UDim2.new(0, 24, 1, -162)
+		card.BackgroundColor3 = Color3.fromRGB(10, 10, 11)
+		card.BackgroundTransparency = 0.02
 		card.BorderSizePixel = 0
 		card.Parent = gui
 		Instance.new("UICorner", card).CornerRadius = UDim.new(0, 8)
 		local stroke = Instance.new("UIStroke")
-		stroke.Color = Color3.fromRGB(40, 40, 40)
+		stroke.Color = Color3.fromRGB(70, 70, 76)
 		stroke.Thickness = 1
-		stroke.Transparency = 0.2
+		stroke.Transparency = 0.35
 		stroke.Parent = card
+		-- inner hairline
+		local innerLS = Instance.new("Frame")
+		innerLS.BackgroundTransparency = 1
+		innerLS.Size = UDim2.new(1, -8, 1, -8)
+		innerLS.Position = UDim2.fromOffset(4, 4)
+		innerLS.Parent = card
+		Instance.new("UICorner", innerLS).CornerRadius = UDim.new(0, 6)
+		local is2 = Instance.new("UIStroke")
+		is2.Color = Color3.fromRGB(150, 150, 158)
+		is2.Thickness = 1
+		is2.Transparency = 0.82
+		is2.Parent = innerLS
 
 		local brand = Instance.new("TextLabel")
 		brand.BackgroundTransparency = 1
@@ -224,7 +236,7 @@ end
 -- SHADERS & LIGHTING MODULE (From Pastebin k8ifajfk)
 -- ============================================================
 task.spawn(function()
-    if not _G._HaloShadersEnabled then return end
+    if not _G._N0IRShadersEnabled then return end
     local Lighting = game:GetService("Lighting")
     local SoundService = game:GetService("SoundService")
 
@@ -464,34 +476,34 @@ pcall(function() loadstring("if getgenv().LPH_JIT_MAX == nil then getgenv().LPH_
 -- RE-EXECUTION CLEANUP: Reset all persistent flags and destroy old UI
 -- This ensures the script works cleanly every time you rejoin or re-execute
 -- ============================================================
-_G._HaloInfBaseplateApplied = nil
-if _G._HaloInfBPConn then _G._HaloInfBPConn:Disconnect() _G._HaloInfBPConn = nil end
-_G._HaloResetLastTick = nil
-_G._HaloAnimCopierActive = nil
+_G._N0IRInfBaseplateApplied = nil
+if _G._N0IRInfBPConn then _G._N0IRInfBPConn:Disconnect() _G._N0IRInfBPConn = nil end
+_G._N0IRResetLastTick = nil
+_G._N0IRAnimCopierActive = nil
 
 -- Reset Action Toggles
-_G._HaloRightArmPointerEnabled = false
-_G._HaloLeftArmPointerEnabled = false
-_G._HaloRightArmStretching = false
-_G._HaloLeftArmStretching = false
-_G._HaloPointerStretchAmount = _G._HaloPointerStretchAmount or 1.0
-_G._HaloTorsoStretcherEnabled = false
-_G._HaloLimbsTorsoCamControl = false
-_G._HaloHeadTrackerEnabled = false
-_G._HaloTrackerEnabled = false
+_G._N0IRRightArmPointerEnabled = false
+_G._N0IRLeftArmPointerEnabled = false
+_G._N0IRRightArmStretching = false
+_G._N0IRLeftArmStretching = false
+_G._N0IRPointerStretchAmount = _G._N0IRPointerStretchAmount or 1.0
+_G._N0IRTorsoStretcherEnabled = false
+_G._N0IRLimbsTorsoCamControl = false
+_G._N0IRHeadTrackerEnabled = false
+_G._N0IRTrackerEnabled = false
 _G._FortniteWheelEnabled = false
-_G._HaloGhostBodyEnabled = false
-_G._HaloNoClipActive = false
-_G._HaloShadersEnabled = false
+_G._N0IRGhostBodyEnabled = false
+_G._N0IRNoClipActive = false
+_G._N0IRShadersEnabled = false
 
-_G._HaloTeleportKey = nil
+_G._N0IRTeleportKey = nil
 _G._UniCmdBarKey = nil
 
 -- Destroy old ScreenGui if it exists
 pcall(function()
     local PlayerGui = game:GetService("Players").LocalPlayer:FindFirstChildOfClass("PlayerGui")
     if PlayerGui then
-        local oldGui = PlayerGui:FindFirstChild("ReanimHaloMenu")
+        local oldGui = PlayerGui:FindFirstChild("ReanimN0IRMenu")
         if oldGui then oldGui:Destroy() end
     end
 end)
@@ -499,17 +511,17 @@ end)
 -- Destroy old mobile wheel button if it exists
 pcall(function()
     local CoreGui = game:GetService("CoreGui")
-    local oldBtn = CoreGui:FindFirstChild("HaloMobileWheelBtn")
+    local oldBtn = CoreGui:FindFirstChild("N0IRMobileWheelBtn")
     if oldBtn then oldBtn:Destroy() end
 end)
 
 -- Clean up old connections if stored
 pcall(function()
-    if _G._HaloReanimConns then
-        for k, conn in pairs(_G._HaloReanimConns) do
+    if _G._N0IRReanimConns then
+        for k, conn in pairs(_G._N0IRReanimConns) do
             if conn then pcall(function() conn:Disconnect() end) end
         end
-        _G._HaloReanimConns = {}
+        _G._N0IRReanimConns = {}
     end
 end)
 
@@ -519,15 +531,15 @@ pcall(function() loadstring("if getgenv().LPH_NO_VIRTUALIZE == nil then getgenv(
 pcall(function() loadstring("if getgenv().LPH_JIT == nil then getgenv().LPH_JIT = function(f) return f end end")() end)
 pcall(function() loadstring("if getgenv().LPH_JIT_MAX == nil then getgenv().LPH_JIT_MAX = function(f) return f end end")() end)
 
-if _G._HaloReanimConns then
-    for k, conn in pairs(_G._HaloReanimConns) do
+if _G._N0IRReanimConns then
+    for k, conn in pairs(_G._N0IRReanimConns) do
         if conn then
             pcall(function() conn:Disconnect() end)
-            _G._HaloReanimConns[k] = nil
+            _G._N0IRReanimConns[k] = nil
         end
     end
 else
-    _G._HaloReanimConns = {}
+    _G._N0IRReanimConns = {}
 end
 if _G._ReanimRawConn then
     pcall(function() _G._ReanimRawConn:Disconnect() end)
@@ -543,7 +555,7 @@ end)
 
 pcall(function()
     for _, child in ipairs(game:GetService("SoundService"):GetChildren()) do
-        if child.Name == "HaloEmoteSound" or child.Name == "HaloClickSound" then
+        if child.Name == "N0IREmoteSound" or child.Name == "N0IRClickSound" then
             child:Stop()
             child:Destroy()
         end
@@ -728,7 +740,7 @@ end
 -- Load API (embedded)
 local ReanimateAPI
 do
-    local halo = {
+    local n0ir = {
         services = {
             players = game:GetService("Players");
             workspace = game:GetService("Workspace");
@@ -781,7 +793,7 @@ do
     local API = {};
 
     local get_local_player = function()
-        local player = halo.services.players.LocalPlayer;
+        local player = n0ir.services.players.LocalPlayer;
         if not player then
             return "bad argument to 'get_local_player' (LocalPlayer not found; must run in a LocalScript)";
         end;
@@ -814,19 +826,19 @@ do
             return "Cannot play animation, character not found.";
         end;
 
-        if halo.animation.state.is_playing and halo.animation.state.current_url == name then
+        if n0ir.animation.state.is_playing and n0ir.animation.state.current_url == name then
             API.stop_animation();
             return;
         end;
 
         -- Keep blend snapshot when coming from a state transition
-        if halo.animation.blend_from and not halo.animation.state.is_playing then
+        if n0ir.animation.blend_from and not n0ir.animation.state.is_playing then
             -- already stopped for transition — just clear constraint maps
-            table.clear(halo.animation.original_transforms);
-            table.clear(halo.animation.constraints);
-            if halo.connections.animation_hb then
-                halo.connections.animation_hb:Disconnect();
-                halo.connections.animation_hb = nil;
+            table.clear(n0ir.animation.original_transforms);
+            table.clear(n0ir.animation.constraints);
+            if n0ir.connections.animation_hb then
+                n0ir.connections.animation_hb:Disconnect();
+                n0ir.connections.animation_hb = nil;
             end;
         else
             API.stop_animation();
@@ -847,7 +859,7 @@ do
             end;
         end;
 
-        local anim = halo.animation;
+        local anim = n0ir.animation;
         anim.state.speed = tonumber(speed) or 1.0;
 
         -- Check cache first to avoid loadstring lag
@@ -957,11 +969,11 @@ do
 
         anim.state.elapsed_time = 0;
 
-        if halo.callbacks.on_play then
-            pcall(halo.callbacks.on_play, anim.state.current_url);
+        if n0ir.callbacks.on_play then
+            pcall(n0ir.callbacks.on_play, anim.state.current_url);
         end;
 
-        halo.connections.animation_hb = halo.services.run_service.PreSimulation:Connect(LPH_NO_VIRTUALIZE(function(deltaTime)
+        n0ir.connections.animation_hb = n0ir.services.run_service.PreSimulation:Connect(LPH_NO_VIRTUALIZE(function(deltaTime)
             if not (anim.state.is_playing and clone and clone.Parent) then
                 API.stop_animation();
                 return;
@@ -1038,10 +1050,10 @@ do
             end;
 
             -- Fun head modes (spin / stare) take priority over camera head tracker
-            if _G._HaloSpinHeadEnabled or _G._HaloStareEnabled or _G._HaloLookBehindEnabled
-                or _G._HaloNodLoopEnabled or _G._HaloHeadTiltEnabled or _G._HaloCraneNeckEnabled then
+            if _G._N0IRSpinHeadEnabled or _G._N0IRStareEnabled or _G._N0IRLookBehindEnabled
+                or _G._N0IRNodLoopEnabled or _G._N0IRHeadTiltEnabled or _G._N0IRCraneNeckEnabled then
                 -- handled by fun tracking PreSimulation loop
-            elseif _G._HaloHeadTrackerEnabled then
+            elseif _G._N0IRHeadTrackerEnabled then
                 local headConstraint = anim.constraints["Head"];
                 if headConstraint then
                     local camera = workspace.CurrentCamera;
@@ -1064,7 +1076,7 @@ do
                                 -- Extract yaw & pitch and clamp to realistic neck limits
                                 local yaw = math.atan2(localLookDir.X, -localLookDir.Z);
                                 local pitch = math.asin(math.clamp(localLookDir.Y, -1, 1));
-                                if not _G._HaloHeadTracker360 then
+                                if not _G._N0IRHeadTracker360 then
                                     local maxYaw = math.rad(75);
                                     local maxPitch = math.rad(55);
                                     yaw = math.clamp(yaw, -maxYaw, maxYaw);
@@ -1097,9 +1109,9 @@ do
                                 end;
 
                                 -- Smooth interpolation so it feels like a real neck turning
-                                local smoothed = _G._HaloHeadTrackerSmoothedCF or bindTransform;
+                                local smoothed = _G._N0IRHeadTrackerSmoothedCF or bindTransform;
                                 smoothed = smoothed:Lerp(targetTransform, 0.15);
-                                _G._HaloHeadTrackerSmoothedCF = smoothed;
+                                _G._N0IRHeadTrackerSmoothedCF = smoothed;
                                 headConstraint.Transform = smoothed;
                             end;
                         end;
@@ -1112,7 +1124,7 @@ do
             -- ============================================
             -- LIMBS: Arm Pointer, Arm Stretching & Reach
             -- ============================================
-            local stretchAmt = _G._HaloArmStretchAmount or 2.5
+            local stretchAmt = _G._N0IRArmStretchAmount or 2.5
             local function stretchArmOnly(lowerName, handName, stretchMult)
                 if not stretchMult or stretchMult == 1.0 then return end
                 local lower = anim.constraints[lowerName]
@@ -1125,7 +1137,7 @@ do
                 if not shoulderConstraint then return end
 
                 local isLeft = upperName:find("Left") ~= nil
-                local resetFlag = isLeft and _G._HaloLeftArmPointerNeedsReset or _G._HaloRightArmPointerNeedsReset
+                local resetFlag = isLeft and _G._N0IRLeftArmPointerNeedsReset or _G._N0IRRightArmPointerNeedsReset
                 if resetFlag then
                     local orig = anim.original_transforms[shoulderConstraint]
                     if orig then shoulderConstraint.Transform = orig end
@@ -1134,11 +1146,11 @@ do
                     local wristConstraint = anim.constraints[handName]
                     if wristConstraint then wristConstraint.Transform = CFrame.new() end
                     if isLeft then
-                        _G._HaloLeftArmPointerNeedsReset = false
-                        if _G._HaloArmPointerSmoothed then _G._HaloArmPointerSmoothed.Left = nil end
+                        _G._N0IRLeftArmPointerNeedsReset = false
+                        if _G._N0IRArmPointerSmoothed then _G._N0IRArmPointerSmoothed.Left = nil end
                     else
-                        _G._HaloRightArmPointerNeedsReset = false
-                        if _G._HaloArmPointerSmoothed then _G._HaloArmPointerSmoothed.Right = nil end
+                        _G._N0IRRightArmPointerNeedsReset = false
+                        if _G._N0IRArmPointerSmoothed then _G._N0IRArmPointerSmoothed.Right = nil end
                     end
                 end
 
@@ -1207,11 +1219,11 @@ do
                 end
 
                 local armKey = isLeft and "Left" or "Right"
-                _G._HaloArmPointerSmoothed = _G._HaloArmPointerSmoothed or {}
-                local prevArm = _G._HaloArmPointerSmoothed[armKey]
-                local smoothAmt = tonumber(_G._HaloArmPointerSmooth) or 0.15
+                _G._N0IRArmPointerSmoothed = _G._N0IRArmPointerSmoothed or {}
+                local prevArm = _G._N0IRArmPointerSmoothed[armKey]
+                local smoothAmt = tonumber(_G._N0IRArmPointerSmooth) or 0.15
                 local smoothedArm = (prevArm and prevArm:Lerp(shoulderResult, smoothAmt)) or shoulderResult
-                _G._HaloArmPointerSmoothed[armKey] = smoothedArm
+                _G._N0IRArmPointerSmoothed[armKey] = smoothedArm
                 shoulderConstraint.Transform = smoothedArm
                 local elbowConstraint = anim.constraints[lowerName]
                 if elbowConstraint then elbowConstraint.Transform = CFrame.new() end
@@ -1243,18 +1255,18 @@ do
             end
 
             -- 1. Arm Pointers
-            if _G._HaloRightArmPointerEnabled then
+            if _G._N0IRRightArmPointerEnabled then
                 -- Pointer stretch only (Ctrl+Wheel / Arm Stretcher Pointers) — not general Arm Stretch
-                local pStretch = tonumber(_G._HaloPointerStretchAmount) or 1.0
+                local pStretch = tonumber(_G._N0IRPointerStretchAmount) or 1.0
                 pointArm("RightUpperArm", "RightLowerArm", "RightHand", pStretch)
-            elseif not _G._HaloLeftArmPointerEnabled and not _G._HaloRightArmPointerEnabled and _G._HaloRightArmStretching and stretchAmt ~= 1.0 then
+            elseif not _G._N0IRLeftArmPointerEnabled and not _G._N0IRRightArmPointerEnabled and _G._N0IRRightArmStretching and stretchAmt ~= 1.0 then
                 stretchArmOnly("RightLowerArm", "RightHand", stretchAmt)
             end
 
-            if _G._HaloLeftArmPointerEnabled then
-                local pStretch = tonumber(_G._HaloPointerStretchAmount) or 1.0
+            if _G._N0IRLeftArmPointerEnabled then
+                local pStretch = tonumber(_G._N0IRPointerStretchAmount) or 1.0
                 pointArm("LeftUpperArm", "LeftLowerArm", "LeftHand", pStretch)
-            elseif not _G._HaloRightArmPointerEnabled and not _G._HaloLeftArmPointerEnabled and _G._HaloLeftArmStretching and stretchAmt ~= 1.0 then
+            elseif not _G._N0IRRightArmPointerEnabled and not _G._N0IRLeftArmPointerEnabled and _G._N0IRLeftArmStretching and stretchAmt ~= 1.0 then
                 stretchArmOnly("LeftLowerArm", "LeftHand", stretchAmt)
             end
 
@@ -1262,29 +1274,29 @@ do
             -- ARM SLIDER: Upper arm welded to hip, stretch controls angle
             -- ============================================
             -- Unweld / restore original transforms when toggled off
-            if not _G._HaloArmSliderEnabled and _G._HaloArmSliderPrevEnabled then
-                _G._HaloArmSliderPrevEnabled = false
-                for constraint, orig in pairs(_G._HaloArmSliderOriginalTransforms) do
+            if not _G._N0IRArmSliderEnabled and _G._N0IRArmSliderPrevEnabled then
+                _G._N0IRArmSliderPrevEnabled = false
+                for constraint, orig in pairs(_G._N0IRArmSliderOriginalTransforms) do
                     if constraint and constraint.Parent then
                         pcall(function() constraint.Transform = orig end)
                     end
                 end
-                _G._HaloArmSliderOriginalTransforms = {}
+                _G._N0IRArmSliderOriginalTransforms = {}
             end
-            if _G._HaloArmSliderEnabled then
-                _G._HaloArmSliderPrevEnabled = true
-                local offsetX = _G._HaloArmSliderOffsetX or 0
-                local offsetY = _G._HaloArmSliderOffsetY or 0
-                local stretch = _G._HaloArmSliderStretch or 1.0
-                local rotEnabled = _G._HaloArmSliderRotationEnabled or false
-                local rotDeg = _G._HaloArmSliderRotation or 0
+            if _G._N0IRArmSliderEnabled then
+                _G._N0IRArmSliderPrevEnabled = true
+                local offsetX = _G._N0IRArmSliderOffsetX or 0
+                local offsetY = _G._N0IRArmSliderOffsetY or 0
+                local stretch = _G._N0IRArmSliderStretch or 1.0
+                local rotEnabled = _G._N0IRArmSliderRotationEnabled or false
+                local rotDeg = _G._N0IRArmSliderRotation or 0
 
-                local rUpper = anim.constraints["RightUpperArm"] or _HaloFindConstraintOnClone(clone, "RightUpperArm")
-                local rLower = anim.constraints["RightLowerArm"] or _HaloFindConstraintOnClone(clone, "RightLowerArm")
-                local rHand = anim.constraints["RightHand"] or _HaloFindConstraintOnClone(clone, "RightHand")
+                local rUpper = anim.constraints["RightUpperArm"] or _N0IRFindConstraintOnClone(clone, "RightUpperArm")
+                local rLower = anim.constraints["RightLowerArm"] or _N0IRFindConstraintOnClone(clone, "RightLowerArm")
+                local rHand = anim.constraints["RightHand"] or _N0IRFindConstraintOnClone(clone, "RightHand")
                 local hipJoint = anim.constraints["LowerTorso"] or anim.constraints["Waist"] or anim.constraints["Torso"]
-                    or _HaloFindConstraintOnClone(clone, "LowerTorso") or _HaloFindConstraintOnClone(clone, "Waist")
-                    or _HaloFindConstraintOnClone(clone, "Root") or _HaloFindConstraintOnClone(clone, "Torso")
+                    or _N0IRFindConstraintOnClone(clone, "LowerTorso") or _N0IRFindConstraintOnClone(clone, "Waist")
+                    or _N0IRFindConstraintOnClone(clone, "Root") or _N0IRFindConstraintOnClone(clone, "Torso")
 
                 if rUpper and hipJoint then
                     -- Get the hip's live world CFrame (position + rotation)
@@ -1343,19 +1355,19 @@ do
                         local desiredCF = CFrame.fromMatrix(targetPos, xAxis, yAxis)
 
                         -- Save original transforms before modifying (for unweld on toggle off)
-                        if not _G._HaloArmSliderOriginalTransforms[rUpper] then
+                        if not _G._N0IRArmSliderOriginalTransforms[rUpper] then
                             pcall(function()
-                                _G._HaloArmSliderOriginalTransforms[rUpper] = rUpper.Transform
+                                _G._N0IRArmSliderOriginalTransforms[rUpper] = rUpper.Transform
                             end)
                         end
-                        if rLower and not _G._HaloArmSliderOriginalTransforms[rLower] then
+                        if rLower and not _G._N0IRArmSliderOriginalTransforms[rLower] then
                             pcall(function()
-                                _G._HaloArmSliderOriginalTransforms[rLower] = rLower.Transform
+                                _G._N0IRArmSliderOriginalTransforms[rLower] = rLower.Transform
                             end)
                         end
-                        if rHand and not _G._HaloArmSliderOriginalTransforms[rHand] then
+                        if rHand and not _G._N0IRArmSliderOriginalTransforms[rHand] then
                             pcall(function()
-                                _G._HaloArmSliderOriginalTransforms[rHand] = rHand.Transform
+                                _G._N0IRArmSliderOriginalTransforms[rHand] = rHand.Transform
                             end)
                         end
 
@@ -1406,13 +1418,13 @@ do
             -- ============================================
             -- LIMBS: UpperTorso Height + Torso Camera
             -- ============================================
-            if _G._HaloLimbsTorsoCamControl or _G._HaloTorsoStretcherEnabled then
+            if _G._N0IRLimbsTorsoCamControl or _G._N0IRTorsoStretcherEnabled then
                 local waistConstraint = anim.constraints["Waist"] or anim.constraints["UpperTorso"]
                 if waistConstraint then
                     local baseRot = waistConstraint.Transform.Rotation
 
                     -- Torso Camera Control: lean and turn with camera look direction
-                    if _G._HaloLimbsTorsoCamControl then
+                    if _G._N0IRLimbsTorsoCamControl then
                         local camera = workspace.CurrentCamera
                         if camera then
                             local parentWorldCF = nil
@@ -1431,7 +1443,7 @@ do
                                 local yaw = math.atan2(localLookDir.X, -localLookDir.Z)
                                 local pitch = math.asin(math.clamp(localLookDir.Y, -1, 1))
 
-                                local camMode = _G._HaloLimbsTorsoCamMode or "360"
+                                local camMode = _G._N0IRLimbsTorsoCamMode or "360"
                                 local camRotCF
                                 if camMode == "Locked" then
                                     yaw = math.clamp(yaw, -math.rad(45), math.rad(45))
@@ -1444,19 +1456,19 @@ do
                                     camRotCF = CFrame.fromEulerAnglesYXZ(fullPitch, -yaw, 0)
                                 end
 
-                                local smoothed = _G._HaloTorsoCamSmoothedCF or camRotCF
+                                local smoothed = _G._N0IRTorsoCamSmoothedCF or camRotCF
                                 smoothed = smoothed:Lerp(camRotCF, 0.25)
-                                _G._HaloTorsoCamSmoothedCF = smoothed
+                                _G._N0IRTorsoCamSmoothedCF = smoothed
                                 baseRot = smoothed * baseRot
                             end
                         end
                     else
-                        _G._HaloTorsoCamSmoothedCF = nil
+                        _G._N0IRTorsoCamSmoothedCF = nil
                     end
 
                     -- UpperTorso Height offset (Torso Stretcher)
-                    local utHeight = _G._HaloLimbsUpperTorsoHeight or 1.0
-                    local stretchY = _G._HaloTorsoStretcherEnabled and ((utHeight - 1.0) * 2.5) or 0
+                    local utHeight = _G._N0IRLimbsUpperTorsoHeight or 1.0
+                    local stretchY = _G._N0IRTorsoStretcherEnabled and ((utHeight - 1.0) * 2.5) or 0
                     if stretchY ~= 0 then
                         waistConstraint.Transform = CFrame.new(0, stretchY, 0) * baseRot
                     else
@@ -1468,8 +1480,8 @@ do
             -- ============================================
             -- LIMBS: Leg Stretcher
             -- ============================================
-            if _G._HaloLegStretcherEnabled then
-                local legScale = math.clamp(_G._HaloLimbsLegHeight or 1.0, 0.4, 100.0)
+            if _G._N0IRLegStretcherEnabled then
+                local legScale = math.clamp(_G._N0IRLimbsLegHeight or 1.0, 0.4, 100.0)
                 if legScale ~= 1.0 then
                     local kneeOffset = CFrame.new(0, -(legScale - 1.0) * 1.5, 0)
                     local rll = anim.constraints["RightLowerLeg"]
@@ -1479,10 +1491,10 @@ do
                 end
                 local h = anim.humanoid or (anim.rig and anim.rig:FindFirstChildOfClass("Humanoid"))
                 if h then
-                    local defHip = h:GetAttribute("HaloDefaultHipHeight")
+                    local defHip = h:GetAttribute("N0IRDefaultHipHeight")
                     if not defHip then
                         defHip = (h.HipHeight > 0) and h.HipHeight or 2.0
-                        h:SetAttribute("HaloDefaultHipHeight", defHip)
+                        h:SetAttribute("N0IRDefaultHipHeight", defHip)
                     end
                     h.HipHeight = defHip + math.max(0, (legScale - 1.0) * 1.5)
                 end
@@ -1491,19 +1503,19 @@ do
     end;
 
     API.stop_animation = function()
-        if not halo.animation.state.is_playing then return end;
+        if not n0ir.animation.state.is_playing then return end;
 
-        local stopped_url = halo.animation.state.current_url;
+        local stopped_url = n0ir.animation.state.current_url;
 
-        if halo.connections.animation_hb then
-            halo.connections.animation_hb:Disconnect();
-            halo.connections.animation_hb = nil;
+        if n0ir.connections.animation_hb then
+            n0ir.connections.animation_hb:Disconnect();
+            n0ir.connections.animation_hb = nil;
         end;
 
         local player = get_local_player();
         if typeof(player) == "string" then return player end;
 
-        local real_char = halo.real_chars[player];
+        local real_char = n0ir.real_chars[player];
         if real_char then
             for _, part in ipairs(real_char:GetDescendants()) do
                 if part:IsA("BasePart") then
@@ -1529,7 +1541,7 @@ do
                     end);
                 end;
             end;
-            for constraint, orig_transform in pairs(halo.animation.original_transforms) do
+            for constraint, orig_transform in pairs(n0ir.animation.original_transforms) do
                 if constraint and constraint.Parent then
                     constraint.Transform = orig_transform;
                 end;
@@ -1545,11 +1557,11 @@ do
             end;
         end;
 
-        table.clear(halo.animation.original_transforms);
-        table.clear(halo.animation.constraints);
-        halo.animation.blend_from = nil;
-        halo.animation.blend_t = 0;
-        halo.animation.state = {
+        table.clear(n0ir.animation.original_transforms);
+        table.clear(n0ir.animation.constraints);
+        n0ir.animation.blend_from = nil;
+        n0ir.animation.blend_t = 0;
+        n0ir.animation.state = {
             is_playing = false;
             current_url = nil;
             speed = 1.0;
@@ -1558,8 +1570,8 @@ do
             elapsed_time = 0;
         };
 
-        if halo.callbacks.on_stop then
-            pcall(halo.callbacks.on_stop, stopped_url);
+        if n0ir.callbacks.on_stop then
+            pcall(n0ir.callbacks.on_stop, stopped_url);
         end;
     end;
 
@@ -1567,12 +1579,12 @@ do
     -- Keeps the LIVE pose on the bones and snapshots it by part name so the
     -- next clip can cross-fade in. Never snaps back to bind pose.
     API.stop_animation_for_transition = function()
-        if not halo.animation.state.is_playing then return end;
-        local stopped_url = halo.animation.state.current_url;
+        if not n0ir.animation.state.is_playing then return end;
+        local stopped_url = n0ir.animation.state.current_url;
 
         -- Snapshot live transforms keyed by part name (survives constraint rebuild)
         local snap = {};
-        for partName, constraint in pairs(halo.animation.constraints) do
+        for partName, constraint in pairs(n0ir.animation.constraints) do
             if type(partName) == "string" and constraint and constraint.Parent then
                 pcall(function()
                     snap[partName] = constraint.Transform;
@@ -1580,15 +1592,15 @@ do
             end;
         end;
 
-        if halo.connections.animation_hb then
-            halo.connections.animation_hb:Disconnect();
-            halo.connections.animation_hb = nil;
+        if n0ir.connections.animation_hb then
+            n0ir.connections.animation_hb:Disconnect();
+            n0ir.connections.animation_hb = nil;
         end;
 
         -- Do NOT restore bind pose — leave bones where they are
-        table.clear(halo.animation.original_transforms);
-        table.clear(halo.animation.constraints);
-        halo.animation.state = {
+        table.clear(n0ir.animation.original_transforms);
+        table.clear(n0ir.animation.constraints);
+        n0ir.animation.state = {
             is_playing = false;
             current_url = nil;
             speed = 1.0;
@@ -1598,13 +1610,13 @@ do
         };
 
         if next(snap) then
-            halo.animation.blend_from = snap;
-            halo.animation.blend_t = 0;
-            halo.animation.blend_dur = 0.18;
+            n0ir.animation.blend_from = snap;
+            n0ir.animation.blend_t = 0;
+            n0ir.animation.blend_dur = 0.18;
         end;
 
-        if halo.callbacks.on_stop then
-            pcall(halo.callbacks.on_stop, stopped_url);
+        if n0ir.callbacks.on_stop then
+            pcall(n0ir.callbacks.on_stop, stopped_url);
         end;
     end;
 
@@ -1640,7 +1652,7 @@ do
         if typeof(player) == "string" then return player end
 
         if enable then
-            if halo.flags.reanimated then
+            if n0ir.flags.reanimated then
                 return "Already reanimated."
             end
 
@@ -1673,7 +1685,7 @@ do
                 real_humanoid:ChangeState(Enum.HumanoidStateType.Physics)
             end)
 
-            halo.real_chars[player] = real_char
+            n0ir.real_chars[player] = real_char
 
             real_char.Archivable = true
             local fake_char = real_char:Clone()
@@ -1731,9 +1743,9 @@ do
                 end
             end
 
-            fake_char.Parent = halo.services.workspace
+            fake_char.Parent = n0ir.services.workspace
             player.Character = fake_char
-            halo.clones[player] = fake_char
+            n0ir.clones[player] = fake_char
 
             local partMap = {}
             for _, name in ipairs(partNames) do
@@ -1759,7 +1771,7 @@ do
                 end
             end
 
-            local camera = halo.services.workspace.CurrentCamera
+            local camera = n0ir.services.workspace.CurrentCamera
             if fake_humanoid and camera then
                 camera.CameraSubject = fake_humanoid
             end
@@ -1774,8 +1786,8 @@ do
             if fake_humanoid then fake_humanoid:ChangeState(Enum.HumanoidStateType.Running) end
 
             task.spawn(function()
-                local event_rag = halo.services.replicated:FindFirstChild("event_rag")
-                local ragdoll_remote = halo.services.replicated:FindFirstChild("Ragdoll")
+                local event_rag = n0ir.services.replicated:FindFirstChild("event_rag")
+                local ragdoll_remote = n0ir.services.replicated:FindFirstChild("Ragdoll")
                 if event_rag then
                     pcall(function()
                         if real_humanoid and fake_humanoid then
@@ -1827,12 +1839,12 @@ do
                 end
             end
 
-            for k, conn in pairs(halo.connections) do
-                if conn then conn:Disconnect(); halo.connections[k] = nil; end
+            for k, conn in pairs(n0ir.connections) do
+                if conn then conn:Disconnect(); n0ir.connections[k] = nil; end
             end
 
             -- 1. Stepped (PreSimulation): Maintain noclip and neutral humanoid state before physics step
-            halo.connections.stepped = halo.services.run_service.Stepped:Connect(LPH_NO_VIRTUALIZE(function()
+            n0ir.connections.stepped = n0ir.services.run_service.Stepped:Connect(LPH_NO_VIRTUALIZE(function()
                 if not (real_char and real_char.Parent and fake_char and fake_char.Parent) then return end
                 if real_humanoid and real_humanoid.Parent then
                     pcall(function() real_humanoid:ChangeState(Enum.HumanoidStateType.Physics) end)
@@ -1849,7 +1861,7 @@ do
             end))
 
             -- 2. Heartbeat (PostSimulation): Apply CFrame alignment and velocity after physics simulation
-            halo.connections.hb = halo.services.run_service.Heartbeat:Connect(LPH_JIT_MAX(function()
+            n0ir.connections.hb = n0ir.services.run_service.Heartbeat:Connect(LPH_JIT_MAX(function()
                 if not (real_char and real_char.Parent and fake_char and fake_char.Parent) then
                     API.reanimate(false)
                     return
@@ -1878,7 +1890,7 @@ do
             end))
 
             -- 3. RenderStepped (PreRender): Synchronize local CFrame right before rendering to eliminate 100% of shift-lock and camera spin visual jitter
-            halo.connections.render = halo.services.run_service.RenderStepped:Connect(LPH_NO_VIRTUALIZE(function()
+            n0ir.connections.render = n0ir.services.run_service.RenderStepped:Connect(LPH_NO_VIRTUALIZE(function()
                 if not (real_char and real_char.Parent and fake_char and fake_char.Parent) then return end
                 for i = 1, #partMap do
                     local entry = partMap[i]
@@ -1890,29 +1902,29 @@ do
                 end
             end))
 
-            halo.connections.died = real_humanoid.Died:Connect(function()
+            n0ir.connections.died = real_humanoid.Died:Connect(function()
                 API.reanimate(false)
             end)
             if fake_humanoid then
-                halo.connections.clone_died = fake_humanoid.Died:Connect(function()
+                n0ir.connections.clone_died = fake_humanoid.Died:Connect(function()
                     API.reanimate(false)
                 end)
             end
-            halo.connections.character_removing = player.CharacterRemoving:Connect(function()
+            n0ir.connections.character_removing = player.CharacterRemoving:Connect(function()
                 API.reanimate(false)
             end)
 
-            halo.flags.reanimated = true
+            n0ir.flags.reanimated = true
             return true
         else
-            if not halo.flags.reanimated then return end
+            if not n0ir.flags.reanimated then return end
 
-            for k, conn in pairs(halo.connections) do
-                if conn then conn:Disconnect(); halo.connections[k] = nil; end
+            for k, conn in pairs(n0ir.connections) do
+                if conn then conn:Disconnect(); n0ir.connections[k] = nil; end
             end
 
-            local fake_char = halo.clones[player]
-            local real_char = halo.real_chars[player]
+            local fake_char = n0ir.clones[player]
+            local real_char = n0ir.real_chars[player]
 
             -- 1. Restore joints, collision constraints, and basepart collision properties
             if real_char and real_char.Parent then
@@ -1941,8 +1953,8 @@ do
             end
 
             -- 2. Unragdoll signals to server
-            local event_rag = halo.services.replicated:FindFirstChild("event_rag")
-            local unragdoll_remote = halo.services.replicated:FindFirstChild("Unragdoll")
+            local event_rag = n0ir.services.replicated:FindFirstChild("event_rag")
+            local unragdoll_remote = n0ir.services.replicated:FindFirstChild("Unragdoll")
             for _ = 1, 3 do
                 pcall(function()
                     if event_rag then
@@ -1983,7 +1995,7 @@ do
                         real_hum.PlatformStand = false
                         real_hum.Sit = false
                         real_hum.RequiresNeck = true
-                        local defHip = real_hum:GetAttribute("HaloDefaultHipHeight")
+                        local defHip = real_hum:GetAttribute("N0IRDefaultHipHeight")
                         real_hum.HipHeight = (defHip and defHip > 0 and defHip <= 3.5) and defHip or 2.0
                         real_hum:ChangeState(Enum.HumanoidStateType.GettingUp)
                         real_hum:ChangeState(Enum.HumanoidStateType.Landed)
@@ -2009,7 +2021,7 @@ do
                 end
 
                 player.Character = real_char
-                local camera = halo.services.workspace.CurrentCamera
+                local camera = n0ir.services.workspace.CurrentCamera
                 if real_hum and camera then
                     camera.CameraSubject = real_hum
                 end
@@ -2029,22 +2041,22 @@ do
             if fake_char and fake_char.Parent then
                 fake_char:Destroy()
             end
-            halo.clones[player] = nil
-            halo.real_chars[player] = nil
-            halo.flags.reanimated = false
+            n0ir.clones[player] = nil
+            n0ir.real_chars[player] = nil
+            n0ir.flags.reanimated = false
 
             -- Clean up all action states, persistent toggles and tools
-            _G._HaloRightArmPointerEnabled = false
-            _G._HaloLeftArmPointerEnabled = false
-            _G._HaloRightArmStretching = false
-            _G._HaloLeftArmStretching = false
-            _G._HaloTorsoStretcherEnabled = false
-            _G._HaloLimbsTorsoCamControl = false
-            _G._HaloHeadTrackerEnabled = false
-            _G._HaloTrackerEnabled = false
+            _G._N0IRRightArmPointerEnabled = false
+            _G._N0IRLeftArmPointerEnabled = false
+            _G._N0IRRightArmStretching = false
+            _G._N0IRLeftArmStretching = false
+            _G._N0IRTorsoStretcherEnabled = false
+            _G._N0IRLimbsTorsoCamControl = false
+            _G._N0IRHeadTrackerEnabled = false
+            _G._N0IRTrackerEnabled = false
             _G._FortniteWheelEnabled = false
-            _G._HaloGhostBodyEnabled = false
-            _G._HaloNoClipActive = false
+            _G._N0IRGhostBodyEnabled = false
+            _G._N0IRNoClipActive = false
 
             pcall(function()
                 local backpack = player:FindFirstChild("Backpack")
@@ -2075,17 +2087,17 @@ do
             return "Cannot play animation, character not found.";
         end;
 
-        if halo.animation.state.is_playing and halo.animation.state.current_url == url then
+        if n0ir.animation.state.is_playing and n0ir.animation.state.current_url == url then
             API.stop_animation();
             return;
         end;
 
-        if halo.animation.blend_from and not halo.animation.state.is_playing then
-            table.clear(halo.animation.original_transforms);
-            table.clear(halo.animation.constraints);
-            if halo.connections.animation_hb then
-                halo.connections.animation_hb:Disconnect();
-                halo.connections.animation_hb = nil;
+        if n0ir.animation.blend_from and not n0ir.animation.state.is_playing then
+            table.clear(n0ir.animation.original_transforms);
+            table.clear(n0ir.animation.constraints);
+            if n0ir.connections.animation_hb then
+                n0ir.connections.animation_hb:Disconnect();
+                n0ir.connections.animation_hb = nil;
             end;
         else
             API.stop_animation();
@@ -2106,7 +2118,7 @@ do
             clone_animate_script.Enabled = false;
         end;
 
-        local anim = halo.animation;
+        local anim = n0ir.animation;
         anim.state.speed = tonumber(speed) or 1.0;
 
         local keyframe_data = anim.cache[url];
@@ -2179,12 +2191,12 @@ do
 
         anim.state.elapsed_time = 0;
 
-        if halo.callbacks.on_play then
-            pcall(halo.callbacks.on_play, anim.state.current_url);
+        if n0ir.callbacks.on_play then
+            pcall(n0ir.callbacks.on_play, anim.state.current_url);
         end;
 
         local last_index = 1
-        halo.connections.animation_hb = halo.services.run_service.PreSimulation:Connect(LPH_NO_VIRTUALIZE(function(deltaTime)
+        n0ir.connections.animation_hb = n0ir.services.run_service.PreSimulation:Connect(LPH_NO_VIRTUALIZE(function(deltaTime)
             if not anim.state.is_playing then return end;
 
             local animator = get_animator(clone);
@@ -2268,10 +2280,10 @@ do
             end;
 
             -- Fun head modes (spin / stare) take priority over camera head tracker
-            if _G._HaloSpinHeadEnabled or _G._HaloStareEnabled or _G._HaloLookBehindEnabled
-                or _G._HaloNodLoopEnabled or _G._HaloHeadTiltEnabled or _G._HaloCraneNeckEnabled then
+            if _G._N0IRSpinHeadEnabled or _G._N0IRStareEnabled or _G._N0IRLookBehindEnabled
+                or _G._N0IRNodLoopEnabled or _G._N0IRHeadTiltEnabled or _G._N0IRCraneNeckEnabled then
                 -- handled by fun tracking PreSimulation loop
-            elseif _G._HaloHeadTrackerEnabled then
+            elseif _G._N0IRHeadTrackerEnabled then
                 local headConstraint = anim.constraints["Head"];
                 if headConstraint then
                     local camera = workspace.CurrentCamera;
@@ -2294,7 +2306,7 @@ do
                                 -- Extract yaw & pitch and clamp to realistic neck limits
                                 local yaw = math.atan2(localLookDir.X, -localLookDir.Z);
                                 local pitch = math.asin(math.clamp(localLookDir.Y, -1, 1));
-                                if not _G._HaloHeadTracker360 then
+                                if not _G._N0IRHeadTracker360 then
                                     local maxYaw = math.rad(75);
                                     local maxPitch = math.rad(55);
                                     yaw = math.clamp(yaw, -maxYaw, maxYaw);
@@ -2327,9 +2339,9 @@ do
                                 end;
 
                                 -- Smooth interpolation so it feels like a real neck turning
-                                local smoothed = _G._HaloHeadTrackerSmoothedCF or bindTransform;
+                                local smoothed = _G._N0IRHeadTrackerSmoothedCF or bindTransform;
                                 smoothed = smoothed:Lerp(targetTransform, 0.15);
-                                _G._HaloHeadTrackerSmoothedCF = smoothed;
+                                _G._N0IRHeadTrackerSmoothedCF = smoothed;
                                 headConstraint.Transform = smoothed;
                             end;
                         end;
@@ -2342,7 +2354,7 @@ do
             -- ============================================
             -- LIMBS: Arm Pointer, Arm Stretching & Reach
             -- ============================================
-            local stretchAmt = _G._HaloArmStretchAmount or 2.5
+            local stretchAmt = _G._N0IRArmStretchAmount or 2.5
             local function stretchArmOnly(lowerName, handName, stretchMult)
                 if not stretchMult or stretchMult == 1.0 then return end
                 local lower = anim.constraints[lowerName]
@@ -2355,7 +2367,7 @@ do
                 if not shoulderConstraint then return end
 
                 local isLeft = upperName:find("Left") ~= nil
-                local resetFlag = isLeft and _G._HaloLeftArmPointerNeedsReset or _G._HaloRightArmPointerNeedsReset
+                local resetFlag = isLeft and _G._N0IRLeftArmPointerNeedsReset or _G._N0IRRightArmPointerNeedsReset
                 if resetFlag then
                     local orig = anim.original_transforms[shoulderConstraint]
                     if orig then shoulderConstraint.Transform = orig end
@@ -2364,11 +2376,11 @@ do
                     local wristConstraint = anim.constraints[handName]
                     if wristConstraint then wristConstraint.Transform = CFrame.new() end
                     if isLeft then
-                        _G._HaloLeftArmPointerNeedsReset = false
-                        if _G._HaloArmPointerSmoothed then _G._HaloArmPointerSmoothed.Left = nil end
+                        _G._N0IRLeftArmPointerNeedsReset = false
+                        if _G._N0IRArmPointerSmoothed then _G._N0IRArmPointerSmoothed.Left = nil end
                     else
-                        _G._HaloRightArmPointerNeedsReset = false
-                        if _G._HaloArmPointerSmoothed then _G._HaloArmPointerSmoothed.Right = nil end
+                        _G._N0IRRightArmPointerNeedsReset = false
+                        if _G._N0IRArmPointerSmoothed then _G._N0IRArmPointerSmoothed.Right = nil end
                     end
                 end
 
@@ -2437,11 +2449,11 @@ do
                 end
 
                 local armKey = isLeft and "Left" or "Right"
-                _G._HaloArmPointerSmoothed = _G._HaloArmPointerSmoothed or {}
-                local prevArm = _G._HaloArmPointerSmoothed[armKey]
-                local smoothAmt = tonumber(_G._HaloArmPointerSmooth) or 0.15
+                _G._N0IRArmPointerSmoothed = _G._N0IRArmPointerSmoothed or {}
+                local prevArm = _G._N0IRArmPointerSmoothed[armKey]
+                local smoothAmt = tonumber(_G._N0IRArmPointerSmooth) or 0.15
                 local smoothedArm = (prevArm and prevArm:Lerp(shoulderResult, smoothAmt)) or shoulderResult
-                _G._HaloArmPointerSmoothed[armKey] = smoothedArm
+                _G._N0IRArmPointerSmoothed[armKey] = smoothedArm
                 shoulderConstraint.Transform = smoothedArm
                 local elbowConstraint = anim.constraints[lowerName]
                 if elbowConstraint then elbowConstraint.Transform = CFrame.new() end
@@ -2473,18 +2485,18 @@ do
             end
 
             -- 1. Arm Pointers
-            if _G._HaloRightArmPointerEnabled then
+            if _G._N0IRRightArmPointerEnabled then
                 -- Pointer stretch only (Ctrl+Wheel / Arm Stretcher Pointers) — not general Arm Stretch
-                local pStretch = tonumber(_G._HaloPointerStretchAmount) or 1.0
+                local pStretch = tonumber(_G._N0IRPointerStretchAmount) or 1.0
                 pointArm("RightUpperArm", "RightLowerArm", "RightHand", pStretch)
-            elseif not _G._HaloLeftArmPointerEnabled and not _G._HaloRightArmPointerEnabled and _G._HaloRightArmStretching and stretchAmt ~= 1.0 then
+            elseif not _G._N0IRLeftArmPointerEnabled and not _G._N0IRRightArmPointerEnabled and _G._N0IRRightArmStretching and stretchAmt ~= 1.0 then
                 stretchArmOnly("RightLowerArm", "RightHand", stretchAmt)
             end
 
-            if _G._HaloLeftArmPointerEnabled then
-                local pStretch = tonumber(_G._HaloPointerStretchAmount) or 1.0
+            if _G._N0IRLeftArmPointerEnabled then
+                local pStretch = tonumber(_G._N0IRPointerStretchAmount) or 1.0
                 pointArm("LeftUpperArm", "LeftLowerArm", "LeftHand", pStretch)
-            elseif not _G._HaloRightArmPointerEnabled and not _G._HaloLeftArmPointerEnabled and _G._HaloLeftArmStretching and stretchAmt ~= 1.0 then
+            elseif not _G._N0IRRightArmPointerEnabled and not _G._N0IRLeftArmPointerEnabled and _G._N0IRLeftArmStretching and stretchAmt ~= 1.0 then
                 stretchArmOnly("LeftLowerArm", "LeftHand", stretchAmt)
             end
 
@@ -2492,29 +2504,29 @@ do
             -- ARM SLIDER: Upper arm welded to hip, stretch controls angle
             -- ============================================
             -- Unweld / restore original transforms when toggled off
-            if not _G._HaloArmSliderEnabled and _G._HaloArmSliderPrevEnabled then
-                _G._HaloArmSliderPrevEnabled = false
-                for constraint, orig in pairs(_G._HaloArmSliderOriginalTransforms) do
+            if not _G._N0IRArmSliderEnabled and _G._N0IRArmSliderPrevEnabled then
+                _G._N0IRArmSliderPrevEnabled = false
+                for constraint, orig in pairs(_G._N0IRArmSliderOriginalTransforms) do
                     if constraint and constraint.Parent then
                         pcall(function() constraint.Transform = orig end)
                     end
                 end
-                _G._HaloArmSliderOriginalTransforms = {}
+                _G._N0IRArmSliderOriginalTransforms = {}
             end
-            if _G._HaloArmSliderEnabled then
-                _G._HaloArmSliderPrevEnabled = true
-                local offsetX = _G._HaloArmSliderOffsetX or 0
-                local offsetY = _G._HaloArmSliderOffsetY or 0
-                local stretch = _G._HaloArmSliderStretch or 1.0
-                local rotEnabled = _G._HaloArmSliderRotationEnabled or false
-                local rotDeg = _G._HaloArmSliderRotation or 0
+            if _G._N0IRArmSliderEnabled then
+                _G._N0IRArmSliderPrevEnabled = true
+                local offsetX = _G._N0IRArmSliderOffsetX or 0
+                local offsetY = _G._N0IRArmSliderOffsetY or 0
+                local stretch = _G._N0IRArmSliderStretch or 1.0
+                local rotEnabled = _G._N0IRArmSliderRotationEnabled or false
+                local rotDeg = _G._N0IRArmSliderRotation or 0
 
-                local rUpper = anim.constraints["RightUpperArm"] or _HaloFindConstraintOnClone(clone, "RightUpperArm")
-                local rLower = anim.constraints["RightLowerArm"] or _HaloFindConstraintOnClone(clone, "RightLowerArm")
-                local rHand = anim.constraints["RightHand"] or _HaloFindConstraintOnClone(clone, "RightHand")
+                local rUpper = anim.constraints["RightUpperArm"] or _N0IRFindConstraintOnClone(clone, "RightUpperArm")
+                local rLower = anim.constraints["RightLowerArm"] or _N0IRFindConstraintOnClone(clone, "RightLowerArm")
+                local rHand = anim.constraints["RightHand"] or _N0IRFindConstraintOnClone(clone, "RightHand")
                 local hipJoint = anim.constraints["LowerTorso"] or anim.constraints["Waist"] or anim.constraints["Torso"]
-                    or _HaloFindConstraintOnClone(clone, "LowerTorso") or _HaloFindConstraintOnClone(clone, "Waist")
-                    or _HaloFindConstraintOnClone(clone, "Root") or _HaloFindConstraintOnClone(clone, "Torso")
+                    or _N0IRFindConstraintOnClone(clone, "LowerTorso") or _N0IRFindConstraintOnClone(clone, "Waist")
+                    or _N0IRFindConstraintOnClone(clone, "Root") or _N0IRFindConstraintOnClone(clone, "Torso")
 
                 if rUpper and hipJoint then
                     -- Get the hip's live world CFrame (position + rotation)
@@ -2573,19 +2585,19 @@ do
                         local desiredCF = CFrame.fromMatrix(targetPos, xAxis, yAxis)
 
                         -- Save original transforms before modifying (for unweld on toggle off)
-                        if not _G._HaloArmSliderOriginalTransforms[rUpper] then
+                        if not _G._N0IRArmSliderOriginalTransforms[rUpper] then
                             pcall(function()
-                                _G._HaloArmSliderOriginalTransforms[rUpper] = rUpper.Transform
+                                _G._N0IRArmSliderOriginalTransforms[rUpper] = rUpper.Transform
                             end)
                         end
-                        if rLower and not _G._HaloArmSliderOriginalTransforms[rLower] then
+                        if rLower and not _G._N0IRArmSliderOriginalTransforms[rLower] then
                             pcall(function()
-                                _G._HaloArmSliderOriginalTransforms[rLower] = rLower.Transform
+                                _G._N0IRArmSliderOriginalTransforms[rLower] = rLower.Transform
                             end)
                         end
-                        if rHand and not _G._HaloArmSliderOriginalTransforms[rHand] then
+                        if rHand and not _G._N0IRArmSliderOriginalTransforms[rHand] then
                             pcall(function()
-                                _G._HaloArmSliderOriginalTransforms[rHand] = rHand.Transform
+                                _G._N0IRArmSliderOriginalTransforms[rHand] = rHand.Transform
                             end)
                         end
 
@@ -2636,13 +2648,13 @@ do
             -- ============================================
             -- LIMBS: UpperTorso Height + Torso Camera
             -- ============================================
-            if _G._HaloLimbsTorsoCamControl or _G._HaloTorsoStretcherEnabled then
+            if _G._N0IRLimbsTorsoCamControl or _G._N0IRTorsoStretcherEnabled then
                 local waistConstraint = anim.constraints["Waist"] or anim.constraints["UpperTorso"]
                 if waistConstraint then
                     local baseRot = waistConstraint.Transform.Rotation
 
                     -- Torso Camera Control: lean and turn with camera look direction
-                    if _G._HaloLimbsTorsoCamControl then
+                    if _G._N0IRLimbsTorsoCamControl then
                         local camera = workspace.CurrentCamera
                         if camera then
                             local parentWorldCF = nil
@@ -2661,7 +2673,7 @@ do
                                 local yaw = math.atan2(localLookDir.X, -localLookDir.Z)
                                 local pitch = math.asin(math.clamp(localLookDir.Y, -1, 1))
 
-                                local camMode = _G._HaloLimbsTorsoCamMode or "360"
+                                local camMode = _G._N0IRLimbsTorsoCamMode or "360"
                                 local camRotCF
                                 if camMode == "Locked" then
                                     yaw = math.clamp(yaw, -math.rad(45), math.rad(45))
@@ -2674,19 +2686,19 @@ do
                                     camRotCF = CFrame.fromEulerAnglesYXZ(fullPitch, -yaw, 0)
                                 end
 
-                                local smoothed = _G._HaloTorsoCamSmoothedCF or camRotCF
+                                local smoothed = _G._N0IRTorsoCamSmoothedCF or camRotCF
                                 smoothed = smoothed:Lerp(camRotCF, 0.25)
-                                _G._HaloTorsoCamSmoothedCF = smoothed
+                                _G._N0IRTorsoCamSmoothedCF = smoothed
                                 baseRot = smoothed * baseRot
                             end
                         end
                     else
-                        _G._HaloTorsoCamSmoothedCF = nil
+                        _G._N0IRTorsoCamSmoothedCF = nil
                     end
 
                     -- UpperTorso Height offset (Torso Stretcher)
-                    local utHeight = _G._HaloLimbsUpperTorsoHeight or 1.0
-                    local stretchY = _G._HaloTorsoStretcherEnabled and ((utHeight - 1.0) * 2.5) or 0
+                    local utHeight = _G._N0IRLimbsUpperTorsoHeight or 1.0
+                    local stretchY = _G._N0IRTorsoStretcherEnabled and ((utHeight - 1.0) * 2.5) or 0
                     if stretchY ~= 0 then
                         waistConstraint.Transform = CFrame.new(0, stretchY, 0) * baseRot
                     else
@@ -2698,8 +2710,8 @@ do
             -- ============================================
             -- LIMBS: Leg Stretcher
             -- ============================================
-            if _G._HaloLegStretcherEnabled then
-                local legScale = math.clamp(_G._HaloLimbsLegHeight or 1.0, 0.4, 100.0)
+            if _G._N0IRLegStretcherEnabled then
+                local legScale = math.clamp(_G._N0IRLimbsLegHeight or 1.0, 0.4, 100.0)
                 if legScale ~= 1.0 then
                     local kneeOffset = CFrame.new(0, -(legScale - 1.0) * 1.5, 0)
                     local rll = anim.constraints["RightLowerLeg"]
@@ -2709,10 +2721,10 @@ do
                 end
                 local h = anim.humanoid or (anim.rig and anim.rig:FindFirstChildOfClass("Humanoid"))
                 if h then
-                    local defHip = h:GetAttribute("HaloDefaultHipHeight")
+                    local defHip = h:GetAttribute("N0IRDefaultHipHeight")
                     if not defHip then
                         defHip = (h.HipHeight > 0) and h.HipHeight or 2.0
-                        h:SetAttribute("HaloDefaultHipHeight", defHip)
+                        h:SetAttribute("N0IRDefaultHipHeight", defHip)
                     end
                     h.HipHeight = defHip + math.max(0, (legScale - 1.0) * 1.5)
                 end
@@ -2721,78 +2733,78 @@ do
     end;
 
     API.set_animation_speed = function(speed)
-        halo.animation.state.speed = tonumber(speed) or 1.0;
+        n0ir.animation.state.speed = tonumber(speed) or 1.0;
     end;
 
     API.on_animation_play = function(callback)
         if type(callback) == "function" then
-            halo.callbacks.on_play = callback;
+            n0ir.callbacks.on_play = callback;
         end;
     end;
 
     API.on_animation_stop = function(callback)
         if type(callback) == "function" then
-            halo.callbacks.on_stop = callback;
+            n0ir.callbacks.on_stop = callback;
         end;
     end;
 
     API.is_animation_playing = function()
-        return halo.animation.state.is_playing, halo.animation.state.current_url;
+        return n0ir.animation.state.is_playing, n0ir.animation.state.current_url;
     end;
 
     API.is_reanimated = function()
-        return halo.flags.reanimated;
+        return n0ir.flags.reanimated;
     end;
 
     API.get_clone = function(player)
         player = player or get_local_player();
         if typeof(player) == "string" then return nil end;
-        return halo.clones[player] or player.Character;
+        return n0ir.clones[player] or player.Character;
     end;
 
     API.get_real_character = function(player)
         player = player or get_local_player();
         if typeof(player) == "string" then return nil end;
-        return halo.real_chars[player] or player.Character;
+        return n0ir.real_chars[player] or player.Character;
     end;
 
     API.get_animation_data = function()
-        return halo.animation;
+        return n0ir.animation;
     end;
 
     API.seed_animation_cache = function(name, keyframe_data)
         if name then
-            halo.animation.cache[name] = keyframe_data;
+            n0ir.animation.cache[name] = keyframe_data;
         end;
     end;
 
     API.get_animation_cache = function(name)
-        return name and halo.animation.cache[name] or nil;
+        return name and n0ir.animation.cache[name] or nil;
     end;
 
     API.invalidate_constraint_cache = function()
-        halo.animation.constraints_cache = nil;
-        halo.animation.bind_transforms = nil;
-        table.clear(halo.animation.constraints);
-        table.clear(halo.animation.original_transforms);
+        n0ir.animation.constraints_cache = nil;
+        n0ir.animation.bind_transforms = nil;
+        table.clear(n0ir.animation.constraints);
+        table.clear(n0ir.animation.original_transforms);
     end;
 
     API.rebuild_clone = function()
         API.stop_animation();
-        halo.animation.constraints_cache = nil;
-        halo.animation.bind_transforms = nil;
-        table.clear(halo.animation.constraints);
-        table.clear(halo.animation.original_transforms);
+        n0ir.animation.constraints_cache = nil;
+        n0ir.animation.bind_transforms = nil;
+        table.clear(n0ir.animation.constraints);
+        table.clear(n0ir.animation.original_transforms);
     end;
 
     ReanimateAPI = API;
-    _G._HaloReanimateAPI = API;
+    _G._N0IRReanimateAPI = API;
 end
 _reanimAPIReady = true
 
 -- Helper: find a constraint directly from a character rig when the animation
 -- cache hasn't been populated yet (e.g. no custom emote is playing).
-local function _HaloFindConstraintOnClone(clone, partName)
+local function _N0IRFindConstraintOnClone(clone, partName)
     if not clone then return nil end
     -- Fast path: direct descendant search by name
     local fast = clone:FindFirstChild(partName, true)
@@ -2833,7 +2845,7 @@ local CONFIG = {
     
     -- UI Customization (Optional - you can also edit these!)
     UI = {
-        DEFAULT_WIDTH  = 380,   -- Default window width (new unified layout)
+        DEFAULT_WIDTH  = 380,   -- Default window width
         DEFAULT_HEIGHT = 540,   -- Default window height
         MIN_WIDTH      = 300,   -- Minimum window width when resizing
         MIN_HEIGHT     = 360,   -- Minimum window height when resizing
@@ -2894,8 +2906,8 @@ local State = {
     currentTab     = "All",
 }
 
-local rawAnimCache = _G._HaloRawAnimCache or {}
-_G._HaloRawAnimCache = rawAnimCache
+local rawAnimCache = _G._N0IRRawAnimCache or {}
+_G._N0IRRawAnimCache = rawAnimCache
 _G._ReanimRawAnimCache = rawAnimCache
 
 local serializeAnimData = LPH_NO_VIRTUALIZE(function(data)
@@ -2977,8 +2989,8 @@ local function fetchOnlineAnimations()
                 end)
                 if RebuildVisible then
                     pcall(RebuildVisible)
-                elseif _G._HaloRebuildVisible then
-                    pcall(_G._HaloRebuildVisible)
+                elseif _G._N0IRRebuildVisible then
+                    pcall(_G._N0IRRebuildVisible)
                 end
             end
         end
@@ -2990,8 +3002,8 @@ local Favorites          = {}
 local Keybinds           = {}
 local SpeedKeybinds      = {}
 local ReverseSpeedKeybinds = {}
-_G._HaloListeningSpeedIdx  = nil
-_G._HaloListeningRevSpeedIdx = nil
+_G._N0IRListeningSpeedIdx  = nil
+_G._N0IRListeningRevSpeedIdx = nil
 local speedKeyWidgets    = {}
 local revSpeedKeyWidgets = {}
 local linkRevToNormal    = false
@@ -3216,7 +3228,7 @@ local function autoImportAKFiles()
                     end
                 end
 
-                -- Also load existing keybinds so we don't overwrite user custom Halo binds
+                -- Also load existing keybinds so we don't overwrite user custom N0IR binds
                 local currentKeybinds = {}
                 local okK, rawK = pcall(readfile, fpath("ReanimKeybinds.json"))
                 if okK and type(rawK) == "string" and rawK ~= "" then
@@ -3495,10 +3507,10 @@ function LoadData()
         if ok5 and irKeyName and irKeyName ~= "" then
             irKeyName = irKeyName:match("^%s*(.-)%s*$")
             if irKeyName == "NONE" then
-                _G._HaloInstantResetKey = nil
+                _G._N0IRInstantResetKey = nil
             elseif irKeyName and irKeyName ~= "" then
                 local ok6, kc = pcall(function() return Enum.KeyCode[irKeyName] end)
-                if ok6 and kc then _G._HaloInstantResetKey = kc end
+                if ok6 and kc then _G._N0IRInstantResetKey = kc end
             end
         end
 
@@ -3510,10 +3522,10 @@ function LoadData()
         if okLa and laKeyName and laKeyName ~= "" then
             laKeyName = laKeyName:match("^%s*(.-)%s*$")
             if laKeyName == "NONE" then
-                _G._HaloLeftArmKey = nil
+                _G._N0IRLeftArmKey = nil
             elseif laKeyName and laKeyName ~= "" then
                 local okLa2, kc = pcall(function() return Enum.KeyCode[laKeyName] end)
-                if okLa2 and kc then _G._HaloLeftArmKey = kc end
+                if okLa2 and kc then _G._N0IRLeftArmKey = kc end
             end
         end
 
@@ -3525,10 +3537,10 @@ function LoadData()
         if okRa and raKeyName and raKeyName ~= "" then
             raKeyName = raKeyName:match("^%s*(.-)%s*$")
             if raKeyName == "NONE" then
-                _G._HaloRightArmKey = nil
+                _G._N0IRRightArmKey = nil
             elseif raKeyName and raKeyName ~= "" then
                 local okRa2, kc = pcall(function() return Enum.KeyCode[raKeyName] end)
-                if okRa2 and kc then _G._HaloRightArmKey = kc end
+                if okRa2 and kc then _G._N0IRRightArmKey = kc end
             end
         end
 
@@ -3540,10 +3552,10 @@ function LoadData()
         if okTr and trKeyName and trKeyName ~= "" then
             trKeyName = trKeyName:match("^%s*(.-)%s*$")
             if trKeyName == "NONE" then
-                _G._HaloTrackerKey = nil
+                _G._N0IRTrackerKey = nil
             elseif trKeyName and trKeyName ~= "" then
                 local okTr2, kc = pcall(function() return Enum.KeyCode[trKeyName] end)
-                if okTr2 and kc then _G._HaloTrackerKey = kc end
+                if okTr2 and kc then _G._N0IRTrackerKey = kc end
             end
         end
 
@@ -3555,10 +3567,10 @@ function LoadData()
         if okHt and htKeyName and htKeyName ~= "" then
             htKeyName = htKeyName:match("^%s*(.-)%s*$")
             if htKeyName == "NONE" or htKeyName == "Unknown" then
-                _G._HaloHeadTrackerKey = nil
+                _G._N0IRHeadTrackerKey = nil
             elseif htKeyName and htKeyName ~= "" then
                 local okHt2, kc = pcall(function() return Enum.KeyCode[htKeyName] end)
-                if okHt2 and kc and kc ~= Enum.KeyCode.Unknown then _G._HaloHeadTrackerKey = kc end
+                if okHt2 and kc and kc ~= Enum.KeyCode.Unknown then _G._N0IRHeadTrackerKey = kc end
             end
         end
 
@@ -3570,13 +3582,13 @@ function LoadData()
         if okTp and tpKeyName and tpKeyName ~= "" then
             tpKeyName = tpKeyName:match("^%s*(.-)%s*$")
             if tpKeyName == "NONE" then
-                _G._HaloTeleportKey = nil
+                _G._N0IRTeleportKey = nil
             elseif tpKeyName and tpKeyName ~= "" then
                 local okTp2, kc = pcall(function() return Enum.KeyCode[tpKeyName] end)
-                if okTp2 and kc then _G._HaloTeleportKey = kc end
+                if okTp2 and kc then _G._N0IRTeleportKey = kc end
             end
         else
-            _G._HaloTeleportKey = Enum.KeyCode.R
+            _G._N0IRTeleportKey = Enum.KeyCode.R
         end
 
         -- Command Bar Key
@@ -3703,13 +3715,13 @@ function SaveData()
                 _safeWriteFile("ReanimReverseKey.txt", "NONE")
             end
             _safeWriteFile("ReanimReverseSpeed.txt", tostring(GlobalReverseSpeed or 1.0))
-            if _G._HaloInstantResetKey then
-                _safeWriteFile("ReanimInstantResetKey.txt", _G._HaloInstantResetKey.Name)
+            if _G._N0IRInstantResetKey then
+                _safeWriteFile("ReanimInstantResetKey.txt", _G._N0IRInstantResetKey.Name)
             else
                 _safeWriteFile("ReanimInstantResetKey.txt", "NONE")
             end
-            if _G._HaloTeleportKey then
-                _safeWriteFile("ReanimTeleportKey.txt", _G._HaloTeleportKey.Name)
+            if _G._N0IRTeleportKey then
+                _safeWriteFile("ReanimTeleportKey.txt", _G._N0IRTeleportKey.Name)
             else
                 _safeWriteFile("ReanimTeleportKey.txt", "NONE")
             end
@@ -3718,23 +3730,23 @@ function SaveData()
             else
                 _safeWriteFile("ReanimCmdBarKey.txt", "NONE")
             end
-            if _G._HaloLeftArmKey then
-                _safeWriteFile("ReanimLeftArmKey.txt", _G._HaloLeftArmKey.Name)
+            if _G._N0IRLeftArmKey then
+                _safeWriteFile("ReanimLeftArmKey.txt", _G._N0IRLeftArmKey.Name)
             else
                 _safeWriteFile("ReanimLeftArmKey.txt", "NONE")
             end
-            if _G._HaloRightArmKey then
-                _safeWriteFile("ReanimRightArmKey.txt", _G._HaloRightArmKey.Name)
+            if _G._N0IRRightArmKey then
+                _safeWriteFile("ReanimRightArmKey.txt", _G._N0IRRightArmKey.Name)
             else
                 _safeWriteFile("ReanimRightArmKey.txt", "NONE")
             end
-            if _G._HaloTrackerKey then
-                _safeWriteFile("ReanimTrackerKey.txt", _G._HaloTrackerKey.Name)
+            if _G._N0IRTrackerKey then
+                _safeWriteFile("ReanimTrackerKey.txt", _G._N0IRTrackerKey.Name)
             else
                 _safeWriteFile("ReanimTrackerKey.txt", "NONE")
             end
-            if _G._HaloHeadTrackerKey then
-                _safeWriteFile("ReanimHeadTrackerKey.txt", _G._HaloHeadTrackerKey.Name)
+            if _G._N0IRHeadTrackerKey then
+                _safeWriteFile("ReanimHeadTrackerKey.txt", _G._N0IRHeadTrackerKey.Name)
             else
                 _safeWriteFile("ReanimHeadTrackerKey.txt", "NONE")
             end
@@ -3758,11 +3770,11 @@ local ARM_SLIDER_CONFIG_FILE = fpath("ReanimArmSlider.json")
 function SaveArmSliderConfig()
     pcall(function()
         local data = {
-            offsetX = _G._HaloArmSliderOffsetX or 0,
-            offsetY = _G._HaloArmSliderOffsetY or 0,
-            stretch = _G._HaloArmSliderStretch or 1.0,
-            rotationEnabled = _G._HaloArmSliderRotationEnabled or false,
-            rotation = _G._HaloArmSliderRotation or 0,
+            offsetX = _G._N0IRArmSliderOffsetX or 0,
+            offsetY = _G._N0IRArmSliderOffsetY or 0,
+            stretch = _G._N0IRArmSliderStretch or 1.0,
+            rotationEnabled = _G._N0IRArmSliderRotationEnabled or false,
+            rotation = _G._N0IRArmSliderRotation or 0,
         }
         _safeWriteFile("ReanimArmSlider.json", HttpService:JSONEncode(data))
     end)
@@ -3777,11 +3789,11 @@ function LoadArmSliderConfig()
         if ok and raw and raw ~= "" then
             local data = HttpService:JSONDecode(raw)
             if type(data) == "table" then
-                _G._HaloArmSliderOffsetX = tonumber(data.offsetX) or 0
-                _G._HaloArmSliderOffsetY = tonumber(data.offsetY) or 0
-                _G._HaloArmSliderStretch = tonumber(data.stretch) or 1.0
-                _G._HaloArmSliderRotationEnabled = data.rotationEnabled == true
-                _G._HaloArmSliderRotation = tonumber(data.rotation) or 0
+                _G._N0IRArmSliderOffsetX = tonumber(data.offsetX) or 0
+                _G._N0IRArmSliderOffsetY = tonumber(data.offsetY) or 0
+                _G._N0IRArmSliderStretch = tonumber(data.stretch) or 1.0
+                _G._N0IRArmSliderRotationEnabled = data.rotationEnabled == true
+                _G._N0IRArmSliderRotation = tonumber(data.rotation) or 0
             end
         end
     end)
@@ -3792,7 +3804,7 @@ LoadArmSliderConfig()
 -- Shaders toggle config
 function SaveShadersConfig()
     pcall(function()
-        _safeWriteFile("ReanimShaders.json", HttpService:JSONEncode({enabled = _G._HaloShadersEnabled == true}))
+        _safeWriteFile("ReanimShaders.json", HttpService:JSONEncode({enabled = _G._N0IRShadersEnabled == true}))
     end)
 end
 
@@ -3805,7 +3817,7 @@ function LoadShadersConfig()
         if ok and raw and raw ~= "" then
             local data = HttpService:JSONDecode(raw)
             if type(data) == "table" then
-                _G._HaloShadersEnabled = data.enabled == true
+                _G._N0IRShadersEnabled = data.enabled == true
             end
         end
     end)
@@ -3813,15 +3825,6 @@ end
 
 LoadShadersConfig()
 
-pcall(function()
-    local raw = readfile(fpath("ReanimVCBypass.json"))
-    if raw then
-        local data = HttpService:JSONDecode(raw)
-        if data and data.enabled then
-            applyVCBypass()
-        end
-    end
-end)
 _customAnimsLoaded = true
 
 function prefetchCustomAnim(ca)
@@ -3882,8 +3885,8 @@ local startStateSystem
 local prefetchStateAnim
 local prefetchAllStates
 local stateSystemActive = false
-_G._HaloListeningKeyBtn = nil
-_G._HaloListenTarget    = nil
+_G._N0IRListeningKeyBtn = nil
+_G._N0IRListenTarget    = nil
 local isDraggingSpeed   = false
 function new(cls, parent, props)
     local obj = Instance.new(cls)
@@ -3925,28 +3928,31 @@ function tw(obj, t, props, style, dir)
 end
 
 local C = {
-    bg0         = Color3.fromRGB(10, 10, 10),
-    bg1         = Color3.fromRGB(16, 16, 16),
-    bg2         = Color3.fromRGB(22, 22, 22),
-    bg3         = Color3.fromRGB(32, 32, 32),
-    bg4         = Color3.fromRGB(18, 18, 18),
-    border      = Color3.fromRGB(42, 42, 42),
-    glassBorder = Color3.fromRGB(255, 255, 255),
-    text        = Color3.fromRGB(250, 250, 250),
-    text2       = Color3.fromRGB(180, 180, 180),
-    text3       = Color3.fromRGB(120, 120, 120),
-    accent      = Color3.fromRGB(255, 255, 255),
-    red         = Color3.fromRGB(140, 140, 140),
-    yellow      = Color3.fromRGB(200, 200, 200),
-    green       = Color3.fromRGB(255, 255, 255),
-    white       = Color3.fromRGB(255, 255, 255),
+    -- NØIR silver-metal theme — sharp, clean, premium
+    bg0         = Color3.fromRGB(6, 6, 7),
+    bg1         = Color3.fromRGB(12, 12, 13),
+    bg2         = Color3.fromRGB(18, 18, 20),
+    bg3         = Color3.fromRGB(24, 24, 26),
+    bg4         = Color3.fromRGB(10, 10, 11),
+    border      = Color3.fromRGB(48, 48, 52),
+    glassBorder = Color3.fromRGB(185, 185, 192),
+    text        = Color3.fromRGB(225, 225, 230),
+    text2       = Color3.fromRGB(155, 155, 162),
+    text3       = Color3.fromRGB(95, 95, 102),
+    accent      = Color3.fromRGB(210, 210, 216),
+    red         = Color3.fromRGB(185, 52, 52),
+    yellow      = Color3.fromRGB(200, 175, 95),
+    green       = Color3.fromRGB(175, 175, 182),
+    white       = Color3.fromRGB(242, 242, 246),
+    easeOut     = Enum.EasingStyle.Quint,
+    easeSpring  = Enum.EasingStyle.Back,
 }
 
 local ScreenGui, Menu, body, NowPlayingLabel, StopBtn, TabButtons, SearchBox, hintLbl, AnimListFrame, StatesPanel, CustomPanel, customSearchBox, customOpenModalBtn, customListFrame, SettingsPanel, SpeedPanel, StretchingPanel, SetTabActive, updateFnWheelBtnText, updateRevBtnText, revFill, revHandle, revSpdLbl, Notify, _screenGuiTarget, spawnTreehouse, deleteTreehouse, teleportToTreehouse, deleteWorkspaceModels, promptTreehouseOnLoad, promptCmdBarOnLoad, promptDiscordOnLoad
 do
 ScreenGui = Instance.new("ScreenGui")
 
-ScreenGui.Name           = "ReanimHaloMenu"
+ScreenGui.Name           = "ReanimN0IRMenu"
 ScreenGui.ResetOnSpawn   = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.IgnoreGuiInset = true
@@ -3973,35 +3979,34 @@ Notify = function(msg, dur, extra)
 
     local n = Instance.new("Frame")
     n.Parent = ScreenGui
-    n.Size   = UDim2.new(0, 300, 0, 44)
-    n.Position = UDim2.new(1, 24, 0, 24)
-    n.BackgroundColor3 = C.bg1
-    n.BackgroundTransparency = 0.02
+    n.Size   = UDim2.new(0, 268, 0, 44)
+    n.Position = UDim2.new(1, 40, 0, 18)
+    n.BackgroundColor3 = Color3.fromRGB(10, 10, 11)
+    n.BackgroundTransparency = 0
     n.BorderSizePixel = 0
     n.ZIndex = 1000
     do
-        local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 10); c.Parent = n
-        local s = Instance.new("UIStroke"); s.Color = C.border
-        s.Transparency = 0.25; s.Thickness = 1; s.Parent = n
+        local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 6); c.Parent = n
+        local s = Instance.new("UIStroke"); s.Color = Color3.fromRGB(70, 70, 76)
+        s.Transparency = 0.35; s.Thickness = 1; s.Parent = n
         local bar = Instance.new("Frame"); bar.Parent = n
-        bar.BackgroundColor3 = C.white; bar.BackgroundTransparency = 0
+        bar.BackgroundColor3 = Color3.fromRGB(210, 210, 216); bar.BackgroundTransparency = 0.15
         bar.BorderSizePixel = 0; bar.Size = UDim2.new(0, 2, 0.55, 0)
-        bar.Position = UDim2.new(0, 0, 0.5, 0); bar.AnchorPoint = Vector2.new(0, 0.5)
+        bar.Position = UDim2.new(0, 8, 0.5, 0); bar.AnchorPoint = Vector2.new(0, 0.5)
         bar.ZIndex = 1001
-        Instance.new("UICorner", bar).CornerRadius = UDim.new(1, 0)
     end
     local t = Instance.new("TextLabel"); t.Parent = n
-    t.BackgroundTransparency = 1; t.Position = UDim2.new(0, 14, 0, 0)
-    t.Size = UDim2.new(1, -24, 1, 0); t.Font = Enum.Font.GothamMedium
-    t.Text = realMsg; t.TextColor3 = C.text
+    t.BackgroundTransparency = 1; t.Position = UDim2.new(0, 18, 0, 0)
+    t.Size = UDim2.new(1, -28, 1, 0); t.Font = Enum.Font.GothamMedium
+    t.Text = realMsg; t.TextColor3 = Color3.fromRGB(220, 220, 226)
     t.TextSize = 12; t.TextWrapped = true; t.ZIndex = 1001
     t.TextXAlignment = Enum.TextXAlignment.Left
-    TweenService:Create(n, TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-        {Position = UDim2.new(1, -324, 0, 24)}):Play()
+    TweenService:Create(n, TweenInfo.new(0.36, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
+        {Position = UDim2.new(1, -288, 0, 18)}):Play()
     task.delay(realDur, function()
-        TweenService:Create(n, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-            {Position = UDim2.new(1, 24, 0, 24), BackgroundTransparency = 1}):Play()
-        game:GetService("Debris"):AddItem(n, 0.32)
+        TweenService:Create(n, TweenInfo.new(0.26, Enum.EasingStyle.Exponential, Enum.EasingDirection.In),
+            {Position = UDim2.new(1, 40, 0, 18), BackgroundTransparency = 1}):Play()
+        game:GetService("Debris"):AddItem(n, 0.28)
     end)
 end
 
@@ -4009,7 +4014,7 @@ end
 -- TREEHOUSE & MAP MANAGEMENT
 -- ==========================================
 local TREEHOUSE_ASSET_ID = 7860328354
-_G._HaloTreehouseModel = nil
+_G._N0IRTreehouseModel = nil
 
 local function getTreehouseSpawnPosition()
     local spawnPart = workspace:FindFirstChild("ModelSpawn")
@@ -4038,14 +4043,14 @@ local function prepareTreehouseModel(model, position)
 end
 
 spawnTreehouse = function()
-    if _G._HaloTreehouseModel and _G._HaloTreehouseModel.Parent then
+    if _G._N0IRTreehouseModel and _G._N0IRTreehouseModel.Parent then
         Notify("Treehouse", "Treehouse is already spawned!", 2.5)
-        return _G._HaloTreehouseModel
+        return _G._N0IRTreehouseModel
     end
 
-    local existing = workspace:FindFirstChild("HaloTreehouse")
+    local existing = workspace:FindFirstChild("N0IRTreehouse")
     if existing then
-        _G._HaloTreehouseModel = existing
+        _G._N0IRTreehouseModel = existing
         Notify("Treehouse", "Treehouse already exists in workspace!", 2.5)
         return existing
     end
@@ -4060,24 +4065,24 @@ spawnTreehouse = function()
     end
 
     local model = objects[1]
-    model.Name = "HaloTreehouse"
+    model.Name = "N0IRTreehouse"
     model.Parent = workspace
     prepareTreehouseModel(model, getTreehouseSpawnPosition())
-    _G._HaloTreehouseModel = model
+    _G._N0IRTreehouseModel = model
     Notify("Treehouse", "Treehouse spawned successfully!", 3)
     return model
 end
 
 deleteTreehouse = function()
     local deleted = false
-    if _G._HaloTreehouseModel and _G._HaloTreehouseModel.Parent then
-        pcall(function() _G._HaloTreehouseModel:Destroy() end)
-        _G._HaloTreehouseModel = nil
+    if _G._N0IRTreehouseModel and _G._N0IRTreehouseModel.Parent then
+        pcall(function() _G._N0IRTreehouseModel:Destroy() end)
+        _G._N0IRTreehouseModel = nil
         deleted = true
     end
 
     for _, item in ipairs(workspace:GetChildren()) do
-        if item.Name == "HaloTreehouse" then
+        if item.Name == "N0IRTreehouse" then
             pcall(function() item:Destroy() end)
             deleted = true
         end
@@ -4104,12 +4109,12 @@ deleteWorkspaceModels = function()
             count = count + 1
         end
     end
-    _G._HaloTreehouseModel = nil
+    _G._N0IRTreehouseModel = nil
     Notify("Map Cleanup", "Deleted " .. tostring(count) .. " map models.", 3)
 end
 
 teleportToTreehouse = function()
-    local model = _G._HaloTreehouseModel or workspace:FindFirstChild("HaloTreehouse")
+    local model = _G._N0IRTreehouseModel or workspace:FindFirstChild("N0IRTreehouse")
     if not model or not model.Parent then
         Notify("Teleport Error", "Treehouse is not spawned! Spawning it now...", 2)
         model = spawnTreehouse()
@@ -4178,10 +4183,10 @@ teleportToTreehouse = function()
     Notify("Treehouse", "Teleported to Treehouse!", 2.5)
 end
 
-_G._HaloSpawnTreehouse = spawnTreehouse
-_G._HaloDeleteTreehouse = deleteTreehouse
-_G._HaloTeleportToTreehouse = teleportToTreehouse
-_G._HaloDeleteWorkspaceModels = deleteWorkspaceModels
+_G._N0IRSpawnTreehouse = spawnTreehouse
+_G._N0IRDeleteTreehouse = deleteTreehouse
+_G._N0IRTeleportToTreehouse = teleportToTreehouse
+_G._N0IRDeleteWorkspaceModels = deleteWorkspaceModels
 
 local _activePrompts = {}
 
@@ -4489,7 +4494,7 @@ Menu = Instance.new("Frame")
 Menu.Name               = "ReanimMenu"
 Menu.Parent             = ScreenGui
 Menu.BackgroundColor3   = C.bg0
-Menu.BackgroundTransparency = 0.08
+Menu.BackgroundTransparency = 0
 Menu.BorderSizePixel    = 0
 Menu.AnchorPoint        = Vector2.new(0.5, 0.5)
 Menu.Position           = UDim2.new(0.5, 0, 0.5, 0)
@@ -4499,18 +4504,35 @@ Menu.Active             = false
 Menu.ZIndex             = 30
 Menu.ClipsDescendants   = true
 do
-    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 14); c.Parent = Menu
-    local s = Instance.new("UIStroke"); s.Color = C.border
-    s.Transparency = 0.15; s.Thickness = 1; s.Parent = Menu
+    -- Tighter, sharper radius
+    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 10); c.Parent = Menu
+    -- Outer thin silver edge
+    local s = Instance.new("UIStroke"); s.Color = Color3.fromRGB(95, 95, 102)
+    s.Transparency = 0.45; s.Thickness = 1; s.Parent = Menu
+    -- Inner silver hairline (double-edge premium look)
+    local inner = Instance.new("Frame")
+    inner.Name = "InnerSilver"
+    inner.Parent = Menu
+    inner.BackgroundTransparency = 1
+    inner.BorderSizePixel = 0
+    inner.Size = UDim2.new(1, -8, 1, -8)
+    inner.Position = UDim2.new(0, 4, 0, 4)
+    inner.ZIndex = 30
+    do
+        local ic = Instance.new("UICorner"); ic.CornerRadius = UDim.new(0, 7); ic.Parent = inner
+        local is = Instance.new("UIStroke"); is.Color = Color3.fromRGB(175, 175, 182)
+        is.Transparency = 0.78; is.Thickness = 1; is.Parent = inner
+    end
+    -- Soft depth shadow
     local shadow = Instance.new("ImageLabel"); shadow.Name = "Shadow"
     shadow.Parent = Menu; shadow.BackgroundTransparency = 1
     shadow.Image = "rbxassetid://131604521937076"
     shadow.ImageColor3 = Color3.fromRGB(0,0,0)
-    shadow.ImageTransparency = 0.45
+    shadow.ImageTransparency = 0.40
     shadow.ScaleType = Enum.ScaleType.Slice
     shadow.SliceCenter = Rect.new(50,50,50,50)
-    shadow.Size = UDim2.new(1, 48, 1, 48)
-    shadow.Position = UDim2.new(0.5, 0, 0.5, 4)
+    shadow.Size = UDim2.new(1, 64, 1, 64)
+    shadow.Position = UDim2.new(0.5, 0, 0.5, 10)
     shadow.AnchorPoint = Vector2.new(0.5, 0.5)
     shadow.ZIndex = 29
 end
@@ -4519,19 +4541,19 @@ end
 local ResizeGrip = Instance.new("Frame")
 ResizeGrip.Name = "ResizeGrip"
 ResizeGrip.Parent = Menu
-ResizeGrip.BackgroundColor3 = C.border
-ResizeGrip.BackgroundTransparency = 0.35
+ResizeGrip.BackgroundColor3 = C.bg3
+ResizeGrip.BackgroundTransparency = 0.25
 ResizeGrip.BorderSizePixel = 0
-ResizeGrip.Size = UDim2.new(0, 18, 0, 18)
-ResizeGrip.Position = UDim2.new(1, -18, 1, -18)
+ResizeGrip.Size = UDim2.new(0, 16, 0, 16)
+ResizeGrip.Position = UDim2.new(1, -16, 1, -16)
 ResizeGrip.ZIndex = 35
 ResizeGrip.Active = true
 local gripCorner = Instance.new("UICorner", ResizeGrip)
-gripCorner.CornerRadius = UDim.new(0, 6)
+gripCorner.CornerRadius = UDim.new(0, 4)
 local gripStroke = Instance.new("UIStroke", ResizeGrip)
 gripStroke.Color = C.glassBorder
-gripStroke.Thickness = 1.5
-gripStroke.Transparency = 0.3
+gripStroke.Thickness = 1
+gripStroke.Transparency = 0.4
 
 -- Curved diagonal lines on grip for visual flair
 for i = 0, 2 do
@@ -4612,112 +4634,159 @@ end
 
 local TitleBar = Instance.new("Frame")
 TitleBar.Name = "TitleBar"; TitleBar.Parent = Menu
-TitleBar.BackgroundColor3 = C.bg1
-TitleBar.BackgroundTransparency = 0.05; TitleBar.BorderSizePixel = 0
-TitleBar.Size = UDim2.new(1,0,0,48); TitleBar.ZIndex = 31; TitleBar.Active = false
+TitleBar.BackgroundColor3 = Color3.fromRGB(9, 9, 10)
+TitleBar.BackgroundTransparency = 0; TitleBar.BorderSizePixel = 0
+TitleBar.Size = UDim2.new(1,0,0,46); TitleBar.ZIndex = 31; TitleBar.Active = false
 do
-    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,14); c.Parent = TitleBar
-    -- cover bottom corners so only top is rounded visually with body
+    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,10); c.Parent = TitleBar
+    -- square bottom of title bar so it meets body cleanly
     local cover = Instance.new("Frame"); cover.Parent = TitleBar
-    cover.BackgroundColor3 = C.bg1; cover.BackgroundTransparency = 0.05
-    cover.BorderSizePixel = 0; cover.Position = UDim2.new(0,0,1,-10)
-    cover.Size = UDim2.new(1,0,0,10); cover.ZIndex = 31
+    cover.BackgroundColor3 = Color3.fromRGB(9, 9, 10); cover.BackgroundTransparency = 0
+    cover.BorderSizePixel = 0; cover.Position = UDim2.new(0,0,1,-12)
+    cover.Size = UDim2.new(1,0,0,12); cover.ZIndex = 31
+
+    -- Thin bottom hairline separator
+    local bottomLine = Instance.new("Frame"); bottomLine.Parent = TitleBar
+    bottomLine.BackgroundColor3 = Color3.fromRGB(55, 55, 60)
+    bottomLine.BackgroundTransparency = 0.35
+    bottomLine.BorderSizePixel = 0
+    bottomLine.Position = UDim2.new(0, 0, 1, -1)
+    bottomLine.Size = UDim2.new(1, 0, 0, 1)
+    bottomLine.ZIndex = 32
+
+    -- Left accent bar (brand mark)
+    local accentBar = Instance.new("Frame"); accentBar.Parent = TitleBar
+    accentBar.BackgroundColor3 = Color3.fromRGB(200, 200, 208)
+    accentBar.BackgroundTransparency = 0.15
+    accentBar.BorderSizePixel = 0
+    accentBar.Position = UDim2.new(0, 0, 0, 12)
+    accentBar.Size = UDim2.new(0, 2, 0, 22)
+    accentBar.ZIndex = 33
+    do local ac = Instance.new("UICorner"); ac.CornerRadius = UDim.new(0, 1); ac.Parent = accentBar end
+
+    -- Brand wordmark
     local t = Instance.new("TextLabel"); t.Parent = TitleBar
-    t.BackgroundTransparency = 1; t.Position = UDim2.new(0,16,0,0)
-    t.Size = UDim2.new(1,-200,1,0); t.Font = Enum.Font.GothamBlack
-    t.Text = "NØIR"; t.TextColor3 = C.text
-    t.TextSize = 18; t.TextXAlignment = Enum.TextXAlignment.Left; t.ZIndex = 32
+    t.BackgroundTransparency = 1
+    t.Position = UDim2.new(0, 16, 0, 4)
+    t.Size = UDim2.new(0, 120, 0, 20)
+    t.Font = Enum.Font.GothamBlack
+    t.Text = "NØIR"
+    t.TextColor3 = Color3.fromRGB(215, 215, 222)
+    t.TextSize = 15
+    t.TextXAlignment = Enum.TextXAlignment.Left
+    t.ZIndex = 33
+
     local sub = Instance.new("TextLabel"); sub.Parent = TitleBar
-    sub.BackgroundTransparency = 1; sub.Position = UDim2.new(0, 64, 0, 0)
-    sub.Size = UDim2.new(0, 80, 1, 0); sub.Font = Enum.Font.GothamMedium
-    sub.Text = "Reanim"; sub.TextColor3 = C.text3
-    sub.TextSize = 10; sub.TextXAlignment = Enum.TextXAlignment.Left; sub.ZIndex = 32
-    local div = Instance.new("Frame"); div.Parent = TitleBar
-    div.BackgroundColor3 = C.border; div.BackgroundTransparency = 0.2
-    div.BorderSizePixel = 0; div.Position = UDim2.new(0,0,1,-1)
-    div.Size = UDim2.new(1,0,0,1); div.ZIndex = 33
+    sub.BackgroundTransparency = 1
+    sub.Position = UDim2.new(0, 16, 0, 22)
+    sub.Size = UDim2.new(0, 140, 0, 16)
+    sub.Font = Enum.Font.Code
+    sub.Text = "REANIM"
+    sub.TextColor3 = Color3.fromRGB(110, 110, 118)
+    sub.TextSize = 10
+    sub.TextXAlignment = Enum.TextXAlignment.Left
+    sub.ZIndex = 33
+
+    -- Subtle version chip
+    local ver = Instance.new("TextLabel"); ver.Parent = TitleBar
+    ver.BackgroundTransparency = 1
+    ver.Position = UDim2.new(0, 78, 0, 6)
+    ver.Size = UDim2.new(0, 48, 0, 14)
+    ver.Font = Enum.Font.Code
+    ver.Text = "v1.0"
+    ver.TextColor3 = Color3.fromRGB(70, 70, 76)
+    ver.TextSize = 9
+    ver.TextXAlignment = Enum.TextXAlignment.Left
+    ver.ZIndex = 33
 end
 
+-- Traffic-light style controls (minimize / close) — cleaner circles
 local minimizeBtn = Instance.new("TextButton"); minimizeBtn.Parent = TitleBar
 minimizeBtn.Name = "MinimizeBtn"
-minimizeBtn.BackgroundColor3 = Color3.fromRGB(210, 210, 210)
-minimizeBtn.BackgroundTransparency = 0.15
+minimizeBtn.BackgroundColor3 = Color3.fromRGB(210, 210, 216)
+minimizeBtn.BackgroundTransparency = 0.12
 minimizeBtn.BorderSizePixel = 0; minimizeBtn.AnchorPoint = Vector2.new(1,0.5)
-minimizeBtn.Position = UDim2.new(1,-32,0.5,0); minimizeBtn.Size = UDim2.new(0,13,0,13)
+minimizeBtn.Position = UDim2.new(1,-34,0.5,0); minimizeBtn.Size = UDim2.new(0,12,0,12)
 minimizeBtn.Font = Enum.Font.GothamBold; minimizeBtn.Text = ""
-minimizeBtn.TextColor3 = Color3.fromRGB(255,255,255); minimizeBtn.TextSize = 18
-minimizeBtn.ZIndex = 32; minimizeBtn.AutoButtonColor = false
+minimizeBtn.TextColor3 = Color3.fromRGB(255,255,255); minimizeBtn.TextSize = 16
+minimizeBtn.ZIndex = 33; minimizeBtn.AutoButtonColor = false
 do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1,0); c.Parent = minimizeBtn end
 
 local closeBtn = Instance.new("TextButton"); closeBtn.Parent = TitleBar
 closeBtn.Name = "CloseBtn"
-closeBtn.BackgroundColor3 = Color3.fromRGB(160, 160, 160)
-closeBtn.BackgroundTransparency = 0.05
+closeBtn.BackgroundColor3 = Color3.fromRGB(150, 150, 155)
+closeBtn.BackgroundTransparency = 0.08
 closeBtn.BorderSizePixel = 0; closeBtn.AnchorPoint = Vector2.new(1,0.5)
-closeBtn.Position = UDim2.new(1,-12,0.5,0); closeBtn.Size = UDim2.new(0,13,0,13)
+closeBtn.Position = UDim2.new(1,-14,0.5,0); closeBtn.Size = UDim2.new(0,12,0,12)
 closeBtn.Font = Enum.Font.GothamBold; closeBtn.Text = ""
-closeBtn.TextColor3 = Color3.fromRGB(255,255,255); closeBtn.TextSize = 18
-closeBtn.ZIndex = 32; closeBtn.AutoButtonColor = false
+closeBtn.TextColor3 = Color3.fromRGB(255,255,255); closeBtn.TextSize = 16
+closeBtn.ZIndex = 33; closeBtn.AutoButtonColor = false
 do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1,0); c.Parent = closeBtn end
 
--- Clean hover / press feedback for traffic-light buttons
+-- Refined hover / press for traffic lights
 do
     local function bindTrafficHover(btn, baseColor, hoverColor)
         btn.MouseEnter:Connect(function()
-            TweenService:Create(btn, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            TweenService:Create(btn, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                 BackgroundColor3 = hoverColor,
                 BackgroundTransparency = 0,
-                Size = UDim2.new(0, 14, 0, 14),
-            }):Play()
-        end)
-        btn.MouseLeave:Connect(function()
-            TweenService:Create(btn, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                BackgroundColor3 = baseColor,
-                BackgroundTransparency = 0.08,
                 Size = UDim2.new(0, 13, 0, 13),
             }):Play()
         end)
+        btn.MouseLeave:Connect(function()
+            TweenService:Create(btn, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                BackgroundColor3 = baseColor,
+                BackgroundTransparency = 0.10,
+                Size = UDim2.new(0, 12, 0, 12),
+            }):Play()
+        end)
         btn.MouseButton1Down:Connect(function()
-            TweenService:Create(btn, TweenInfo.new(0.08), {
-                Size = UDim2.new(0, 11, 0, 11),
-                BackgroundTransparency = 0.2,
+            TweenService:Create(btn, TweenInfo.new(0.07), {
+                Size = UDim2.new(0, 10, 0, 10),
+                BackgroundTransparency = 0.25,
             }):Play()
         end)
         btn.MouseButton1Up:Connect(function()
-            TweenService:Create(btn, TweenInfo.new(0.1), {
-                Size = UDim2.new(0, 14, 0, 14),
+            TweenService:Create(btn, TweenInfo.new(0.09), {
+                Size = UDim2.new(0, 13, 0, 13),
                 BackgroundTransparency = 0,
             }):Play()
         end)
     end
-    bindTrafficHover(minimizeBtn, Color3.fromRGB(210, 210, 210), Color3.fromRGB(240, 240, 240))
-    bindTrafficHover(closeBtn, Color3.fromRGB(160, 160, 160), Color3.fromRGB(230, 230, 230))
+    bindTrafficHover(minimizeBtn, Color3.fromRGB(210, 210, 216), Color3.fromRGB(235, 235, 240))
+    bindTrafficHover(closeBtn, Color3.fromRGB(150, 150, 155), Color3.fromRGB(220, 220, 225))
 end
 
 -- Reanimate toggle lives in the title bar so it's always visible even when minimized
 local ToggleBtn = Instance.new("TextButton"); ToggleBtn.Parent = TitleBar
 ToggleBtn.Name = "ReanimToggleBtn"
 ToggleBtn.AnchorPoint = Vector2.new(1, 0.5)
-ToggleBtn.Position = UDim2.new(1, -54, 0.5, 0)
-ToggleBtn.Size = UDim2.new(0, 52, 0, 24)
-ToggleBtn.BackgroundColor3 = C.bg3; ToggleBtn.BackgroundTransparency = 0.05
+ToggleBtn.Position = UDim2.new(1, -56, 0.5, 0)
+ToggleBtn.Size = UDim2.new(0, 46, 0, 22)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(24, 24, 26); ToggleBtn.BackgroundTransparency = 0
 ToggleBtn.BorderSizePixel = 0; ToggleBtn.Font = Enum.Font.GothamBold
-ToggleBtn.Text = "OFF"; ToggleBtn.TextColor3 = C.text2
-ToggleBtn.TextSize = 11; ToggleBtn.ZIndex = 33; ToggleBtn.AutoButtonColor = false
+ToggleBtn.Text = "OFF"; ToggleBtn.TextColor3 = Color3.fromRGB(150, 150, 158)
+ToggleBtn.TextSize = 10; ToggleBtn.ZIndex = 33; ToggleBtn.AutoButtonColor = false
 ToggleBtn.Visible = true
-do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,6); c.Parent = ToggleBtn end
+do
+    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,5); c.Parent = ToggleBtn
+    local s = Instance.new("UIStroke"); s.Color = Color3.fromRGB(80, 80, 88); s.Transparency = 0.35; s.Thickness = 1; s.Parent = ToggleBtn
+end
 
 -- AnimRecorder Button (right side of title bar)
 local AnimRecorderBtn = Instance.new("TextButton"); AnimRecorderBtn.Parent = TitleBar
 AnimRecorderBtn.Name = "AnimRecorderBtn"
 AnimRecorderBtn.AnchorPoint = Vector2.new(1, 0.5)
-AnimRecorderBtn.Position = UDim2.new(1, -114, 0.5, 0)
-AnimRecorderBtn.Size = UDim2.new(0, 72, 0, 24)
-AnimRecorderBtn.BackgroundColor3 = C.bg3; AnimRecorderBtn.BackgroundTransparency = 0.05
+AnimRecorderBtn.Position = UDim2.new(1, -110, 0.5, 0)
+AnimRecorderBtn.Size = UDim2.new(0, 48, 0, 24)
+AnimRecorderBtn.BackgroundColor3 = Color3.fromRGB(28, 28, 28); AnimRecorderBtn.BackgroundTransparency = 0
 AnimRecorderBtn.BorderSizePixel = 0; AnimRecorderBtn.Font = Enum.Font.GothamBold
-AnimRecorderBtn.Text = "REC"; AnimRecorderBtn.TextColor3 = C.text2
+AnimRecorderBtn.Text = "REC"; AnimRecorderBtn.TextColor3 = Color3.fromRGB(160, 160, 165)
 AnimRecorderBtn.TextSize = 10; AnimRecorderBtn.ZIndex = 33; AnimRecorderBtn.AutoButtonColor = false
-do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,7); c.Parent = AnimRecorderBtn end
+do
+    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,6); c.Parent = AnimRecorderBtn
+    local s = Instance.new("UIStroke"); s.Color = Color3.fromRGB(100, 100, 105); s.Transparency = 0.4; s.Thickness = 1; s.Parent = AnimRecorderBtn
+end
 do
     AnimRecorderBtn.MouseEnter:Connect(function()
         TweenService:Create(AnimRecorderBtn, TweenInfo.new(0.15), {
@@ -4815,7 +4884,7 @@ local function startRecording()
         local constraints = getCloneConstraints()
         if not constraints then return end
 
-        local isCopierActive = _G._HaloAnimCopierActive or false
+        local isCopierActive = _G._N0IRAnimCopierActive or false
         local frameData = {}
         for boneName, constraint in pairs(constraints) do
             if constraint and constraint.Parent then
@@ -5034,35 +5103,49 @@ function UpdateToggleBtn()
         ToggleBtn.Text = "ON"
     else
         TweenService:Create(ToggleBtn, TweenInfo.new(0.25), {
-            BackgroundColor3 = C.bg2,
-            BackgroundTransparency = 0.1,
-            TextColor3 = C.text2
+            BackgroundColor3 = Color3.fromRGB(28, 28, 28),
+            BackgroundTransparency = 0,
+            TextColor3 = Color3.fromRGB(160, 160, 165)
         }):Play()
         ToggleBtn.Text = "OFF"
     end
 end
 
 ToggleBtn.MouseButton1Click:Connect(function()
-    if type(_G._HaloDoReanimToggle) == "function" then
-        _G._HaloDoReanimToggle()
+    if type(_G._N0IRDoReanimToggle) == "function" then
+        _G._N0IRDoReanimToggle()
     end
 end)
 ToggleBtn.MouseEnter:Connect(function()
-    if not State.isReanimated then
-        pcall(function()
-            TweenService:Create(ToggleBtn, TweenInfo.new(0.12, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundTransparency = 0}):Play()
-        end)
+    if State.isReanimated then
+        TweenService:Create(ToggleBtn, TweenInfo.new(0.12), {
+            BackgroundColor3 = Color3.fromRGB(235, 235, 240),
+            TextColor3 = Color3.fromRGB(0, 0, 0),
+        }):Play()
+    else
+        TweenService:Create(ToggleBtn, TweenInfo.new(0.12), {
+            BackgroundColor3 = Color3.fromRGB(40, 40, 42),
+            BackgroundTransparency = 0,
+            TextColor3 = Color3.fromRGB(210, 210, 216),
+        }):Play()
     end
 end)
 ToggleBtn.MouseLeave:Connect(function()
-    if not State.isReanimated then
-        pcall(function()
-            TweenService:Create(ToggleBtn, TweenInfo.new(0.12, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundTransparency = 0.1}):Play()
-        end)
+    if State.isReanimated then
+        TweenService:Create(ToggleBtn, TweenInfo.new(0.12), {
+            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+            TextColor3 = Color3.fromRGB(0, 0, 0),
+        }):Play()
+    else
+        TweenService:Create(ToggleBtn, TweenInfo.new(0.12), {
+            BackgroundColor3 = Color3.fromRGB(28, 28, 28),
+            BackgroundTransparency = 0,
+            TextColor3 = Color3.fromRGB(160, 160, 165),
+        }):Play()
     end
 end)
 
-local function _HaloTopFixedPos(gui, newHeight)
+local function _N0IRTopFixedPos(gui, newHeight)
     local parent = gui.Parent
     if not parent then return gui.Position end
     local pap = parent.AbsolutePosition
@@ -5078,80 +5161,139 @@ end
 
 local isMinimized = false
 local FULL_SIZE   = UDim2.new(0, CONFIG.UI.DEFAULT_WIDTH, 0, CONFIG.UI.DEFAULT_HEIGHT)
-local MINI_SIZE   = UDim2.new(0, CONFIG.UI.DEFAULT_WIDTH, 0, 40)
+local MINI_SIZE   = UDim2.new(0, CONFIG.UI.DEFAULT_WIDTH, 0, 46)
 -- Do not force Menu.Size here — entrance tween owns the initial size
 -- Close/open anims stored on _G to avoid burning main-chunk local registers
 
-_G._HaloReanimCloseMenu = function()
-    if _G._HaloMenuClosing then return end
-    _G._HaloMenuClosing = true
+_G._N0IRReanimCloseMenu = function()
+    if _G._N0IRMenuClosing then return end
+    _G._N0IRMenuClosing = true
     local curSize = Menu.AbsoluteSize
-    local closeInfo = TweenInfo.new(0.32, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+    local closeInfo = TweenInfo.new(0.28, Enum.EasingStyle.Exponential, Enum.EasingDirection.In)
+    local closeInfoFast = TweenInfo.new(0.22, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
     pcall(function()
         local stroke = Menu:FindFirstChildOfClass("UIStroke")
         if stroke then
-            TweenService:Create(stroke, closeInfo, {Transparency = 1}):Play()
+            TweenService:Create(stroke, closeInfoFast, {Transparency = 1}):Play()
+        end
+        local inner = Menu:FindFirstChild("InnerSilver")
+        if inner then
+            local is = inner:FindFirstChildOfClass("UIStroke")
+            if is then TweenService:Create(is, closeInfoFast, {Transparency = 1}):Play() end
         end
         local shadow = Menu:FindFirstChild("Shadow")
         if shadow and shadow:IsA("ImageLabel") then
             TweenService:Create(shadow, closeInfo, {ImageTransparency = 1}):Play()
         end
+        -- Scale down + slight Y drift + full fade for a sharp premium exit
         TweenService:Create(Menu, closeInfo, {
-            Size = UDim2.new(0, math.floor(curSize.X * 0.88), 0, math.floor(curSize.Y * 0.88)),
+            Size = UDim2.new(0, math.floor(curSize.X * 0.82), 0, math.floor(curSize.Y * 0.82)),
             BackgroundTransparency = 1,
+            Position = UDim2.new(Menu.Position.X.Scale, Menu.Position.X.Offset, Menu.Position.Y.Scale, Menu.Position.Y.Offset + 18),
         }):Play()
+        if body then
+            TweenService:Create(body, closeInfoFast, {BackgroundTransparency = 1}):Play()
+        end
+        if TitleBar then
+            for _, d in ipairs(TitleBar:GetDescendants()) do
+                if d:IsA("TextLabel") or d:IsA("TextButton") then
+                    pcall(function() TweenService:Create(d, closeInfoFast, {TextTransparency = 1}):Play() end)
+                elseif d:IsA("Frame") and d.BackgroundTransparency < 1 then
+                    pcall(function() TweenService:Create(d, closeInfoFast, {BackgroundTransparency = 1}):Play() end)
+                end
+            end
+        end
     end)
-    task.delay(0.34, function()
+    task.delay(0.30, function()
         Menu.Visible = false
         ScreenGui.Enabled = false
-        _G._HaloMenuClosing = false
+        _G._N0IRMenuClosing = false
+        -- Reset for next open
         Menu.Size = FULL_SIZE
-        Menu.BackgroundTransparency = 0.08
+        Menu.BackgroundTransparency = 0
+        Menu.Position = UDim2.new(0.5, 0, 0.5, 0)
         local stroke = Menu:FindFirstChildOfClass("UIStroke")
-        if stroke then stroke.Transparency = 0.15 end
+        if stroke then stroke.Transparency = 0.45 end
+        local inner = Menu:FindFirstChild("InnerSilver")
+        if inner then
+            local is = inner:FindFirstChildOfClass("UIStroke")
+            if is then is.Transparency = 0.78 end
+        end
         local shadow = Menu:FindFirstChild("Shadow")
-        if shadow and shadow:IsA("ImageLabel") then shadow.ImageTransparency = 0.45 end
+        if shadow and shadow:IsA("ImageLabel") then shadow.ImageTransparency = 0.40 end
+        if body then body.BackgroundTransparency = 1 end
+        if TitleBar then
+            for _, d in ipairs(TitleBar:GetDescendants()) do
+                if d:IsA("TextLabel") or d:IsA("TextButton") then
+                    pcall(function() d.TextTransparency = 0 end)
+                end
+            end
+            TitleBar.BackgroundTransparency = 0
+        end
     end)
 end
 
-_G._HaloReanimOpenMenu = function()
-    if _G._HaloMenuClosing then return end
+_G._N0IRReanimOpenMenu = function()
+    if _G._N0IRMenuClosing then return end
     ScreenGui.Enabled = true
     Menu.Visible = true
     isMinimized = false
     if body then body.Visible = true end
     local targetW = FULL_SIZE.X.Offset
     local targetH = FULL_SIZE.Y.Offset
-    Menu.Size = UDim2.new(0, math.floor(targetW * 0.90), 0, math.floor(targetH * 0.90))
+    -- Start slightly smaller + lower, fully transparent
+    Menu.Size = UDim2.new(0, math.floor(targetW * 0.86), 0, math.floor(targetH * 0.86))
     Menu.BackgroundTransparency = 1
-    local openInfo = TweenInfo.new(0.40, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    Menu.Position = UDim2.new(0.5, 0, 0.5, 14)
+    local openInfo = TweenInfo.new(0.42, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
+    local openInfoSoft = TweenInfo.new(0.36, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
     pcall(function()
         local stroke = Menu:FindFirstChildOfClass("UIStroke")
         if stroke then
             stroke.Transparency = 1
-            TweenService:Create(stroke, openInfo, {Transparency = 0.15}):Play()
+            TweenService:Create(stroke, openInfoSoft, {Transparency = 0.45}):Play()
+        end
+        local inner = Menu:FindFirstChild("InnerSilver")
+        if inner then
+            local is = inner:FindFirstChildOfClass("UIStroke")
+            if is then
+                is.Transparency = 1
+                TweenService:Create(is, openInfoSoft, {Transparency = 0.78}):Play()
+            end
         end
         local shadow = Menu:FindFirstChild("Shadow")
         if shadow and shadow:IsA("ImageLabel") then
             shadow.ImageTransparency = 1
-            TweenService:Create(shadow, openInfo, {ImageTransparency = 0.45}):Play()
+            TweenService:Create(shadow, openInfo, {ImageTransparency = 0.40}):Play()
         end
         TweenService:Create(Menu, openInfo, {
             Size = FULL_SIZE,
-            BackgroundTransparency = 0.08,
+            BackgroundTransparency = 0,
+            Position = UDim2.new(0.5, 0, 0.5, 0),
         }):Play()
+        if TitleBar then
+            TitleBar.BackgroundTransparency = 0
+            for _, d in ipairs(TitleBar:GetDescendants()) do
+                if d:IsA("TextLabel") or d:IsA("TextButton") then
+                    pcall(function()
+                        d.TextTransparency = 1
+                        TweenService:Create(d, openInfoSoft, {TextTransparency = 0}):Play()
+                    end)
+                end
+            end
+        end
     end)
 end
 
-closeBtn.MouseButton1Click:Connect(_G._HaloReanimCloseMenu)
+closeBtn.MouseButton1Click:Connect(_G._N0IRReanimCloseMenu)
 
 do
     -- DRAG SYSTEM (improved)
     -- - Reliable release via UserInputService.InputEnded (fixes accidental de-drag)
     -- - Optional smooth drag (lerp) controlled from Settings
     -- - Can be fully disabled from Settings for laggy devices
-    _G._HaloDragEnabled = (_G._HaloDragEnabled == nil) and true or _G._HaloDragEnabled
-    _G._HaloSmoothDrag  = (_G._HaloSmoothDrag == nil) and true or _G._HaloSmoothDrag
+    _G._N0IRDragEnabled = (_G._N0IRDragEnabled == nil) and true or _G._N0IRDragEnabled
+    _G._N0IRSmoothDrag  = (_G._N0IRSmoothDrag == nil) and true or _G._N0IRSmoothDrag
 
     local dragging = false
     local dragInputStart
@@ -5184,7 +5326,7 @@ do
         local x = math.clamp(absX, minX, maxX)
         local y = math.clamp(absY, minY, maxY)
 
-        if instant or not _G._HaloSmoothDrag then
+        if instant or not _G._N0IRSmoothDrag then
             Menu.Position = UDim2.new(0, x - parentAbsPos.X, 0, y - parentAbsPos.Y)
         else
             targetAbsX, targetAbsY = x, y
@@ -5200,7 +5342,7 @@ do
 
     local function startSmooth()
         stopSmooth()
-        if not _G._HaloSmoothDrag then return end
+        if not _G._N0IRSmoothDrag then return end
         smoothConn = RunService.RenderStepped:Connect(function(dt)
             if not dragging and not targetAbsX then
                 stopSmooth()
@@ -5224,14 +5366,14 @@ do
     end
 
     TitleBar.InputBegan:Connect(function(input)
-        if not _G._HaloDragEnabled then return end
+        if not _G._N0IRDragEnabled then return end
         if input.UserInputType == Enum.UserInputType.MouseButton1
         or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragInputStart = input.Position
             startAnchorAbsPos = getAnchorAbsPosition()
             targetAbsX, targetAbsY = startAnchorAbsPos.X, startAnchorAbsPos.Y
-            if _G._HaloSmoothDrag then startSmooth() end
+            if _G._N0IRSmoothDrag then startSmooth() end
         end
     end)
 
@@ -5242,7 +5384,7 @@ do
             if dragging then
                 dragging = false
                 -- let smooth settle to final target
-                if not _G._HaloSmoothDrag then
+                if not _G._N0IRSmoothDrag then
                     targetAbsX, targetAbsY = nil, nil
                     stopSmooth()
                 end
@@ -5251,7 +5393,7 @@ do
     end)
 
     UserInputService.InputChanged:Connect(function(input)
-        if not dragging or not _G._HaloDragEnabled then return end
+        if not dragging or not _G._N0IRDragEnabled then return end
         if input.UserInputType == Enum.UserInputType.MouseMovement
         or input.UserInputType == Enum.UserInputType.Touch then
             local delta = input.Position - dragInputStart
@@ -5261,23 +5403,23 @@ do
 end
 
 body = Instance.new("Frame"); body.Parent = Menu
-body.BackgroundTransparency = 1; body.Position = UDim2.new(0,0,0,48)
-body.Size = UDim2.new(1,0,1,-56); body.ZIndex = 31
+body.BackgroundTransparency = 1; body.Position = UDim2.new(0,0,0,46)
+body.Size = UDim2.new(1,0,1,-54); body.ZIndex = 31
 
 minimizeBtn.MouseButton1Click:Connect(function()
-    if _G._HaloMenuClosing then return end
+    if _G._N0IRMenuClosing then return end
     isMinimized = not isMinimized
     local ti = TweenInfo.new(0.36, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
     if isMinimized then
         body.Visible = false
         TweenService:Create(Menu, ti, {
             Size = MINI_SIZE,
-            Position = _HaloTopFixedPos(Menu, MINI_SIZE.Y.Offset),
+            Position = _N0IRTopFixedPos(Menu, MINI_SIZE.Y.Offset),
         }):Play()
     else
         TweenService:Create(Menu, ti, {
             Size = FULL_SIZE,
-            Position = _HaloTopFixedPos(Menu, FULL_SIZE.Y.Offset),
+            Position = _N0IRTopFixedPos(Menu, FULL_SIZE.Y.Offset),
         }):Play()
         task.delay(0.22, function()
             if not isMinimized then
@@ -5288,19 +5430,19 @@ minimizeBtn.MouseButton1Click:Connect(function()
 end)
 
 local toggleBar = Instance.new("Frame"); toggleBar.Parent = body
-toggleBar.BackgroundColor3 = C.bg1; toggleBar.BackgroundTransparency = 0.4
+toggleBar.BackgroundColor3 = Color3.fromRGB(14, 14, 15); toggleBar.BackgroundTransparency = 0
 toggleBar.BorderSizePixel = 0; toggleBar.Size = UDim2.new(1,-20,0,30)
-toggleBar.Position = UDim2.new(0,10,0,6); toggleBar.ZIndex = 32
+toggleBar.Position = UDim2.new(0,10,0,8); toggleBar.ZIndex = 32
 do 
-    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,8); c.Parent = toggleBar
-    local s = Instance.new("UIStroke"); s.Color = C.border; s.Transparency = 0.6; s.Thickness = 1; s.Parent = toggleBar
+    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,6); c.Parent = toggleBar
+    local s = Instance.new("UIStroke"); s.Color = Color3.fromRGB(55, 55, 60); s.Transparency = 0.4; s.Thickness = 1; s.Parent = toggleBar
 end
 
 local reanimLabel = Instance.new("TextLabel"); reanimLabel.Parent = toggleBar
-reanimLabel.BackgroundTransparency = 1; reanimLabel.Position = UDim2.new(0,12,0,0)
+reanimLabel.BackgroundTransparency = 1; reanimLabel.Position = UDim2.new(0,14,0,0)
 reanimLabel.Size = UDim2.new(0.55,0,1,0); reanimLabel.Font = Enum.Font.GothamBold
-reanimLabel.Text = "Reanimation"; reanimLabel.TextColor3 = C.text
-reanimLabel.TextSize = 12; reanimLabel.TextXAlignment = Enum.TextXAlignment.Left; reanimLabel.ZIndex = 33
+reanimLabel.Text = "REANIMATION"; reanimLabel.TextColor3 = Color3.fromRGB(200, 200, 208)
+reanimLabel.TextSize = 11; reanimLabel.TextXAlignment = Enum.TextXAlignment.Left; reanimLabel.ZIndex = 33
 
 -- ToggleBtn is now in the TitleBar (always visible). The toggleBar in the body
 -- keeps its label for context but no longer holds a second button.
@@ -5391,7 +5533,7 @@ local function doReanimToggle()
 end
 
 -- Expose for the title-bar toggle button
-_G._HaloDoReanimToggle = doReanimToggle
+_G._N0IRDoReanimToggle = doReanimToggle
 
 -- GrabStatus click fix: when reanimated, your own clone/real character can
 -- block the game's click raycast. We do our OWN raycast from the camera through
@@ -5439,9 +5581,9 @@ do
         -- Build exclusion list: our clone + real char (and current Character)
         local exclude = {}
         pcall(function()
-            if _G._HaloReanimateAPI then
-                local clone = _G._HaloReanimateAPI.get_clone and _G._HaloReanimateAPI.get_clone(plr)
-                local realc = _G._HaloReanimateAPI.get_real_character and _G._HaloReanimateAPI.get_real_character(plr)
+            if _G._N0IRReanimateAPI then
+                local clone = _G._N0IRReanimateAPI.get_clone and _G._N0IRReanimateAPI.get_clone(plr)
+                local realc = _G._N0IRReanimateAPI.get_real_character and _G._N0IRReanimateAPI.get_real_character(plr)
                 if clone then table.insert(exclude, clone) end
                 if realc then table.insert(exclude, realc) end
             end
@@ -5472,53 +5614,76 @@ do
 end
 
 local npBar = Instance.new("Frame"); npBar.Parent = body
-npBar.BackgroundColor3 = C.bg1; npBar.BackgroundTransparency = 0.2
-npBar.BorderSizePixel = 0; npBar.Size = UDim2.new(1,-20,0,28)
+npBar.BackgroundColor3 = Color3.fromRGB(11, 11, 12); npBar.BackgroundTransparency = 0
+npBar.BorderSizePixel = 0; npBar.Size = UDim2.new(1,-20,0,30)
 npBar.Position = UDim2.new(0,10,0,42); npBar.ZIndex = 32
 do 
-    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,8); c.Parent = npBar
-    local s = Instance.new("UIStroke"); s.Color = C.border; s.Transparency = 0.55; s.Thickness = 1; s.Parent = npBar
+    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,6); c.Parent = npBar
+    local s = Instance.new("UIStroke"); s.Color = Color3.fromRGB(42, 42, 46); s.Transparency = 0.3; s.Thickness = 1; s.Parent = npBar
+    local accent = Instance.new("Frame"); accent.Parent = npBar
+    accent.BackgroundColor3 = Color3.fromRGB(200, 200, 208); accent.BackgroundTransparency = 0.35
+    accent.BorderSizePixel = 0; accent.Size = UDim2.new(0, 2, 0.55, 0)
+    accent.Position = UDim2.new(0, 8, 0.5, 0); accent.AnchorPoint = Vector2.new(0, 0.5); accent.ZIndex = 33
 end
 
 NowPlayingLabel = Instance.new("TextLabel"); NowPlayingLabel.Parent = npBar
-NowPlayingLabel.BackgroundTransparency = 1; NowPlayingLabel.Position = UDim2.new(0,10,0,0)
+NowPlayingLabel.BackgroundTransparency = 1; NowPlayingLabel.Position = UDim2.new(0,18,0,0)
 NowPlayingLabel.Size = UDim2.new(1,-78,1,0); NowPlayingLabel.Font = Enum.Font.GothamMedium
 NowPlayingLabel.Text = "Nothing playing"
-NowPlayingLabel.TextColor3 = C.text3
-NowPlayingLabel.TextSize = 11; NowPlayingLabel.TextXAlignment = Enum.TextXAlignment.Left
+NowPlayingLabel.TextColor3 = Color3.fromRGB(130, 130, 138)
+NowPlayingLabel.TextSize = 12; NowPlayingLabel.TextXAlignment = Enum.TextXAlignment.Left
 NowPlayingLabel.TextTruncate = Enum.TextTruncate.AtEnd; NowPlayingLabel.ZIndex = 33
 
 StopBtn = Instance.new("TextButton"); StopBtn.Parent = npBar
-StopBtn.AnchorPoint = Vector2.new(1,0.5); StopBtn.BackgroundColor3 = C.bg3
-StopBtn.BackgroundTransparency = 0.1; StopBtn.BorderSizePixel = 0
-StopBtn.Position = UDim2.new(1,-6,0.5,0); StopBtn.Size = UDim2.new(0,52,0,20)
+StopBtn.AnchorPoint = Vector2.new(1,0.5); StopBtn.BackgroundColor3 = Color3.fromRGB(24, 24, 26)
+StopBtn.BackgroundTransparency = 0; StopBtn.BorderSizePixel = 0
+StopBtn.Position = UDim2.new(1,-6,0.5,0); StopBtn.Size = UDim2.new(0,50,0,20)
 StopBtn.Font = Enum.Font.GothamBold; StopBtn.Text = "STOP"
-StopBtn.TextColor3 = C.text2; StopBtn.TextSize = 10
+StopBtn.TextColor3 = Color3.fromRGB(175, 175, 182); StopBtn.TextSize = 10
 StopBtn.ZIndex = 33; StopBtn.AutoButtonColor = false
-do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,6); c.Parent = StopBtn end
+do
+    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,5); c.Parent = StopBtn
+    local s = Instance.new("UIStroke"); s.Color = Color3.fromRGB(60, 60, 66); s.Transparency = 0.3; s.Thickness = 1; s.Parent = StopBtn
+end
+StopBtn.MouseEnter:Connect(function()
+    TweenService:Create(StopBtn, TweenInfo.new(0.12, Enum.EasingStyle.Quad), {
+        BackgroundColor3 = Color3.fromRGB(40, 40, 44),
+        TextColor3 = Color3.fromRGB(235, 235, 240)
+    }):Play()
+end)
+StopBtn.MouseLeave:Connect(function()
+    TweenService:Create(StopBtn, TweenInfo.new(0.14, Enum.EasingStyle.Quad), {
+        BackgroundColor3 = Color3.fromRGB(24, 24, 26),
+        TextColor3 = Color3.fromRGB(175, 175, 182)
+    }):Play()
+end)
 
 local tabRow = Instance.new("ScrollingFrame"); tabRow.Parent = body
 tabRow.Name = "TabRow"
 tabRow.BackgroundTransparency = 1
 tabRow.BorderSizePixel = 0
-tabRow.Size = UDim2.new(1,-20,0,26)
-tabRow.Position = UDim2.new(0,10,0,74); tabRow.ZIndex = 32
+tabRow.Size = UDim2.new(1,-20,0,28)
+tabRow.Position = UDim2.new(0,10,0,74); tabRow.ZIndex = 40
 tabRow.ScrollingDirection = Enum.ScrollingDirection.X
 tabRow.ScrollBarThickness = 0
 tabRow.CanvasSize = UDim2.new(0,0,0,0)
 tabRow.ClipsDescendants = true
 tabRow.ElasticBehavior = Enum.ElasticBehavior.Always
+tabRow.Active = true
+tabRow.Selectable = false
 
 local tabLayout = Instance.new("UIListLayout"); tabLayout.Parent = tabRow
 tabLayout.FillDirection = Enum.FillDirection.Horizontal
 tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
 tabLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-tabLayout.Padding = UDim.new(0,4)
+tabLayout.Padding = UDim.new(0, 6)
 tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
 local tabPadding = Instance.new("UIPadding"); tabPadding.Parent = tabRow
-tabPadding.PaddingLeft = UDim.new(0,2)
-tabPadding.PaddingRight = UDim.new(0,2)
+tabPadding.PaddingLeft = UDim.new(0, 6)
+tabPadding.PaddingRight = UDim.new(0, 6)
+tabPadding.PaddingTop = UDim.new(0, 4)
+tabPadding.PaddingBottom = UDim.new(0, 4)
 
 tabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     tabRow.CanvasSize = UDim2.new(0, tabLayout.AbsoluteContentSize.X + 8, 0, 0)
@@ -5528,32 +5693,39 @@ local TAB_DEFS = { "All", "Favs", "Custom", "Binds", "States", "Speed", "Copier"
 TabButtons = {}
 local activeTab = nil
 
+local function _setTabOutline(btn, on, soft)
+    local box = btn and btn:FindFirstChild("OutlineBox")
+    if not box then return end
+    local s = box:FindFirstChild("Stroke") or box:FindFirstChildOfClass("UIStroke")
+    if not s then return end
+    local goal = on and (soft and 0.55 or 0) or 1
+    TweenService:Create(s, TweenInfo.new(0.12), {Transparency = goal}):Play()
+end
+
 SetTabActive = function(btn)
     if not btn then return end
+    local ti = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
     if activeTab and activeTab ~= btn then
-        local oldLine = activeTab:FindFirstChild("Underline")
-        TweenService:Create(activeTab, TweenInfo.new(0.2), {TextColor3 = C.text3, BackgroundTransparency = 1}):Play()
-        if oldLine then
-            TweenService:Create(oldLine, TweenInfo.new(0.2), {BackgroundTransparency = 1, Size = UDim2.new(0,0,0,2)}):Play()
-        end
+        TweenService:Create(activeTab, ti, {
+            TextColor3 = Color3.fromRGB(100, 100, 108),
+        }):Play()
+        _setTabOutline(activeTab, false)
     end
     activeTab = btn
-    local newLine = btn:FindFirstChild("Underline")
-    TweenService:Create(btn, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {TextColor3 = C.white, BackgroundTransparency = 0.72}):Play()
-    if newLine then
-        TweenService:Create(newLine, TweenInfo.new(0.28, Enum.EasingStyle.Quint), {BackgroundTransparency = 0, Size = UDim2.new(0.65,0,0,2)}):Play()
-    end
-    
-    -- Auto-scroll tabRow to ensure active tab is in view
+    TweenService:Create(btn, ti, {
+        TextColor3 = Color3.fromRGB(235, 235, 240),
+    }):Play()
+    _setTabOutline(btn, true, false)
+
     task.defer(function()
         pcall(function()
             local btnX = btn.AbsolutePosition.X - tabRow.AbsolutePosition.X + tabRow.CanvasPosition.X
             local btnW = btn.AbsoluteSize.X
             local visibleW = tabRow.AbsoluteSize.X
             if btnX < tabRow.CanvasPosition.X then
-                tabRow.CanvasPosition = Vector2.new(math.max(0, btnX - 10), 0)
+                tabRow.CanvasPosition = Vector2.new(math.max(0, btnX - 8), 0)
             elseif btnX + btnW > tabRow.CanvasPosition.X + visibleW then
-                tabRow.CanvasPosition = Vector2.new(btnX + btnW - visibleW + 10, 0)
+                tabRow.CanvasPosition = Vector2.new(btnX + btnW - visibleW + 8, 0)
             end
         end)
     end)
@@ -5561,44 +5733,72 @@ end
 
 for idx, tname in ipairs(TAB_DEFS) do
     local tb = Instance.new("TextButton"); tb.Parent = tabRow
-    tb.BackgroundColor3 = C.bg2; tb.BackgroundTransparency = 1
+    tb.BackgroundColor3 = Color3.fromRGB(18, 18, 20)
+    tb.BackgroundTransparency = 1
     tb.BorderSizePixel = 0
-    tb.Size = UDim2.new(0, math.max(48, #tname * 7 + 18), 0, 24)
+    tb.Size = UDim2.new(0, math.max(48, #tname * 7 + 16), 0, 22)
     tb.LayoutOrder = idx
-    tb.Font = Enum.Font.GothamMedium; tb.Text = tname:upper()
-    tb.TextColor3 = C.text3; tb.TextSize = 10
-    tb.ZIndex = 33; tb.AutoButtonColor = false
-    do 
-        local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 7); c.Parent = tb
+    tb.Font = Enum.Font.GothamBold
+    tb.Text = tname
+    tb.TextColor3 = Color3.fromRGB(100, 100, 108)
+    tb.TextSize = 11
+    tb.ZIndex = 41
+    tb.AutoButtonColor = false
+    tb.Active = true
+    do
+        -- Rounded outline box (no fill) — tweak CornerRadius below for roundness
+        local box = Instance.new("Frame")
+        box.Name = "OutlineBox"
+        box.Parent = tb
+        box.BackgroundTransparency = 1
+        box.BorderSizePixel = 0
+        box.Size = UDim2.new(1, 0, 1, 0)
+        box.ZIndex = 40
+        box.Active = false
+        local c = Instance.new("UICorner")
+        c.CornerRadius = UDim.new(0, 3) -- << change this number for more/less round
+        c.Parent = box
+        local s = Instance.new("UIStroke")
+        s.Name = "Stroke"
+        s.Color = Color3.fromRGB(210, 210, 216)
+        s.Transparency = 1
+        s.Thickness = 1
+        s.Parent = box
     end
-    local underline = Instance.new("Frame"); underline.Name = "Underline"
-    underline.Parent = tb; underline.BackgroundColor3 = C.white
-    underline.BackgroundTransparency = 1; underline.BorderSizePixel = 0
-    underline.Position = UDim2.new(0.5,0,1,-1); underline.AnchorPoint = Vector2.new(0.5,0)
-    underline.Size = UDim2.new(0,0,0,2); underline.ZIndex = 34
-    do local uc = Instance.new("UICorner"); uc.CornerRadius = UDim.new(1,0); uc.Parent = underline end
+
+    local function setOutlineVisible(btn, visible, soft)
+        local box = btn:FindFirstChild("OutlineBox")
+        if not box then return end
+        local s = box:FindFirstChild("Stroke") or box:FindFirstChildOfClass("UIStroke")
+        if not s then return end
+        local goal = visible and (soft and 0.55 or 0) or 1
+        TweenService:Create(s, TweenInfo.new(0.1), {Transparency = goal}):Play()
+    end
+
     tb.MouseEnter:Connect(function()
-        if activeTab ~= tb then
-            TweenService:Create(tb, TweenInfo.new(0.14, Enum.EasingStyle.Quint), {TextColor3 = C.text, BackgroundTransparency = 0.82}):Play()
-            TweenService:Create(underline, TweenInfo.new(0.14, Enum.EasingStyle.Quint), {BackgroundTransparency = 0.45, Size = UDim2.new(0.55,0,0,2)}):Play()
-        end
+        if activeTab == tb then return end
+        TweenService:Create(tb, TweenInfo.new(0.1), {
+            TextColor3 = Color3.fromRGB(180, 180, 185),
+        }):Play()
+        setOutlineVisible(tb, true, true)
     end)
     tb.MouseLeave:Connect(function()
-        if activeTab ~= tb then
-            TweenService:Create(tb, TweenInfo.new(0.14, Enum.EasingStyle.Quint), {TextColor3 = C.text3, BackgroundTransparency = 1}):Play()
-            TweenService:Create(underline, TweenInfo.new(0.14, Enum.EasingStyle.Quint), {BackgroundTransparency = 1, Size = UDim2.new(0,0,0,2)}):Play()
-        end
+        if activeTab == tb then return end
+        TweenService:Create(tb, TweenInfo.new(0.1), {
+            TextColor3 = Color3.fromRGB(100, 100, 108),
+        }):Play()
+        setOutlineVisible(tb, false)
     end)
     TabButtons[tname] = tb
 end
 
-tabRow.CanvasSize = UDim2.new(0, tabLayout.AbsoluteContentSize.X + 8, 0, 0)
+tabRow.CanvasSize = UDim2.new(0, tabLayout.AbsoluteContentSize.X + 12, 0, 0)
 
 -- Function to update Custom tab text with animation count
 local function UpdateCustomTabCount()
     local customBtn = TabButtons["Custom"]
     if customBtn then
-        customBtn.Text = "CUSTOM"
+        customBtn.Text = "Custom"
     end
 end
 
@@ -5607,7 +5807,7 @@ end
 -- Toggle from Settings. When ON, horizontal TabRow is hidden
 -- and a compact grid of all tabs is shown instead.
 -- ============================================
-_G._HaloTabGridMode = (_G._HaloTabGridMode == nil) and false or _G._HaloTabGridMode
+_G._N0IRTabGridMode = (_G._N0IRTabGridMode == nil) and false or _G._N0IRTabGridMode
 
 local TabGrid = Instance.new("Frame")
 TabGrid.Name = "TabGrid"
@@ -5646,7 +5846,7 @@ for idx, tname in ipairs(TAB_DEFS) do
     local gb = Instance.new("TextButton")
     gb.Parent = TabGrid
     gb.BackgroundColor3 = C.bg2
-    gb.BackgroundTransparency = 0.55
+    gb.BackgroundTransparency = 1
     gb.BorderSizePixel = 0
     gb.LayoutOrder = idx
     gb.Font = Enum.Font.GothamBold
@@ -5656,17 +5856,31 @@ for idx, tname in ipairs(TAB_DEFS) do
     gb.ZIndex = 33
     gb.AutoButtonColor = false
     do
-        local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 6); c.Parent = gb
-        local st = Instance.new("UIStroke"); st.Name = "Stroke"; st.Color = C.border; st.Transparency = 0.7; st.Thickness = 1; st.Parent = gb
+        local box = Instance.new("Frame")
+        box.Name = "OutlineBox"
+        box.Parent = gb
+        box.BackgroundTransparency = 1
+        box.BorderSizePixel = 0
+        box.Size = UDim2.new(1, 0, 1, 0)
+        box.ZIndex = 32
+        box.Active = false
+        local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 4); c.Parent = box
+        local st = Instance.new("UIStroke"); st.Name = "Stroke"; st.Color = Color3.fromRGB(210, 210, 216); st.Transparency = 1; st.Thickness = 1; st.Parent = box
     end
     gb.MouseEnter:Connect(function()
         if GridButtons._active ~= gb then
-            TweenService:Create(gb, TweenInfo.new(0.15), {BackgroundTransparency = 0.35, TextColor3 = C.text}):Play()
+            TweenService:Create(gb, TweenInfo.new(0.12), {TextColor3 = C.text}):Play()
+            local box = gb:FindFirstChild("OutlineBox")
+            local st = box and box:FindFirstChild("Stroke")
+            if st then TweenService:Create(st, TweenInfo.new(0.12), {Transparency = 0.65}):Play() end
         end
     end)
     gb.MouseLeave:Connect(function()
         if GridButtons._active ~= gb then
-            TweenService:Create(gb, TweenInfo.new(0.15), {BackgroundTransparency = 0.55, TextColor3 = C.text3}):Play()
+            TweenService:Create(gb, TweenInfo.new(0.12), {TextColor3 = C.text3}):Play()
+            local box = gb:FindFirstChild("OutlineBox")
+            local st = box and box:FindFirstChild("Stroke")
+            if st then TweenService:Create(st, TweenInfo.new(0.12), {Transparency = 1}):Play() end
         end
     end)
     GridButtons[tname] = gb
@@ -5680,32 +5894,33 @@ end
 refreshTabGridHeight()
 
 local function setTabGridMode(on)
-    _G._HaloTabGridMode = on and true or false
-    tabRow.Visible = not _G._HaloTabGridMode
-    TabGrid.Visible = _G._HaloTabGridMode
+    _G._N0IRTabGridMode = on and true or false
+    tabRow.Visible = not _G._N0IRTabGridMode
+    TabGrid.Visible = _G._N0IRTabGridMode
     -- push content below tabs
-    local tabBottom = _G._HaloTabGridMode and (74 + TabGrid.Size.Y.Offset + 6) or 104
+    local tabBottom = _G._N0IRTabGridMode and (74 + TabGrid.Size.Y.Offset + 6) or 112
     -- SearchBox / hint default positions will be adjusted in SwitchTab via noSearch logic;
     -- also nudge SearchBox base Y when grid is open
     if SearchBox then
         SearchBox.Position = UDim2.new(0, 10, 0, tabBottom)
     end
     if hintLbl then
-        hintLbl.Position = UDim2.new(0, 10, 0, tabBottom + 30)
+        hintLbl.Position = UDim2.new(0, 12, 0, tabBottom + 38)
     end
 end
 
 local function setGridActive(tname)
     for name, gb in pairs(GridButtons) do
         if type(gb) == "Instance" then
-            local st = gb:FindFirstChild("Stroke")
+            local box = gb:FindFirstChild("OutlineBox")
+            local st = box and box:FindFirstChild("Stroke")
             if name == tname then
                 GridButtons._active = gb
-                TweenService:Create(gb, TweenInfo.new(0.2), {BackgroundTransparency = 0.15, TextColor3 = C.accent}):Play()
-                if st then TweenService:Create(st, TweenInfo.new(0.2), {Color = C.accent, Transparency = 0.3}):Play() end
+                TweenService:Create(gb, TweenInfo.new(0.15), {TextColor3 = Color3.fromRGB(235, 235, 240)}):Play()
+                if st then TweenService:Create(st, TweenInfo.new(0.15), {Color = Color3.fromRGB(210, 210, 216), Transparency = 0}):Play() end
             else
-                TweenService:Create(gb, TweenInfo.new(0.2), {BackgroundTransparency = 0.55, TextColor3 = C.text3}):Play()
-                if st then TweenService:Create(st, TweenInfo.new(0.2), {Color = C.border, Transparency = 0.7}):Play() end
+                TweenService:Create(gb, TweenInfo.new(0.15), {TextColor3 = C.text3}):Play()
+                if st then TweenService:Create(st, TweenInfo.new(0.15), {Transparency = 1}):Play() end
             end
         end
     end
@@ -5713,24 +5928,24 @@ end
 
 -- Apply initial mode
 task.defer(function()
-    setTabGridMode(_G._HaloTabGridMode)
+    setTabGridMode(_G._N0IRTabGridMode)
 end)
 
-_G._HaloSetTabGridMode = setTabGridMode
-_G._HaloSetGridActive = setGridActive
+_G._N0IRSetTabGridMode = setTabGridMode
+_G._N0IRSetGridActive = setGridActive
 
 SearchBox = Instance.new("TextBox"); SearchBox.Parent = body
-SearchBox.BackgroundColor3 = C.bg1; SearchBox.BackgroundTransparency = 0.15
-SearchBox.BorderSizePixel = 0; SearchBox.Size = UDim2.new(1,-20,0,28)
-SearchBox.Position = UDim2.new(0,10,0,104); SearchBox.ZIndex = 32
-SearchBox.Font = Enum.Font.GothamMedium; SearchBox.PlaceholderText = "Search animations..."
+SearchBox.BackgroundColor3 = Color3.fromRGB(12, 12, 13); SearchBox.BackgroundTransparency = 0
+SearchBox.BorderSizePixel = 0; SearchBox.Size = UDim2.new(1,-20,0,30)
+SearchBox.Position = UDim2.new(0,10,0,112); SearchBox.ZIndex = 32
+SearchBox.Font = Enum.Font.Gotham; SearchBox.PlaceholderText = "Search animations..."
 SearchBox.PlaceholderColor3 = C.text3; SearchBox.Text = ""
 SearchBox.TextColor3 = C.text; SearchBox.TextSize = 12
 SearchBox.ClearTextOnFocus = false
 do
-    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,8); c.Parent = SearchBox
+    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,6); c.Parent = SearchBox
     local p = Instance.new("UIPadding"); p.PaddingLeft = UDim.new(0,12); p.Parent = SearchBox
-    local s = Instance.new("UIStroke"); s.Color = C.border; s.Transparency = 0.45; s.Thickness = 1; s.Parent = SearchBox
+    local s = Instance.new("UIStroke"); s.Color = Color3.fromRGB(48, 48, 52); s.Transparency = 0.3; s.Thickness = 1; s.Parent = SearchBox
 end
 
 hintLbl = Instance.new("TextLabel"); hintLbl.Parent = body
@@ -5741,15 +5956,18 @@ hintLbl.TextColor3 = C.text3; hintLbl.TextSize = 9
 hintLbl.TextXAlignment = Enum.TextXAlignment.Left
 
 AnimListFrame = Instance.new("ScrollingFrame"); AnimListFrame.Parent = body
-AnimListFrame.BackgroundColor3 = C.bg0; AnimListFrame.BackgroundTransparency = 0.15
+AnimListFrame.BackgroundColor3 = Color3.fromRGB(9, 9, 10); AnimListFrame.BackgroundTransparency = 0
 AnimListFrame.BorderSizePixel = 0
-AnimListFrame.Size = UDim2.new(1,-20,1,-236)
-AnimListFrame.Position = UDim2.new(0,10,0,148)
-AnimListFrame.ScrollBarThickness = 3; AnimListFrame.ScrollBarImageColor3 = C.white
-AnimListFrame.ScrollBarImageTransparency = 0.55; AnimListFrame.ZIndex = 32
+AnimListFrame.Size = UDim2.new(1,-20,1,-156)
+AnimListFrame.Position = UDim2.new(0,10,0,146)
+AnimListFrame.ScrollBarThickness = 2; AnimListFrame.ScrollBarImageColor3 = Color3.fromRGB(160, 160, 168)
+AnimListFrame.ScrollBarImageTransparency = 0.45; AnimListFrame.ZIndex = 32
 AnimListFrame.CanvasSize = UDim2.new(0,0,0,0)
 AnimListFrame.ScrollingDirection = getSafeScrollingDirection("Y")
-do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,10); c.Parent = AnimListFrame end
+do
+    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,6); c.Parent = AnimListFrame
+    local s = Instance.new("UIStroke"); s.Color = Color3.fromRGB(40, 40, 44); s.Transparency = 0.4; s.Thickness = 1; s.Parent = AnimListFrame
+end
 
 -- States panel stays inside the main reanim UI and expands inline pickers.
 StatesPanel = Instance.new("ScrollingFrame"); StatesPanel.Name = "StatesSection"
@@ -5770,8 +5988,8 @@ end
 
 CustomPanel = Instance.new("Frame"); CustomPanel.Parent = body
 CustomPanel.BackgroundTransparency = 1
-CustomPanel.Size = UDim2.new(1,-20,1,-236)
-CustomPanel.Position = UDim2.new(0,10,0,148)
+CustomPanel.Size = UDim2.new(1,-24,1,-178)
+CustomPanel.Position = UDim2.new(0,12,0,168)
 CustomPanel.ZIndex = 32; CustomPanel.Visible = false
 
 -- BindsPanel: shows all animations with keybinds set
@@ -5779,8 +5997,8 @@ BindsPanel = Instance.new("ScrollingFrame"); BindsPanel.Parent = body
 BindsPanel.Name = "BindsPanel"
 BindsPanel.BackgroundColor3 = C.bg0; BindsPanel.BackgroundTransparency = 0.15
 BindsPanel.BorderSizePixel = 0
-BindsPanel.Size = UDim2.new(1,-20,1,-156)
-BindsPanel.Position = UDim2.new(0,10,0,148)
+BindsPanel.Size = UDim2.new(1,-24,1,-178)
+BindsPanel.Position = UDim2.new(0,12,0,168)
 BindsPanel.ScrollBarThickness = 4; BindsPanel.ScrollBarImageColor3 = C.accent
 BindsPanel.ScrollBarImageTransparency = 0.5; BindsPanel.ZIndex = 32
 BindsPanel.CanvasSize = UDim2.new(0,0,0,0); BindsPanel.Visible = false
@@ -5891,7 +6109,7 @@ SettingsPanel = Instance.new("ScrollingFrame"); SettingsPanel.Parent = body
 SettingsPanel.Name = "SettingsPanel"
 SettingsPanel.BackgroundColor3 = C.bg0; SettingsPanel.BackgroundTransparency = 0.15
 SettingsPanel.BorderSizePixel = 0
-SettingsPanel.Size = UDim2.new(1,-20,1,-236)
+SettingsPanel.Size = UDim2.new(1,-24,1,-178)
 SettingsPanel.Position = UDim2.new(0,10,0,148)
 SettingsPanel.ScrollBarThickness = 4; SettingsPanel.ScrollBarImageColor3 = C.accent
 SettingsPanel.ScrollBarImageTransparency = 0.5; SettingsPanel.ZIndex = 32
@@ -5911,8 +6129,8 @@ SpeedPanel = Instance.new("ScrollingFrame"); SpeedPanel.Parent = body
 SpeedPanel.Name = "SpeedPanel"
 SpeedPanel.BackgroundColor3 = C.bg0; SpeedPanel.BackgroundTransparency = 0.15
 SpeedPanel.BorderSizePixel = 0
-SpeedPanel.Size = UDim2.new(1,-20,1,-112)
-SpeedPanel.Position = UDim2.new(0,10,0,104)
+SpeedPanel.Size = UDim2.new(1,-24,1,-140)
+SpeedPanel.Position = UDim2.new(0,12,0,126)
 SpeedPanel.ScrollBarThickness = 4; SpeedPanel.ScrollBarImageColor3 = C.accent
 SpeedPanel.ScrollBarImageTransparency = 0.5; SpeedPanel.ZIndex = 32
 SpeedPanel.CanvasSize = UDim2.new(0,0,0,0); SpeedPanel.Visible = false
@@ -5934,8 +6152,8 @@ TestingPanel = Instance.new("ScrollingFrame"); TestingPanel.Parent = body
 TestingPanel.Name = "TestingPanel"
 TestingPanel.BackgroundColor3 = C.bg0; TestingPanel.BackgroundTransparency = 0.15
 TestingPanel.BorderSizePixel = 0
-TestingPanel.Size = UDim2.new(1,-20,1,-112)
-TestingPanel.Position = UDim2.new(0,10,0,104)
+TestingPanel.Size = UDim2.new(1,-24,1,-140)
+TestingPanel.Position = UDim2.new(0,12,0,126)
 TestingPanel.ScrollBarThickness = 4; TestingPanel.ScrollBarImageColor3 = C.accent
 TestingPanel.ScrollBarImageTransparency = 0.5; TestingPanel.ZIndex = 32
 TestingPanel.CanvasSize = UDim2.new(0,0,0,0); TestingPanel.Visible = false
@@ -6571,7 +6789,7 @@ local function acStartCopying()
         if not acSelectedPlayer then return end
 
         if not State.isReanimated then
-            pcall(function() _G._HaloDoReanimToggle() end)
+            pcall(function() _G._N0IRDoReanimToggle() end)
             return
         end
 
@@ -6677,7 +6895,7 @@ local function acUpdateToggle()
         TweenService:Create(acKnob, TweenInfo.new(0.2), {Position = UDim2.new(0,3,0,3)}):Play()
         acStopCopying()
     end
-    _G._HaloAnimCopierActive = acEnabled
+    _G._N0IRAnimCopierActive = acEnabled
 end
 
 acToggleBtn.MouseButton1Click:Connect(function()
@@ -6698,8 +6916,8 @@ LimbsPanel = Instance.new("ScrollingFrame"); LimbsPanel.Parent = body
 LimbsPanel.Name = "LimbsPanel"
 LimbsPanel.BackgroundColor3 = C.bg0; LimbsPanel.BackgroundTransparency = 0.15
 LimbsPanel.BorderSizePixel = 0
-LimbsPanel.Size = UDim2.new(1,-20,1,-112)
-LimbsPanel.Position = UDim2.new(0,10,0,104)
+LimbsPanel.Size = UDim2.new(1,-24,1,-140)
+LimbsPanel.Position = UDim2.new(0,12,0,126)
 LimbsPanel.ScrollBarThickness = 4; LimbsPanel.ScrollBarImageColor3 = C.accent
 LimbsPanel.ScrollBarImageTransparency = 0.5; LimbsPanel.ZIndex = 32
 LimbsPanel.CanvasSize = UDim2.new(0,0,0,0); LimbsPanel.Visible = false
@@ -6718,8 +6936,8 @@ StretchingPanel = Instance.new("ScrollingFrame"); StretchingPanel.Parent = body
 StretchingPanel.Name = "StretchingPanel"
 StretchingPanel.BackgroundColor3 = C.bg0; StretchingPanel.BackgroundTransparency = 0.15
 StretchingPanel.BorderSizePixel = 0
-StretchingPanel.Size = UDim2.new(1,-20,1,-112)
-StretchingPanel.Position = UDim2.new(0,10,0,104)
+StretchingPanel.Size = UDim2.new(1,-24,1,-140)
+StretchingPanel.Position = UDim2.new(0,12,0,126)
 StretchingPanel.ScrollBarThickness = 4; StretchingPanel.ScrollBarImageColor3 = C.accent
 StretchingPanel.ScrollBarImageTransparency = 0.5; StretchingPanel.ZIndex = 32
 StretchingPanel.CanvasSize = UDim2.new(0,0,0,0); StretchingPanel.Visible = false
@@ -6735,47 +6953,46 @@ do
 end
 
 -- Limbs state
-_G._HaloLimbsUpperTorsoHeight = _G._HaloLimbsUpperTorsoHeight or 1.0
-_G._HaloLimbsLegHeight = _G._HaloLimbsLegHeight or 1.0
-_G._HaloTorsoStretcherEnabled = _G._HaloTorsoStretcherEnabled or false
-_G._HaloLegStretcherEnabled = _G._HaloLegStretcherEnabled or false
-_G._HaloLimbsTorsoCamMode = _G._HaloLimbsTorsoCamMode or "360"
+_G._N0IRLimbsUpperTorsoHeight = _G._N0IRLimbsUpperTorsoHeight or 1.0
+_G._N0IRLimbsLegHeight = _G._N0IRLimbsLegHeight or 1.0
+_G._N0IRTorsoStretcherEnabled = _G._N0IRTorsoStretcherEnabled or false
+_G._N0IRLegStretcherEnabled = _G._N0IRLegStretcherEnabled or false
+_G._N0IRLimbsTorsoCamMode = _G._N0IRLimbsTorsoCamMode or "360"
 
 -- Build a slider frame
 local function buildSlider(parent, title, minVal, maxVal, defaultVal, layoutOrder, onChange, color)
     color = color or C.accent
     local frame = Instance.new("Frame"); frame.Parent = parent
-    frame.Size = UDim2.new(1,0,0,54)
-    frame.BackgroundColor3 = C.bg1; frame.BackgroundTransparency = 0.12; frame.BorderSizePixel = 0
+    frame.Size = UDim2.new(1,0,0,52)
+    frame.BackgroundColor3 = Color3.fromRGB(12, 12, 13); frame.BackgroundTransparency = 0; frame.BorderSizePixel = 0
     frame.LayoutOrder = layoutOrder
     do
-        local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,7); c.Parent = frame
-        local s = Instance.new("UIStroke"); s.Color = C.border; s.Transparency = 0.7; s.Thickness = 1; s.Parent = frame
+        local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,6); c.Parent = frame
+        local s = Instance.new("UIStroke"); s.Color = Color3.fromRGB(48, 48, 52); s.Transparency = 0.35; s.Thickness = 1; s.Parent = frame
     end
     local lbl = Instance.new("TextLabel"); lbl.Parent = frame
-    lbl.BackgroundTransparency = 1; lbl.Position = UDim2.new(0,10,0,6)
-    lbl.Size = UDim2.new(1,-20,0,16); lbl.Font = Enum.Font.GothamBold
-    lbl.Text = title .. ": " .. string.format("%.2f", defaultVal) .. "x"; lbl.TextColor3 = C.text
-    lbl.TextSize = 10; lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.ZIndex = 33
+    lbl.BackgroundTransparency = 1; lbl.Position = UDim2.new(0,12,0,6)
+    lbl.Size = UDim2.new(1,-24,0,14); lbl.Font = Enum.Font.GothamBold
+    lbl.Text = title .. ": " .. string.format("%.2f", defaultVal) .. "x"; lbl.TextColor3 = Color3.fromRGB(210, 210, 216)
+    lbl.TextSize = 11; lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.ZIndex = 33
     local track = Instance.new("Frame"); track.Parent = frame
-    track.BackgroundColor3 = C.bg2; track.BackgroundTransparency = 0.3; track.BorderSizePixel = 0
-    track.Position = UDim2.new(0,10,0,28); track.Size = UDim2.new(1,-20,0,8); track.ZIndex = 33
+    track.BackgroundColor3 = Color3.fromRGB(22, 22, 24); track.BackgroundTransparency = 0; track.BorderSizePixel = 0
+    track.Position = UDim2.new(0,12,0,28); track.Size = UDim2.new(1,-24,0,6); track.ZIndex = 33
     do
         local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1,0); c.Parent = track
-        local s = Instance.new("UIStroke"); s.Color = C.border; s.Transparency = 0.7; s.Thickness = 1; s.Parent = track
     end
     local fill = Instance.new("Frame"); fill.Parent = track
-    fill.BackgroundColor3 = color; fill.BackgroundTransparency = 0.1; fill.BorderSizePixel = 0
+    fill.BackgroundColor3 = color; fill.BackgroundTransparency = 0; fill.BorderSizePixel = 0
     local pct = (defaultVal - minVal) / (maxVal - minVal)
     fill.Size = UDim2.new(math.clamp(pct,0,1),0,1,0); fill.ZIndex = 34
     do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1,0); c.Parent = fill end
     local handle = Instance.new("Frame"); handle.Parent = track
-    handle.AnchorPoint = Vector2.new(0.5,0.5); handle.BackgroundColor3 = color
+    handle.AnchorPoint = Vector2.new(0.5,0.5); handle.BackgroundColor3 = Color3.fromRGB(240, 240, 245)
     handle.BackgroundTransparency = 0; handle.BorderSizePixel = 0
-    handle.Position = UDim2.new(math.clamp(pct,0,1),0,0.5,0); handle.Size = UDim2.new(0,12,0,12); handle.ZIndex = 35
+    handle.Position = UDim2.new(math.clamp(pct,0,1),0,0.5,0); handle.Size = UDim2.new(0,14,0,14); handle.ZIndex = 35
     do
         local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1,0); c.Parent = handle
-        local s = Instance.new("UIStroke"); s.Color = C.border; s.Transparency = 0.4; s.Thickness = 1; s.Parent = handle
+        local s = Instance.new("UIStroke"); s.Color = color; s.Transparency = 0.15; s.Thickness = 1.5; s.Parent = handle
     end
 
     -- Invisible drag capture button over the whole slider area
@@ -6834,32 +7051,33 @@ end
 local function buildToggle(parent, title, subText, layoutOrder, defaultState, onChange)
     local frame = Instance.new("Frame"); frame.Parent = parent
     frame.Size = UDim2.new(1, 0, 0, 56)
-    frame.BackgroundColor3 = C.bg1
-    frame.BackgroundTransparency = 0.12
+    frame.BackgroundColor3 = Color3.fromRGB(12, 12, 13)
+    frame.BackgroundTransparency = 0
     frame.BorderSizePixel = 0
     frame.LayoutOrder = layoutOrder
     do
-        local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 10); c.Parent = frame
-        local s = Instance.new("UIStroke"); s.Color = C.border; s.Transparency = 0.4; s.Thickness = 1; s.Parent = frame
+        local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 6); c.Parent = frame
+        local s = Instance.new("UIStroke"); s.Color = Color3.fromRGB(48, 48, 52); s.Transparency = 0.35; s.Thickness = 1; s.Parent = frame
     end
     local lbl = Instance.new("TextLabel"); lbl.Parent = frame
-    lbl.BackgroundTransparency = 1; lbl.Position = UDim2.new(0, 14, 0, 8)
-    lbl.Size = UDim2.new(1, -76, 0, 16); lbl.Font = Enum.Font.GothamMedium
-    lbl.Text = title; lbl.TextColor3 = C.text; lbl.TextSize = 12
+    lbl.BackgroundTransparency = 1; lbl.Position = UDim2.new(0, 14, 0, 10)
+    lbl.Size = UDim2.new(1, -74, 0, 16); lbl.Font = Enum.Font.GothamBold
+    lbl.Text = title; lbl.TextColor3 = Color3.fromRGB(215, 215, 222); lbl.TextSize = 12
     lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.ZIndex = 33
     local sub = Instance.new("TextLabel"); sub.Parent = frame
-    sub.BackgroundTransparency = 1; sub.Position = UDim2.new(0, 14, 0, 26)
-    sub.Size = UDim2.new(1, -76, 0, 22); sub.Font = Enum.Font.Gotham
-    sub.Text = subText; sub.TextColor3 = C.text3; sub.TextSize = 10
+    sub.BackgroundTransparency = 1; sub.Position = UDim2.new(0, 14, 0, 28)
+    sub.Size = UDim2.new(1, -74, 0, 18); sub.Font = Enum.Font.Gotham
+    sub.Text = subText; sub.TextColor3 = Color3.fromRGB(95, 95, 102); sub.TextSize = 10
     sub.TextXAlignment = Enum.TextXAlignment.Left; sub.TextWrapped = true; sub.ZIndex = 33
     local bg = Instance.new("Frame"); bg.Parent = frame
-    bg.Size = UDim2.new(0, 42, 0, 24); bg.Position = UDim2.new(1, -54, 0.5, -12)
-    bg.BackgroundColor3 = defaultState and C.green or C.bg3; bg.BorderSizePixel = 0; bg.ZIndex = 33
+    bg.Size = UDim2.new(0, 42, 0, 22); bg.Position = UDim2.new(1, -54, 0.5, -11)
+    bg.BackgroundColor3 = defaultState and Color3.fromRGB(185, 185, 192) or Color3.fromRGB(28, 28, 30)
+    bg.BorderSizePixel = 0; bg.ZIndex = 33
     local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1, 0); c.Parent = bg
     local knob = Instance.new("Frame"); knob.Parent = bg
-    knob.Size = UDim2.new(0, 18, 0, 18)
-    knob.Position = defaultState and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)
-    knob.BackgroundColor3 = defaultState and C.white or C.white
+    knob.Size = UDim2.new(0, 16, 0, 16)
+    knob.Position = defaultState and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
+    knob.BackgroundColor3 = Color3.fromRGB(245, 245, 250)
     knob.BorderSizePixel = 0; knob.ZIndex = 34
     local ck = Instance.new("UICorner"); ck.CornerRadius = UDim.new(1, 0); ck.Parent = knob
     local btn = Instance.new("TextButton"); btn.Parent = bg
@@ -6867,18 +7085,13 @@ local function buildToggle(parent, title, subText, layoutOrder, defaultState, on
     local state = defaultState
     local function setVisualState(newState)
         state = newState
+        local ti = TweenInfo.new(0.24, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
         if state then
-            TweenService:Create(bg, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {BackgroundColor3 = C.green}):Play()
-            TweenService:Create(knob, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {
-                Position = UDim2.new(1, -21, 0.5, -9),
-                BackgroundColor3 = C.white
-            }):Play()
+            TweenService:Create(bg, ti, {BackgroundColor3 = Color3.fromRGB(185, 185, 192)}):Play()
+            TweenService:Create(knob, ti, {Position = UDim2.new(1, -21, 0.5, -9)}):Play()
         else
-            TweenService:Create(bg, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {BackgroundColor3 = C.bg3}):Play()
-            TweenService:Create(knob, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {
-                Position = UDim2.new(0, 3, 0.5, -9),
-                BackgroundColor3 = C.white
-            }):Play()
+            TweenService:Create(bg, ti, {BackgroundColor3 = Color3.fromRGB(28, 28, 30)}):Play()
+            TweenService:Create(knob, ti, {Position = UDim2.new(0, 3, 0.5, -9)}):Play()
         end
     end
     btn.MouseButton1Click:Connect(function()
@@ -6890,6 +7103,36 @@ local function buildToggle(parent, title, subText, layoutOrder, defaultState, on
         setVisualState(state)
         onChange(state)
     end)
+    frame.MouseEnter:Connect(function()
+        TweenService:Create(frame, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(18, 18, 20)}):Play()
+        if not state then
+            TweenService:Create(bg, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(42, 42, 46)}):Play()
+        else
+            TweenService:Create(bg, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(200, 200, 208)}):Play()
+        end
+    end)
+    frame.MouseLeave:Connect(function()
+        TweenService:Create(frame, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(12, 12, 13)}):Play()
+        if not state then
+            TweenService:Create(bg, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(28, 28, 30)}):Play()
+        else
+            TweenService:Create(bg, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(185, 185, 192)}):Play()
+        end
+    end)
+    btn.MouseEnter:Connect(function()
+        if not state then
+            TweenService:Create(bg, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(50, 50, 54)}):Play()
+        else
+            TweenService:Create(bg, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(210, 210, 216)}):Play()
+        end
+    end)
+    btn.MouseLeave:Connect(function()
+        if not state then
+            TweenService:Create(bg, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(28, 28, 30)}):Play()
+        else
+            TweenService:Create(bg, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(185, 185, 192)}):Play()
+        end
+    end)
     return {frame = frame, btn = btn, setVisualState = setVisualState}
 end
 
@@ -6898,37 +7141,38 @@ local function buildToggleSliderCard(parent, title, subText, minVal, maxVal, def
     local currentVal = defaultVal
 
     local frame = Instance.new("Frame"); frame.Parent = parent
-    frame.Size = UDim2.new(1, 0, 0, 96)
-    frame.BackgroundColor3 = C.bg1
-    frame.BackgroundTransparency = 0.12
+    frame.Size = UDim2.new(1, 0, 0, 94)
+    frame.BackgroundColor3 = Color3.fromRGB(12, 12, 13)
+    frame.BackgroundTransparency = 0
     frame.BorderSizePixel = 0
     frame.LayoutOrder = layoutOrder
     do
-        local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 10); c.Parent = frame
-        local s = Instance.new("UIStroke"); s.Color = C.border; s.Transparency = 0.4; s.Thickness = 1; s.Parent = frame
+        local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 6); c.Parent = frame
+        local s = Instance.new("UIStroke"); s.Color = Color3.fromRGB(48, 48, 52); s.Transparency = 0.35; s.Thickness = 1; s.Parent = frame
     end
 
     local titleLbl = Instance.new("TextLabel"); titleLbl.Parent = frame
     titleLbl.BackgroundTransparency = 1; titleLbl.Position = UDim2.new(0, 14, 0, 8)
-    titleLbl.Size = UDim2.new(1, -76, 0, 15); titleLbl.Font = Enum.Font.GothamMedium
-    titleLbl.Text = title; titleLbl.TextColor3 = C.text; titleLbl.TextSize = 12
+    titleLbl.Size = UDim2.new(1, -76, 0, 15); titleLbl.Font = Enum.Font.GothamBold
+    titleLbl.Text = title; titleLbl.TextColor3 = Color3.fromRGB(210, 210, 216); titleLbl.TextSize = 12
     titleLbl.TextXAlignment = Enum.TextXAlignment.Left; titleLbl.ZIndex = 33
 
     local subLbl = Instance.new("TextLabel"); subLbl.Parent = frame
     subLbl.BackgroundTransparency = 1; subLbl.Position = UDim2.new(0, 14, 0, 24)
     subLbl.Size = UDim2.new(1, -76, 0, 14); subLbl.Font = Enum.Font.Gotham
-    subLbl.Text = subText; subLbl.TextColor3 = C.text3; subLbl.TextSize = 10
+    subLbl.Text = subText; subLbl.TextColor3 = Color3.fromRGB(100, 100, 105); subLbl.TextSize = 10
     subLbl.TextXAlignment = Enum.TextXAlignment.Left; subLbl.ZIndex = 33
 
     local toggleBg = Instance.new("Frame"); toggleBg.Parent = frame
-    toggleBg.Size = UDim2.new(0, 42, 0, 24); toggleBg.Position = UDim2.new(1, -54, 0, 10)
-    toggleBg.BackgroundColor3 = defaultState and C.green or C.bg3; toggleBg.BorderSizePixel = 0; toggleBg.ZIndex = 33
+    toggleBg.Size = UDim2.new(0, 44, 0, 24); toggleBg.Position = UDim2.new(1, -56, 0, 10)
+    toggleBg.BackgroundColor3 = defaultState and Color3.fromRGB(185, 185, 192) or Color3.fromRGB(28, 28, 30)
+    toggleBg.BorderSizePixel = 0; toggleBg.ZIndex = 33
     do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1, 0); c.Parent = toggleBg end
 
     local toggleKnob = Instance.new("Frame", toggleBg)
     toggleKnob.Size = UDim2.new(0, 18, 0, 18)
     toggleKnob.Position = defaultState and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)
-    toggleKnob.BackgroundColor3 = C.white
+    toggleKnob.BackgroundColor3 = Color3.fromRGB(240, 240, 245)
     toggleKnob.BorderSizePixel = 0; toggleKnob.ZIndex = 34
     do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1, 0); c.Parent = toggleKnob end
 
@@ -6939,7 +7183,7 @@ local function buildToggleSliderCard(parent, title, subText, minVal, maxVal, def
     local numBox = Instance.new("TextBox"); numBox.Parent = frame
     numBox.Size = UDim2.new(0, 64, 0, 22)
     numBox.Position = UDim2.new(0, 14, 0, 44)
-    numBox.BackgroundColor3 = C.bg3
+    numBox.BackgroundColor3 = Color3.fromRGB(28, 28, 30)
     numBox.BackgroundTransparency = 0.05
     numBox.BorderSizePixel = 0
     numBox.Font = Enum.Font.GothamMedium
@@ -6968,7 +7212,7 @@ local function buildToggleSliderCard(parent, title, subText, minVal, maxVal, def
     local resetBtn = Instance.new("TextButton"); resetBtn.Parent = frame
     resetBtn.Size = UDim2.new(0, 52, 0, 22)
     resetBtn.Position = UDim2.new(1, -66, 0, 44)
-    resetBtn.BackgroundColor3 = C.bg3
+    resetBtn.BackgroundColor3 = Color3.fromRGB(28, 28, 30)
     resetBtn.BackgroundTransparency = 0.05
     resetBtn.BorderSizePixel = 0
     resetBtn.Font = Enum.Font.GothamBold
@@ -6983,7 +7227,7 @@ local function buildToggleSliderCard(parent, title, subText, minVal, maxVal, def
     end
 
     local track = Instance.new("Frame"); track.Parent = frame
-    track.BackgroundColor3 = C.bg3; track.BackgroundTransparency = 0.15; track.BorderSizePixel = 0
+    track.BackgroundColor3 = Color3.fromRGB(28, 28, 30); track.BackgroundTransparency = 0.15; track.BorderSizePixel = 0
     track.Position = UDim2.new(0, 14, 0, 76); track.Size = UDim2.new(1, -28, 0, 6); track.ZIndex = 33
     do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1, 0); c.Parent = track end
 
@@ -7014,12 +7258,12 @@ local function buildToggleSliderCard(parent, title, subText, minVal, maxVal, def
     local function setToggleVisual(s)
         state = s
         if state then
-            TweenService:Create(toggleBg, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {BackgroundColor3 = C.green}):Play()
+            TweenService:Create(toggleBg, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {BackgroundColor3 = Color3.fromRGB(185, 185, 192)}):Play()
             TweenService:Create(toggleKnob, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {
                 Position = UDim2.new(1, -21, 0.5, -9), BackgroundColor3 = C.white
             }):Play()
         else
-            TweenService:Create(toggleBg, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {BackgroundColor3 = C.bg3}):Play()
+            TweenService:Create(toggleBg, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {BackgroundColor3 = Color3.fromRGB(28, 28, 30)}):Play()
             TweenService:Create(toggleKnob, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {
                 Position = UDim2.new(0, 3, 0.5, -9), BackgroundColor3 = C.white
             }):Play()
@@ -7076,7 +7320,7 @@ local function buildToggleSliderCard(parent, title, subText, minVal, maxVal, def
         TweenService:Create(resetBtn, TweenInfo.new(0.12), {BackgroundColor3 = C.bg2, TextColor3 = C.text}):Play()
     end)
     resetBtn.MouseLeave:Connect(function()
-        TweenService:Create(resetBtn, TweenInfo.new(0.12), {BackgroundColor3 = C.bg3, TextColor3 = C.text2}):Play()
+        TweenService:Create(resetBtn, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(28, 28, 30), TextColor3 = C.text2}):Play()
     end)
 
     return {
@@ -7092,33 +7336,39 @@ local function buildToggleSliderCard(parent, title, subText, minVal, maxVal, def
 end
 
 local function buildToggleWithKey(parent, title, subText, layoutOrder, defaultState, keybindRef, onStateChange, onKeyChange)
+    -- Same card / switch style as buildToggle (360 Head Movement)
     local frame = Instance.new("Frame"); frame.Parent = parent
     frame.Size = UDim2.new(1, 0, 0, 56)
-    frame.BackgroundColor3 = C.bg1
-    frame.BackgroundTransparency = 0.12
+    frame.BackgroundColor3 = Color3.fromRGB(12, 12, 13)
+    frame.BackgroundTransparency = 0
     frame.BorderSizePixel = 0
     frame.LayoutOrder = layoutOrder
     do
-        local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 10); c.Parent = frame
-        local s = Instance.new("UIStroke"); s.Color = C.border; s.Transparency = 0.4; s.Thickness = 1; s.Parent = frame
+        local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 6); c.Parent = frame
+        local s = Instance.new("UIStroke"); s.Color = Color3.fromRGB(48, 48, 52); s.Transparency = 0.35; s.Thickness = 1; s.Parent = frame
     end
     local lbl = Instance.new("TextLabel"); lbl.Parent = frame
-    lbl.BackgroundTransparency = 1; lbl.Position = UDim2.new(0, 14, 0, 8)
-    lbl.Size = UDim2.new(1, -150, 0, 16); lbl.Font = Enum.Font.GothamMedium
-    lbl.Text = title; lbl.TextColor3 = C.text; lbl.TextSize = 12
+    lbl.BackgroundTransparency = 1; lbl.Position = UDim2.new(0, 14, 0, 10)
+    lbl.Size = UDim2.new(1, -150, 0, 16); lbl.Font = Enum.Font.GothamBold
+    lbl.Text = title; lbl.TextColor3 = Color3.fromRGB(210, 210, 216); lbl.TextSize = 12
     lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.ZIndex = 33
     local sub = Instance.new("TextLabel"); sub.Parent = frame
-    sub.BackgroundTransparency = 1; sub.Position = UDim2.new(0, 14, 0, 26)
-    sub.Size = UDim2.new(1, -150, 0, 22); sub.Font = Enum.Font.Gotham
-    sub.Text = subText; sub.TextColor3 = C.text3; sub.TextSize = 10
+    sub.BackgroundTransparency = 1; sub.Position = UDim2.new(0, 14, 0, 28)
+    sub.Size = UDim2.new(1, -150, 0, 20); sub.Font = Enum.Font.Gotham
+    sub.Text = subText; sub.TextColor3 = Color3.fromRGB(100, 100, 105); sub.TextSize = 10
     sub.TextXAlignment = Enum.TextXAlignment.Left; sub.TextWrapped = true; sub.ZIndex = 33
 
     local keyBtn = Instance.new("TextButton"); keyBtn.Parent = frame
-    keyBtn.Size = UDim2.new(0, 52, 0, 22); keyBtn.Position = UDim2.new(1, -108, 0.5, -11)
-    keyBtn.BackgroundColor3 = C.bg3; keyBtn.BackgroundTransparency = 0.05
+    keyBtn.Size = UDim2.new(0, 48, 0, 22); keyBtn.Position = UDim2.new(1, -112, 0.5, -11)
+    keyBtn.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+    keyBtn.BackgroundTransparency = 0
     keyBtn.BorderSizePixel = 0; keyBtn.Font = Enum.Font.GothamBold
-    keyBtn.TextColor3 = C.text3; keyBtn.TextSize = 10; keyBtn.ZIndex = 34; keyBtn.AutoButtonColor = false
-    do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 7); c.Parent = keyBtn end
+    keyBtn.TextColor3 = Color3.fromRGB(150, 150, 155); keyBtn.TextSize = 10
+    keyBtn.ZIndex = 34; keyBtn.AutoButtonColor = false
+    do
+        local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 6); c.Parent = keyBtn
+        local s = Instance.new("UIStroke"); s.Color = Color3.fromRGB(55, 55, 60); s.Transparency = 0.4; s.Thickness = 1; s.Parent = keyBtn
+    end
 
     local function updateKeyText()
         local k = nil
@@ -7137,19 +7387,32 @@ local function buildToggleWithKey(parent, title, subText, layoutOrder, defaultSt
     end
     updateKeyText()
 
+    keyBtn.MouseEnter:Connect(function()
+        TweenService:Create(keyBtn, TweenInfo.new(0.12), {
+            BackgroundColor3 = Color3.fromRGB(40, 40, 42),
+            TextColor3 = Color3.fromRGB(210, 210, 216),
+        }):Play()
+    end)
+    keyBtn.MouseLeave:Connect(function()
+        TweenService:Create(keyBtn, TweenInfo.new(0.12), {
+            BackgroundColor3 = Color3.fromRGB(28, 28, 28),
+            TextColor3 = Color3.fromRGB(150, 150, 155),
+        }):Play()
+    end)
+
     local listening = false
     keyBtn.MouseButton1Click:Connect(function()
         if listening then return end
         listening = true
         keyBtn.Text = "..."
-        keyBtn.TextColor3 = C.white
+        keyBtn.TextColor3 = Color3.fromRGB(220, 220, 225)
         local conn
         conn = UserInputService.InputBegan:Connect(function(input, gp)
             if gp then return end
             if input.UserInputType == Enum.UserInputType.Keyboard then
                 listening = false
                 if conn then conn:Disconnect() end
-                keyBtn.TextColor3 = C.text3
+                keyBtn.TextColor3 = Color3.fromRGB(150, 150, 155)
                 if onKeyChange then onKeyChange(input.KeyCode) end
                 updateKeyText()
             end
@@ -7157,13 +7420,14 @@ local function buildToggleWithKey(parent, title, subText, layoutOrder, defaultSt
     end)
 
     local bg = Instance.new("Frame"); bg.Parent = frame
-    bg.Size = UDim2.new(0, 42, 0, 24); bg.Position = UDim2.new(1, -50, 0.5, -12)
-    bg.BackgroundColor3 = defaultState and C.green or C.bg3; bg.BorderSizePixel = 0; bg.ZIndex = 33
+    bg.Size = UDim2.new(0, 44, 0, 24); bg.Position = UDim2.new(1, -56, 0.5, -12)
+    bg.BackgroundColor3 = defaultState and Color3.fromRGB(185, 185, 192) or Color3.fromRGB(28, 28, 30)
+    bg.BorderSizePixel = 0; bg.ZIndex = 33
     do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1, 0); c.Parent = bg end
     local knob = Instance.new("Frame"); knob.Parent = bg
     knob.Size = UDim2.new(0, 18, 0, 18)
     knob.Position = defaultState and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)
-    knob.BackgroundColor3 = defaultState and C.white or C.white
+    knob.BackgroundColor3 = Color3.fromRGB(240, 240, 245)
     knob.BorderSizePixel = 0; knob.ZIndex = 34
     do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1, 0); c.Parent = knob end
     local btn = Instance.new("TextButton"); btn.Parent = bg
@@ -7171,16 +7435,13 @@ local function buildToggleWithKey(parent, title, subText, layoutOrder, defaultSt
     local state = defaultState
     local function setVisualState(newState)
         state = newState
+        local ti = TweenInfo.new(0.24, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
         if state then
-            TweenService:Create(bg, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {BackgroundColor3 = C.green}):Play()
-            TweenService:Create(knob, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {
-                Position = UDim2.new(1, -21, 0.5, -9), BackgroundColor3 = Color3.fromRGB(10, 10, 10)
-            }):Play()
+            TweenService:Create(bg, ti, {BackgroundColor3 = Color3.fromRGB(185, 185, 192)}):Play()
+            TweenService:Create(knob, ti, {Position = UDim2.new(1, -21, 0.5, -9)}):Play()
         else
-            TweenService:Create(bg, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {BackgroundColor3 = C.bg3}):Play()
-            TweenService:Create(knob, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {
-                Position = UDim2.new(0, 3, 0.5, -9), BackgroundColor3 = C.white
-            }):Play()
+            TweenService:Create(bg, ti, {BackgroundColor3 = Color3.fromRGB(28, 28, 30)}):Play()
+            TweenService:Create(knob, ti, {Position = UDim2.new(0, 3, 0.5, -9)}):Play()
         end
     end
     btn.MouseButton1Click:Connect(function()
@@ -7192,8 +7453,41 @@ local function buildToggleWithKey(parent, title, subText, layoutOrder, defaultSt
         setVisualState(state)
         if onStateChange then onStateChange(state) end
     end)
+
+    frame.MouseEnter:Connect(function()
+        TweenService:Create(frame, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(18, 18, 20)}):Play()
+        if not state then
+            TweenService:Create(bg, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(42, 42, 46)}):Play()
+        else
+            TweenService:Create(bg, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(200, 200, 208)}):Play()
+        end
+    end)
+    frame.MouseLeave:Connect(function()
+        TweenService:Create(frame, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(12, 12, 13)}):Play()
+        if not state then
+            TweenService:Create(bg, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(28, 28, 30)}):Play()
+        else
+            TweenService:Create(bg, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(185, 185, 192)}):Play()
+        end
+    end)
+    btn.MouseEnter:Connect(function()
+        if not state then
+            TweenService:Create(bg, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(50, 50, 54)}):Play()
+        else
+            TweenService:Create(bg, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(210, 210, 216)}):Play()
+        end
+    end)
+    btn.MouseLeave:Connect(function()
+        if not state then
+            TweenService:Create(bg, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(28, 28, 30)}):Play()
+        else
+            TweenService:Create(bg, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(185, 185, 192)}):Play()
+        end
+    end)
+
     return {frame = frame, setVisualState = setVisualState, updateKeyText = updateKeyText}
 end
+
 
 
 local function applyLegHipHeight(clone, legScale, enabled)
@@ -7214,10 +7508,10 @@ local function applyLegHipHeight(clone, legScale, enabled)
         end
     end
     for _, hum in ipairs(hums) do
-        local defHip = hum:GetAttribute("HaloDefaultHipHeight")
+        local defHip = hum:GetAttribute("N0IRDefaultHipHeight")
         if not defHip or defHip > 3.5 then
             defHip = (hum.HipHeight > 0 and hum.HipHeight <= 3.5) and hum.HipHeight or 2.0
-            hum:SetAttribute("HaloDefaultHipHeight", defHip)
+            hum:SetAttribute("N0IRDefaultHipHeight", defHip)
         end
         if enabled then
             local extra = math.max(0, (legScale - 1.0) * 1.5)
@@ -7230,16 +7524,16 @@ end
 
 -- UpperTorso Height Slider
 
-_G._HaloTorsoStretcherEnabled = false
-_G._HaloLegStretcherEnabled = false
-_G._HaloLimbsUpperTorsoHeight = 1.0
-_G._HaloLimbsLegHeight = 1.0
+_G._N0IRTorsoStretcherEnabled = false
+_G._N0IRLegStretcherEnabled = false
+_G._N0IRLimbsUpperTorsoHeight = 1.0
+_G._N0IRLimbsLegHeight = 1.0
 
 -- Torso Stretcher (Toggle + Slider in matching card design)
 local torsoStretcherToggle = buildToggleSliderCard(StretchingPanel, "Torso Stretcher", "Enable UpperTorso height stretching", 0.4, 100.0, 1.0, 1, false, function(state)
-    _G._HaloTorsoStretcherEnabled = state
+    _G._N0IRTorsoStretcherEnabled = state
 end, function(v)
-    _G._HaloLimbsUpperTorsoHeight = v
+    _G._N0IRLimbsUpperTorsoHeight = v
 end, "Amount: ")
 
 local utSlider = {
@@ -7252,14 +7546,14 @@ local utSlider = {
 
 -- Leg Stretcher (Toggle + Slider in matching card design)
 local legStretcherToggle = buildToggleSliderCard(StretchingPanel, "Leg Stretcher", "Enable leg height stretching", 0.4, 100.0, 1.0, 2, false, function(state)
-    _G._HaloLegStretcherEnabled = state
+    _G._N0IRLegStretcherEnabled = state
     local clone = (ReanimateAPI and ReanimateAPI.get_clone and ReanimateAPI.get_clone(plr)) or plr.Character
-    applyLegHipHeight(clone, _G._HaloLimbsLegHeight or 1.0, state)
+    applyLegHipHeight(clone, _G._N0IRLimbsLegHeight or 1.0, state)
     if startLimbsSystem then startLimbsSystem() end
     if startStandalonePointers then startStandalonePointers() end
 end, function(v)
-    _G._HaloLimbsLegHeight = v
-    if _G._HaloLegStretcherEnabled then
+    _G._N0IRLimbsLegHeight = v
+    if _G._N0IRLegStretcherEnabled then
         local clone = (ReanimateAPI and ReanimateAPI.get_clone and ReanimateAPI.get_clone(plr)) or plr.Character
         applyLegHipHeight(clone, v, true)
     end
@@ -7274,8 +7568,8 @@ local legSlider = {
 }
 
 -- Torso Camera Control: Toggle + Mode Dropdown
-_G._HaloLimbsTorsoCamControl = _G._HaloLimbsTorsoCamControl or false
-_G._HaloLimbsTorsoCamMode = _G._HaloLimbsTorsoCamMode or "360"
+_G._N0IRLimbsTorsoCamControl = _G._N0IRLimbsTorsoCamControl or false
+_G._N0IRLimbsTorsoCamMode = _G._N0IRLimbsTorsoCamMode or "360"
 
 -- Toggle row
 local camToggleFrame = Instance.new("Frame"); camToggleFrame.Parent = LimbsPanel
@@ -7301,18 +7595,18 @@ camToggleSub.TextSize = 9; camToggleSub.TextXAlignment = Enum.TextXAlignment.Lef
 
 local camToggleBg = Instance.new("Frame"); camToggleBg.Parent = camToggleFrame
 camToggleBg.Size = UDim2.new(0,44,0,22); camToggleBg.Position = UDim2.new(1,-54,0,16)
-camToggleBg.BackgroundColor3 = _G._HaloLimbsTorsoCamControl and C.green or C.bg4; camToggleBg.BorderSizePixel = 0; camToggleBg.ZIndex = 33
+camToggleBg.BackgroundColor3 = _G._N0IRLimbsTorsoCamControl and C.green or C.bg4; camToggleBg.BorderSizePixel = 0; camToggleBg.ZIndex = 33
 local camToggleCorner = Instance.new("UICorner", camToggleBg); camToggleCorner.CornerRadius = UDim.new(0,11)
 local camToggleKnob = Instance.new("Frame", camToggleBg)
-camToggleKnob.Size = UDim2.new(0,16,0,16); camToggleKnob.Position = _G._HaloLimbsTorsoCamControl and UDim2.new(1,-19,0,3) or UDim2.new(0,3,0,3)
+camToggleKnob.Size = UDim2.new(0,16,0,16); camToggleKnob.Position = _G._N0IRLimbsTorsoCamControl and UDim2.new(1,-19,0,3) or UDim2.new(0,3,0,3)
 camToggleKnob.BackgroundColor3 = C.white; camToggleKnob.BorderSizePixel = 0; camToggleKnob.ZIndex = 34
 local camToggleKnobCorner = Instance.new("UICorner", camToggleKnob); camToggleKnobCorner.CornerRadius = UDim.new(0,8)
 local camToggleBtn = Instance.new("TextButton", camToggleBg)
 camToggleBtn.Size = UDim2.new(1,0,1,0); camToggleBtn.BackgroundTransparency = 1; camToggleBtn.Text = ""; camToggleBtn.ZIndex = 35
 
 local function updateCamToggleState(state)
-    _G._HaloLimbsTorsoCamControl = state
-    _G._HaloTorsoCamSmoothedCF = nil
+    _G._N0IRLimbsTorsoCamControl = state
+    _G._N0IRTorsoCamSmoothedCF = nil
     if state then
         TweenService:Create(camToggleBg, TweenInfo.new(0.2), {BackgroundColor3 = C.green}):Play()
         TweenService:Create(camToggleKnob, TweenInfo.new(0.2), {Position = UDim2.new(1,-19,0,3)}):Play()
@@ -7322,14 +7616,14 @@ local function updateCamToggleState(state)
         TweenService:Create(camToggleKnob, TweenInfo.new(0.2), {Position = UDim2.new(0,3,0,3)}):Play()
     end
 end
-_G._HaloUpdateCamToggleState = updateCamToggleState
+_G._N0IRUpdateCamToggleState = updateCamToggleState
 
 camToggleBtn.MouseButton1Click:Connect(function()
     if not State.isReanimated then
         Notify("Turn on Reanimation first!", 2)
         return
     end
-    updateCamToggleState(not _G._HaloLimbsTorsoCamControl)
+    updateCamToggleState(not _G._N0IRLimbsTorsoCamControl)
 end)
 
 -- Mode dropdown row
@@ -7358,7 +7652,7 @@ local camModeDropdown = Instance.new("TextButton"); camModeDropdown.Parent = cam
 camModeDropdown.Position = UDim2.new(0,10,0,38); camModeDropdown.Size = UDim2.new(1,-20,0,24)
 camModeDropdown.BackgroundColor3 = C.bg2; camModeDropdown.BackgroundTransparency = 0.3
 camModeDropdown.BorderSizePixel = 0; camModeDropdown.ZIndex = 33
-camModeDropdown.Font = Enum.Font.GothamBold; camModeDropdown.Text = _G._HaloLimbsTorsoCamMode
+camModeDropdown.Font = Enum.Font.GothamBold; camModeDropdown.Text = _G._N0IRLimbsTorsoCamMode
 camModeDropdown.TextColor3 = C.accent; camModeDropdown.TextSize = 10
 camModeDropdown.AutoButtonColor = false
 do
@@ -7397,7 +7691,7 @@ for _, opt in ipairs(camModeOptions) do
         TweenService:Create(optBtn, TweenInfo.new(0.1), {BackgroundTransparency = 0.5}):Play()
     end)
     optBtn.MouseButton1Click:Connect(function()
-        _G._HaloLimbsTorsoCamMode = opt
+        _G._N0IRLimbsTorsoCamMode = opt
         camModeDropdown.Text = opt
         camModeMenu.Visible = false
         TweenService:Create(camModeMenu, TweenInfo.new(0.15), {Size = UDim2.new(1,-20,0,0)}):Play()
@@ -7416,22 +7710,22 @@ camModeDropdown.MouseButton1Click:Connect(function()
     end
 end)
 -- 360 Head Movement
-_G._HaloHeadTracker360 = _G._HaloHeadTracker360 or false
-local head360Widget = buildToggle(LimbsPanel, "360 Head Movement", "Allow head to rotate full 360 degrees without clamping.", 3, _G._HaloHeadTracker360, function(state)
-    _G._HaloHeadTracker360 = state
+_G._N0IRHeadTracker360 = _G._N0IRHeadTracker360 or false
+local head360Widget = buildToggle(LimbsPanel, "360 Head Movement", "Allow head to rotate full 360 degrees without clamping.", 3, _G._N0IRHeadTracker360, function(state)
+    _G._N0IRHeadTracker360 = state
 end)
 
-_G._HaloHeadTrackerEnabled = false
+_G._N0IRHeadTrackerEnabled = false
 local htWidget = buildToggleWithKey(LimbsPanel, "Head Tracker", "Head follows camera via constraint transform.", 4, false, function()
-    return _G._HaloHeadTrackerKey
+    return _G._N0IRHeadTrackerKey
 end, function(state)
-    _G._HaloHeadTrackerEnabled = state
+    _G._N0IRHeadTrackerEnabled = state
 end, function(key)
-    _G._HaloHeadTrackerKey = key
+    _G._N0IRHeadTrackerKey = key
 end)
-_G._HaloUpdateHeadTrackerUI = function()
+_G._N0IRUpdateHeadTrackerUI = function()
     if htWidget and htWidget.setVisualState then
-        htWidget.setVisualState(_G._HaloHeadTrackerEnabled or false)
+        htWidget.setVisualState(_G._N0IRHeadTrackerEnabled or false)
     end
     if htWidget and htWidget.updateKeyText then
         htWidget.updateKeyText()
@@ -7439,18 +7733,18 @@ _G._HaloUpdateHeadTrackerUI = function()
 end
 
 -- Left Arm Pointer
-_G._HaloLeftArmPointerEnabled = false
+_G._N0IRLeftArmPointerEnabled = false
 local laWidget = buildToggleWithKey(LimbsPanel, "Left Arm Pointer", "Left arm points straight at mouse. Overrides left arm", 5, false, function()
-    return _G._HaloLeftArmKey
+    return _G._N0IRLeftArmKey
 end, function(state)
-    _G._HaloLeftArmPointerEnabled = state
-    if state then _G._HaloLeftArmPointerNeedsReset = true end
+    _G._N0IRLeftArmPointerEnabled = state
+    if state then _G._N0IRLeftArmPointerNeedsReset = true end
 end, function(key)
-    _G._HaloLeftArmKey = key
+    _G._N0IRLeftArmKey = key
 end)
-_G._HaloUpdateLeftArmPointerUI = function()
+_G._N0IRUpdateLeftArmPointerUI = function()
     if laWidget and laWidget.setVisualState then
-        laWidget.setVisualState(_G._HaloLeftArmPointerEnabled or false)
+        laWidget.setVisualState(_G._N0IRLeftArmPointerEnabled or false)
     end
     if laWidget and laWidget.updateKeyText then
         laWidget.updateKeyText()
@@ -7458,18 +7752,18 @@ _G._HaloUpdateLeftArmPointerUI = function()
 end
 
 -- Right Arm Pointer
-_G._HaloRightArmPointerEnabled = false
+_G._N0IRRightArmPointerEnabled = false
 local raWidget = buildToggleWithKey(LimbsPanel, "Right Arm Pointer", "Right arm points straight at mouse. Overrides right arm", 6, false, function()
-    return _G._HaloRightArmKey
+    return _G._N0IRRightArmKey
 end, function(state)
-    _G._HaloRightArmPointerEnabled = state
-    if state then _G._HaloRightArmPointerNeedsReset = true end
+    _G._N0IRRightArmPointerEnabled = state
+    if state then _G._N0IRRightArmPointerNeedsReset = true end
 end, function(key)
-    _G._HaloRightArmKey = key
+    _G._N0IRRightArmKey = key
 end)
-_G._HaloUpdateRightArmPointerUI = function()
+_G._N0IRUpdateRightArmPointerUI = function()
     if raWidget and raWidget.setVisualState then
-        raWidget.setVisualState(_G._HaloRightArmPointerEnabled or false)
+        raWidget.setVisualState(_G._N0IRRightArmPointerEnabled or false)
     end
     if raWidget and raWidget.updateKeyText then
         raWidget.updateKeyText()
@@ -7479,15 +7773,26 @@ end
 -- ============================================
 -- FUN TRACKING: Stare / Wobble / Spin Head / T-Pose
 -- ============================================
-_G._HaloStareEnabled = _G._HaloStareEnabled or false
-_G._HaloIdleWobbleEnabled = _G._HaloIdleWobbleEnabled or false
-_G._HaloIdleWobbleSpeed = _G._HaloIdleWobbleSpeed or 1.0
-_G._HaloIdleGlitchEnabled = _G._HaloIdleGlitchEnabled or false
-_G._HaloIdleGlitchTorsoEnabled = _G._HaloIdleGlitchTorsoEnabled or false
-_G._HaloIdleGlitchSpeed = _G._HaloIdleGlitchSpeed or 1.0
-_G._HaloSpinHeadEnabled = _G._HaloSpinHeadEnabled or false
-_G._HaloSpinHeadSpeed = _G._HaloSpinHeadSpeed or 1.5
-_G._HaloTPoseEnabled = _G._HaloTPoseEnabled or false
+_G._N0IRStareEnabled = _G._N0IRStareEnabled or false
+_G._N0IRIdleWobbleEnabled = _G._N0IRIdleWobbleEnabled or false
+_G._N0IRIdleWobbleSpeed = _G._N0IRIdleWobbleSpeed or 1.0
+_G._N0IRIdleGlitchEnabled = _G._N0IRIdleGlitchEnabled or false
+_G._N0IRIdleGlitchTorsoEnabled = _G._N0IRIdleGlitchTorsoEnabled or false
+_G._N0IRIdleGlitchSpeed = _G._N0IRIdleGlitchSpeed or 1.0
+_G._N0IRSpinHeadEnabled = _G._N0IRSpinHeadEnabled or false
+_G._N0IRSpinHeadSpeed = _G._N0IRSpinHeadSpeed or 1.5
+_G._N0IRTPoseEnabled = _G._N0IRTPoseEnabled or false
+
+-- New tracker features
+_G._N0IRRubberNeckEnabled = false
+_G._N0IRBobbleHeadEnabled = false
+_G._N0IRHeadAttachEnabled = _G._N0IRHeadAttachEnabled or false
+_G._N0IRHeadAttachTarget = _G._N0IRHeadAttachTarget or nil
+_G._N0IRPolesEnabled = _G._N0IRPolesEnabled or false
+_G._N0IRPoleLength = _G._N0IRPoleLength or 2.5
+_G._N0IRPoleAnchors = _G._N0IRPoleAnchors or {
+    RightArm = nil, LeftArm = nil, RightLeg = nil, LeftLeg = nil
+}
 
 local funHeader = Instance.new("TextLabel")
 funHeader.Parent = LimbsPanel
@@ -7501,28 +7806,28 @@ funHeader.TextColor3 = C.text
 funHeader.TextXAlignment = Enum.TextXAlignment.Left
 funHeader.ZIndex = 33
 
-buildToggle(LimbsPanel, "Stare Mode", "Head locks onto the nearest other player (creep mode).", 21, _G._HaloStareEnabled, function(state)
-    _G._HaloStareEnabled = state
+buildToggle(LimbsPanel, "Stare Mode", "Head locks onto the nearest other player (creep mode).", 21, _G._N0IRStareEnabled, function(state)
+    _G._N0IRStareEnabled = state
     if state then
-        _G._HaloSpinHeadEnabled = false
+        _G._N0IRSpinHeadEnabled = false
         if Notify then Notify("Stare Mode ON", 1.5) end
     else
         if Notify then Notify("Stare Mode OFF", 1.5) end
     end
 end)
 
-buildToggle(LimbsPanel, "Idle Wobble", "Soft jiggle on head + arms while idle. Cursed idle energy.", 22, _G._HaloIdleWobbleEnabled, function(state)
-    _G._HaloIdleWobbleEnabled = state
+buildToggle(LimbsPanel, "Idle Wobble", "Soft jiggle on head + arms while idle. Cursed idle energy.", 22, _G._N0IRIdleWobbleEnabled, function(state)
+    _G._N0IRIdleWobbleEnabled = state
     if Notify then Notify("Idle Wobble: " .. (state and "ON" or "OFF"), 1.5) end
 end)
 
-buildToggle(LimbsPanel, "Idle Glitch", "Spastic jitter / snap glitch on head + arms while idle.", 22.5, _G._HaloIdleGlitchEnabled, function(state)
-    _G._HaloIdleGlitchEnabled = state
+buildToggle(LimbsPanel, "Idle Glitch", "Spastic jitter / snap glitch on head + arms while idle.", 22.5, _G._N0IRIdleGlitchEnabled, function(state)
+    _G._N0IRIdleGlitchEnabled = state
     if Notify then Notify("Idle Glitch: " .. (state and "ON" or "OFF"), 1.5) end
 end)
 
-buildToggle(LimbsPanel, "Idle Glitch Torso", "Also glitch the torso / waist while Idle Glitch is on.", 22.6, _G._HaloIdleGlitchTorsoEnabled, function(state)
-    _G._HaloIdleGlitchTorsoEnabled = state
+buildToggle(LimbsPanel, "Idle Glitch Torso", "Also glitch the torso / waist while Idle Glitch is on.", 22.6, _G._N0IRIdleGlitchTorsoEnabled, function(state)
+    _G._N0IRIdleGlitchTorsoEnabled = state
     if Notify then Notify("Idle Glitch Torso: " .. (state and "ON" or "OFF"), 1.5) end
 end)
 
@@ -7539,7 +7844,7 @@ do
     local lbl = Instance.new("TextLabel"); lbl.Parent = frame
     lbl.BackgroundTransparency = 1; lbl.Position = UDim2.new(0, 10, 0, 6)
     lbl.Size = UDim2.new(1, -20, 0, 14); lbl.Font = Enum.Font.GothamBold
-    lbl.Text = "Wobble Speed: " .. string.format("%.1f", _G._HaloIdleWobbleSpeed) .. "x"
+    lbl.Text = "Wobble Speed: " .. string.format("%.1f", _G._N0IRIdleWobbleSpeed) .. "x"
     lbl.TextColor3 = C.text; lbl.TextSize = 10
     lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.ZIndex = 33
 
@@ -7548,7 +7853,7 @@ do
     track.Position = UDim2.new(0, 10, 0, 28); track.Size = UDim2.new(1, -20, 0, 8); track.ZIndex = 33
     do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 4); c.Parent = track end
     local minV, maxV = 0.2, 5.0
-    local p0 = math.clamp((_G._HaloIdleWobbleSpeed - minV) / (maxV - minV), 0, 1)
+    local p0 = math.clamp((_G._N0IRIdleWobbleSpeed - minV) / (maxV - minV), 0, 1)
     local fill = Instance.new("Frame"); fill.Parent = track
     fill.BackgroundColor3 = C.accent; fill.BackgroundTransparency = 0.15; fill.BorderSizePixel = 0
     fill.Size = UDim2.new(p0, 0, 1, 0); fill.ZIndex = 34
@@ -7563,7 +7868,7 @@ do
         local pct = math.clamp((mx - track.AbsolutePosition.X) / math.max(track.AbsoluteSize.X, 1), 0, 1)
         local val = minV + pct * (maxV - minV)
         val = math.floor(val * 10 + 0.5) / 10
-        _G._HaloIdleWobbleSpeed = val
+        _G._N0IRIdleWobbleSpeed = val
         fill.Size = UDim2.new(pct, 0, 1, 0)
         handle.Position = UDim2.new(pct, 0, 0.5, 0)
         lbl.Text = "Wobble Speed: " .. string.format("%.1f", val) .. "x"
@@ -7599,7 +7904,7 @@ do
     local lbl = Instance.new("TextLabel"); lbl.Parent = frame
     lbl.BackgroundTransparency = 1; lbl.Position = UDim2.new(0, 10, 0, 6)
     lbl.Size = UDim2.new(1, -20, 0, 14); lbl.Font = Enum.Font.GothamBold
-    lbl.Text = "Glitch Speed: " .. string.format("%.1f", _G._HaloIdleGlitchSpeed) .. "x"
+    lbl.Text = "Glitch Speed: " .. string.format("%.1f", _G._N0IRIdleGlitchSpeed) .. "x"
     lbl.TextColor3 = C.text; lbl.TextSize = 10
     lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.ZIndex = 33
 
@@ -7608,7 +7913,7 @@ do
     track.Position = UDim2.new(0, 10, 0, 28); track.Size = UDim2.new(1, -20, 0, 8); track.ZIndex = 33
     do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 4); c.Parent = track end
     local minV, maxV = 0.2, 5.0
-    local p0 = math.clamp((_G._HaloIdleGlitchSpeed - minV) / (maxV - minV), 0, 1)
+    local p0 = math.clamp((_G._N0IRIdleGlitchSpeed - minV) / (maxV - minV), 0, 1)
     local fill = Instance.new("Frame"); fill.Parent = track
     fill.BackgroundColor3 = C.accent; fill.BackgroundTransparency = 0.15; fill.BorderSizePixel = 0
     fill.Size = UDim2.new(p0, 0, 1, 0); fill.ZIndex = 34
@@ -7623,7 +7928,7 @@ do
         local pct = math.clamp((mx - track.AbsolutePosition.X) / math.max(track.AbsoluteSize.X, 1), 0, 1)
         local val = minV + pct * (maxV - minV)
         val = math.floor(val * 10 + 0.5) / 10
-        _G._HaloIdleGlitchSpeed = val
+        _G._N0IRIdleGlitchSpeed = val
         fill.Size = UDim2.new(pct, 0, 1, 0)
         handle.Position = UDim2.new(pct, 0, 0.5, 0)
         lbl.Text = "Glitch Speed: " .. string.format("%.1f", val) .. "x"
@@ -7646,10 +7951,10 @@ do
     end)
 end
 
-buildToggle(LimbsPanel, "Spin Head", "Head continuously spins (exorcist mode). Overrides stare/head tracker.", 23, _G._HaloSpinHeadEnabled, function(state)
-    _G._HaloSpinHeadEnabled = state
+buildToggle(LimbsPanel, "Spin Head", "Head continuously spins (exorcist mode). Overrides stare/head tracker.", 23, _G._N0IRSpinHeadEnabled, function(state)
+    _G._N0IRSpinHeadEnabled = state
     if state then
-        _G._HaloStareEnabled = false
+        _G._N0IRStareEnabled = false
         if Notify then Notify("Spin Head ON", 1.5) end
     else
         if Notify then Notify("Spin Head OFF", 1.5) end
@@ -7669,7 +7974,7 @@ do
     local lbl = Instance.new("TextLabel"); lbl.Parent = frame
     lbl.BackgroundTransparency = 1; lbl.Position = UDim2.new(0, 10, 0, 6)
     lbl.Size = UDim2.new(1, -20, 0, 14); lbl.Font = Enum.Font.GothamBold
-    lbl.Text = "Spin Speed: " .. string.format("%.1f", _G._HaloSpinHeadSpeed) .. "x"
+    lbl.Text = "Spin Speed: " .. string.format("%.1f", _G._N0IRSpinHeadSpeed) .. "x"
     lbl.TextColor3 = C.text; lbl.TextSize = 10
     lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.ZIndex = 33
 
@@ -7678,7 +7983,7 @@ do
     track.Position = UDim2.new(0, 10, 0, 28); track.Size = UDim2.new(1, -20, 0, 8); track.ZIndex = 33
     do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 4); c.Parent = track end
     local minV, maxV = 0.2, 6.0
-    local p0 = math.clamp((_G._HaloSpinHeadSpeed - minV) / (maxV - minV), 0, 1)
+    local p0 = math.clamp((_G._N0IRSpinHeadSpeed - minV) / (maxV - minV), 0, 1)
     local fill = Instance.new("Frame"); fill.Parent = track
     fill.BackgroundColor3 = C.accent; fill.BackgroundTransparency = 0.15; fill.BorderSizePixel = 0
     fill.Size = UDim2.new(p0, 0, 1, 0); fill.ZIndex = 34
@@ -7693,7 +7998,7 @@ do
         local pct = math.clamp((mx - track.AbsolutePosition.X) / math.max(track.AbsoluteSize.X, 1), 0, 1)
         local val = minV + pct * (maxV - minV)
         val = math.floor(val * 10 + 0.5) / 10
-        _G._HaloSpinHeadSpeed = val
+        _G._N0IRSpinHeadSpeed = val
         fill.Size = UDim2.new(pct, 0, 1, 0)
         handle.Position = UDim2.new(pct, 0, 0.5, 0)
         lbl.Text = "Spin Speed: " .. string.format("%.1f", val) .. "x"
@@ -7716,24 +8021,362 @@ do
     end)
 end
 
-buildToggle(LimbsPanel, "T-Pose", "Force a full T-pose on the clone. Instant meme mode.", 25, _G._HaloTPoseEnabled, function(state)
-    _G._HaloTPoseEnabled = state
+buildToggle(LimbsPanel, "T-Pose", "Force a full T-pose on the clone. Instant meme mode.", 25, _G._N0IRTPoseEnabled, function(state)
+    _G._N0IRTPoseEnabled = state
     if Notify then Notify("T-Pose: " .. (state and "ON" or "OFF"), 1.5) end
 end)
 
+-- ============================================
+-- HEAD ATTACH (player picker like anim copier)
+-- ============================================
+do
+    local haFrame = Instance.new("Frame")
+    haFrame.Parent = LimbsPanel
+    haFrame.Size = UDim2.new(1, 0, 0, 148)
+    haFrame.BackgroundColor3 = C.bg1
+    haFrame.BackgroundTransparency = 0.12
+    haFrame.BorderSizePixel = 0
+    haFrame.LayoutOrder = 25.6
+    do
+        local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 7); c.Parent = haFrame
+        local s = Instance.new("UIStroke"); s.Color = C.border; s.Transparency = 0.7; s.Thickness = 1; s.Parent = haFrame
+    end
+
+    local haTitle = Instance.new("TextLabel")
+    haTitle.Parent = haFrame
+    haTitle.BackgroundTransparency = 1
+    haTitle.Position = UDim2.new(0, 10, 0, 6)
+    haTitle.Size = UDim2.new(1, -20, 0, 14)
+    haTitle.Font = Enum.Font.GothamBold
+    haTitle.TextSize = 11
+    haTitle.Text = "Head Attach"
+    haTitle.TextColor3 = C.text
+    haTitle.TextXAlignment = Enum.TextXAlignment.Left
+    haTitle.ZIndex = 33
+
+    local haStatus = Instance.new("TextLabel")
+    haStatus.Parent = haFrame
+    haStatus.BackgroundTransparency = 1
+    haStatus.Position = UDim2.new(0, 10, 0, 22)
+    haStatus.Size = UDim2.new(1, -20, 0, 12)
+    haStatus.Font = Enum.Font.Gotham
+    haStatus.TextSize = 10
+    haStatus.Text = "No target"
+    haStatus.TextColor3 = C.textDim or Color3.fromRGB(140,140,140)
+    haStatus.TextXAlignment = Enum.TextXAlignment.Left
+    haStatus.ZIndex = 33
+
+    local haList = Instance.new("ScrollingFrame")
+    haList.Parent = haFrame
+    haList.BackgroundColor3 = C.bg0 or C.bg2
+    haList.BackgroundTransparency = 0.4
+    haList.BorderSizePixel = 0
+    haList.Position = UDim2.new(0, 10, 0, 40)
+    haList.Size = UDim2.new(1, -20, 0, 70)
+    haList.ScrollBarThickness = 3
+    haList.ScrollBarImageColor3 = C.accent
+    haList.CanvasSize = UDim2.new(0,0,0,0)
+    haList.ZIndex = 33
+    do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,5); c.Parent = haList end
+    local haLayout = Instance.new("UIListLayout", haList)
+    haLayout.SortOrder = Enum.SortOrder.Name
+    haLayout.Padding = UDim.new(0, 2)
+    haLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        haList.CanvasSize = UDim2.new(0,0,0, haLayout.AbsoluteContentSize.Y + 4)
+    end)
+
+    local function haRefreshList()
+        for _, c in ipairs(haList:GetChildren()) do
+            if c:IsA("TextButton") then c:Destroy() end
+        end
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= plr then
+                local btn = Instance.new("TextButton")
+                btn.Parent = haList
+                btn.Size = UDim2.new(1, -4, 0, 22)
+                btn.BackgroundColor3 = C.bg2 or Color3.fromRGB(30,30,30)
+                btn.BackgroundTransparency = 0.3
+                btn.BorderSizePixel = 0
+                btn.Text = p.DisplayName .. " (@" .. p.Name .. ")"
+                btn.TextColor3 = C.text
+                btn.TextSize = 10
+                btn.Font = Enum.Font.Gotham
+                btn.ZIndex = 34
+                do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,4); c.Parent = btn end
+                btn.MouseButton1Click:Connect(function()
+                    _G._N0IRHeadAttachTarget = p
+                    _G._N0IRHeadAttachEnabled = true
+                    haStatus.Text = "Attached to: " .. p.DisplayName
+                    haStatus.TextColor3 = C.accent or Color3.fromRGB(200,200,200)
+                    if Notify then Notify("Head Attach → " .. p.DisplayName, 2) end
+                end)
+            end
+        end
+    end
+    haRefreshList()
+    Players.PlayerAdded:Connect(function() task.wait(0.15); haRefreshList() end)
+    Players.PlayerRemoving:Connect(function() task.wait(0.15); haRefreshList() end)
+
+    local haClear = Instance.new("TextButton")
+    haClear.Parent = haFrame
+    haClear.Size = UDim2.new(1, -20, 0, 24)
+    haClear.Position = UDim2.new(0, 10, 1, -30)
+    haClear.BackgroundColor3 = Color3.fromRGB(60, 30, 30)
+    haClear.BackgroundTransparency = 0.2
+    haClear.BorderSizePixel = 0
+    haClear.Text = "Clear Attach"
+    haClear.TextColor3 = C.text
+    haClear.TextSize = 11
+    haClear.Font = Enum.Font.GothamBold
+    haClear.ZIndex = 34
+    do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,5); c.Parent = haClear end
+    haClear.MouseButton1Click:Connect(function()
+        _G._N0IRHeadAttachTarget = nil
+        _G._N0IRHeadAttachEnabled = false
+        haStatus.Text = "No target"
+        haStatus.TextColor3 = C.textDim or Color3.fromRGB(140,140,140)
+        if Notify then Notify("Head Attach cleared", 1.5) end
+    end)
+end
+
+-- ============================================
+-- FIXED POLES (limb select + place + length)
+-- ============================================
+do
+    local poleFrame = Instance.new("Frame")
+    poleFrame.Parent = LimbsPanel
+    poleFrame.Size = UDim2.new(1, 0, 0, 168)
+    poleFrame.BackgroundColor3 = C.bg1
+    poleFrame.BackgroundTransparency = 0.12
+    poleFrame.BorderSizePixel = 0
+    poleFrame.LayoutOrder = 25.8
+    do
+        local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 7); c.Parent = poleFrame
+        local s = Instance.new("UIStroke"); s.Color = C.border; s.Transparency = 0.7; s.Thickness = 1; s.Parent = poleFrame
+    end
+
+    local poleTitle = Instance.new("TextLabel")
+    poleTitle.Parent = poleFrame
+    poleTitle.BackgroundTransparency = 1
+    poleTitle.Position = UDim2.new(0, 10, 0, 6)
+    poleTitle.Size = UDim2.new(1, -20, 0, 14)
+    poleTitle.Font = Enum.Font.GothamBold
+    poleTitle.TextSize = 11
+    poleTitle.Text = "Fixed Poles"
+    poleTitle.TextColor3 = C.text
+    poleTitle.TextXAlignment = Enum.TextXAlignment.Left
+    poleTitle.ZIndex = 33
+
+    local poleStatus = Instance.new("TextLabel")
+    poleStatus.Parent = poleFrame
+    poleStatus.BackgroundTransparency = 1
+    poleStatus.Position = UDim2.new(0, 10, 0, 22)
+    poleStatus.Size = UDim2.new(1, -20, 0, 12)
+    poleStatus.Font = Enum.Font.Gotham
+    poleStatus.TextSize = 10
+    poleStatus.Text = "Select a limb, then Place"
+    poleStatus.TextColor3 = C.textDim or Color3.fromRGB(140,140,140)
+    poleStatus.TextXAlignment = Enum.TextXAlignment.Left
+    poleStatus.ZIndex = 33
+
+    _G._N0IRPoleSelectedLimb = _G._N0IRPoleSelectedLimb or "RightArm"
+
+    local limbKeys = {"RightArm", "LeftArm", "RightLeg", "LeftLeg"}
+    local limbLabels = {RightArm="R Arm", LeftArm="L Arm", RightLeg="R Leg", LeftLeg="L Leg"}
+    local limbBtns = {}
+
+    local function updateLimbBtns()
+        for key, btn in pairs(limbBtns) do
+            if key == _G._N0IRPoleSelectedLimb then
+                btn.BackgroundColor3 = C.accent or Color3.fromRGB(180,180,180)
+                btn.TextColor3 = Color3.fromRGB(20,20,20)
+            else
+                btn.BackgroundColor3 = C.bg2 or Color3.fromRGB(35,35,35)
+                btn.TextColor3 = C.text
+            end
+        end
+        local a = _G._N0IRPoleAnchors[_G._N0IRPoleSelectedLimb]
+        if a then
+            poleStatus.Text = limbLabels[_G._N0IRPoleSelectedLimb] .. " placed"
+            poleStatus.TextColor3 = C.accent or Color3.fromRGB(180,180,180)
+        else
+            poleStatus.Text = "Selected: " .. limbLabels[_G._N0IRPoleSelectedLimb] .. " (not placed)"
+            poleStatus.TextColor3 = C.textDim or Color3.fromRGB(140,140,140)
+        end
+    end
+
+    for i, key in ipairs(limbKeys) do
+        local btn = Instance.new("TextButton")
+        btn.Parent = poleFrame
+        btn.Size = UDim2.new(0.23, -4, 0, 26)
+        btn.Position = UDim2.new((i-1)*0.25, 10, 0, 40)
+        btn.BackgroundColor3 = C.bg2 or Color3.fromRGB(35,35,35)
+        btn.BackgroundTransparency = 0.15
+        btn.BorderSizePixel = 0
+        btn.Text = limbLabels[key]
+        btn.TextColor3 = C.text
+        btn.TextSize = 10
+        btn.Font = Enum.Font.GothamBold
+        btn.ZIndex = 34
+        do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,5); c.Parent = btn end
+        btn.MouseButton1Click:Connect(function()
+            _G._N0IRPoleSelectedLimb = key
+            updateLimbBtns()
+        end)
+        limbBtns[key] = btn
+    end
+    updateLimbBtns()
+
+    -- Place button
+    local placeBtn = Instance.new("TextButton")
+    placeBtn.Parent = poleFrame
+    placeBtn.Size = UDim2.new(0.48, -6, 0, 26)
+    placeBtn.Position = UDim2.new(0, 10, 0, 74)
+    placeBtn.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
+    placeBtn.BackgroundTransparency = 0.15
+    placeBtn.BorderSizePixel = 0
+    placeBtn.Text = "Place Pole"
+    placeBtn.TextColor3 = C.text
+    placeBtn.TextSize = 11
+    placeBtn.Font = Enum.Font.GothamBold
+    placeBtn.ZIndex = 34
+    do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,5); c.Parent = placeBtn end
+    placeBtn.MouseButton1Click:Connect(function()
+        local mouse = plr:GetMouse()
+        local hit = mouse.Hit
+        if hit then
+            local key = _G._N0IRPoleSelectedLimb
+            _G._N0IRPoleAnchors[key] = hit.Position + Vector3.new(0, 0.4, 0)
+            _G._N0IRPolesEnabled = true
+            updateLimbBtns()
+            if Notify then Notify("Pole placed: " .. limbLabels[key], 1.5) end
+        end
+    end)
+
+    -- Clear button
+    local clearBtn = Instance.new("TextButton")
+    clearBtn.Parent = poleFrame
+    clearBtn.Size = UDim2.new(0.48, -6, 0, 26)
+    clearBtn.Position = UDim2.new(0.52, 0, 0, 74)
+    clearBtn.BackgroundColor3 = Color3.fromRGB(80, 40, 40)
+    clearBtn.BackgroundTransparency = 0.15
+    clearBtn.BorderSizePixel = 0
+    clearBtn.Text = "Clear Pole"
+    clearBtn.TextColor3 = C.text
+    clearBtn.TextSize = 11
+    clearBtn.Font = Enum.Font.GothamBold
+    clearBtn.ZIndex = 34
+    do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,5); c.Parent = clearBtn end
+    clearBtn.MouseButton1Click:Connect(function()
+        local key = _G._N0IRPoleSelectedLimb
+        _G._N0IRPoleAnchors[key] = nil
+        updateLimbBtns()
+        if Notify then Notify("Pole cleared: " .. limbLabels[key], 1.5) end
+    end)
+
+    -- Clear All
+    local clearAllBtn = Instance.new("TextButton")
+    clearAllBtn.Parent = poleFrame
+    clearAllBtn.Size = UDim2.new(1, -20, 0, 22)
+    clearAllBtn.Position = UDim2.new(0, 10, 0, 106)
+    clearAllBtn.BackgroundColor3 = Color3.fromRGB(50, 30, 30)
+    clearAllBtn.BackgroundTransparency = 0.25
+    clearAllBtn.BorderSizePixel = 0
+    clearAllBtn.Text = "Clear All Poles"
+    clearAllBtn.TextColor3 = C.text
+    clearAllBtn.TextSize = 10
+    clearAllBtn.Font = Enum.Font.Gotham
+    clearAllBtn.ZIndex = 34
+    do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,5); c.Parent = clearAllBtn end
+    clearAllBtn.MouseButton1Click:Connect(function()
+        _G._N0IRPoleAnchors = {RightArm=nil, LeftArm=nil, RightLeg=nil, LeftLeg=nil}
+        _G._N0IRPolesEnabled = false
+        updateLimbBtns()
+        if Notify then Notify("All poles cleared", 1.5) end
+    end)
+
+    -- Length slider
+    local lenLbl = Instance.new("TextLabel")
+    lenLbl.Parent = poleFrame
+    lenLbl.BackgroundTransparency = 1
+    lenLbl.Position = UDim2.new(0, 10, 0, 132)
+    lenLbl.Size = UDim2.new(1, -20, 0, 12)
+    lenLbl.Font = Enum.Font.Gotham
+    lenLbl.TextSize = 10
+    lenLbl.Text = "Length: " .. string.format("%.1f", _G._N0IRPoleLength or 2.5)
+    lenLbl.TextColor3 = C.text
+    lenLbl.TextXAlignment = Enum.TextXAlignment.Left
+    lenLbl.ZIndex = 33
+
+    local track = Instance.new("Frame")
+    track.Parent = poleFrame
+    track.BackgroundColor3 = C.bg2 or Color3.fromRGB(40,40,40)
+    track.BackgroundTransparency = 0.3
+    track.BorderSizePixel = 0
+    track.Position = UDim2.new(0, 10, 0, 148)
+    track.Size = UDim2.new(1, -20, 0, 8)
+    track.ZIndex = 33
+    do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,4); c.Parent = track end
+
+    local minV, maxV = 0.5, 12
+    local p0 = math.clamp(((_G._N0IRPoleLength or 2.5) - minV) / (maxV - minV), 0, 1)
+    local fill = Instance.new("Frame")
+    fill.Parent = track
+    fill.BackgroundColor3 = C.accent or Color3.fromRGB(180,180,180)
+    fill.BackgroundTransparency = 0.15
+    fill.BorderSizePixel = 0
+    fill.Size = UDim2.new(p0, 0, 1, 0)
+    fill.ZIndex = 34
+    do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,4); c.Parent = fill end
+
+    local handle = Instance.new("Frame")
+    handle.Parent = track
+    handle.Size = UDim2.new(0, 12, 0, 12)
+    handle.AnchorPoint = Vector2.new(0.5, 0.5)
+    handle.Position = UDim2.new(p0, 0, 0.5, 0)
+    handle.BackgroundColor3 = C.text
+    handle.ZIndex = 35
+    do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1,0); c.Parent = handle end
+
+    local dragging = false
+    local function setFromX(mx)
+        local pct = math.clamp((mx - track.AbsolutePosition.X) / math.max(track.AbsoluteSize.X, 1), 0, 1)
+        _G._N0IRPoleLength = minV + pct * (maxV - minV)
+        fill.Size = UDim2.new(pct, 0, 1, 0)
+        handle.Position = UDim2.new(pct, 0, 0.5, 0)
+        lenLbl.Text = "Length: " .. string.format("%.1f", _G._N0IRPoleLength)
+    end
+    track.InputBegan:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            setFromX(inp.Position.X)
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(inp)
+        if dragging and (inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch) then
+            setFromX(inp.Position.X)
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+end
+
 -- More fun tracking
-_G._HaloLookBehindEnabled = _G._HaloLookBehindEnabled or false
-_G._HaloHeadTiltEnabled = _G._HaloHeadTiltEnabled or false
-_G._HaloNodLoopEnabled = _G._HaloNodLoopEnabled or false
-_G._HaloCraneNeckEnabled = _G._HaloCraneNeckEnabled or false
-_G._HaloHandsUpEnabled = _G._HaloHandsUpEnabled or false
-_G._HaloCrossArmsEnabled = _G._HaloCrossArmsEnabled or false
-_G._HaloTorsoFaceNearest = _G._HaloTorsoFaceNearest or false
-_G._HaloDrunkSwayEnabled = _G._HaloDrunkSwayEnabled or false
-_G._HaloTwitchEnabled = _G._HaloTwitchEnabled or false
-_G._HaloHeliArmsEnabled = _G._HaloHeliArmsEnabled or false
-_G._HaloLeanBackEnabled = _G._HaloLeanBackEnabled or false
-_G._HaloShrugEnabled = _G._HaloShrugEnabled or false
+_G._N0IRLookBehindEnabled = _G._N0IRLookBehindEnabled or false
+_G._N0IRHeadTiltEnabled = _G._N0IRHeadTiltEnabled or false
+_G._N0IRNodLoopEnabled = _G._N0IRNodLoopEnabled or false
+_G._N0IRCraneNeckEnabled = _G._N0IRCraneNeckEnabled or false
+_G._N0IRHandsUpEnabled = _G._N0IRHandsUpEnabled or false
+_G._N0IRCrossArmsEnabled = _G._N0IRCrossArmsEnabled or false
+_G._N0IRTorsoFaceNearest = _G._N0IRTorsoFaceNearest or false
+_G._N0IRDrunkSwayEnabled = _G._N0IRDrunkSwayEnabled or false
+_G._N0IRTwitchEnabled = _G._N0IRTwitchEnabled or false
+_G._N0IRHeliArmsEnabled = _G._N0IRHeliArmsEnabled or false
+_G._N0IRLeanBackEnabled = _G._N0IRLeanBackEnabled or false
+_G._N0IRShrugEnabled = _G._N0IRShrugEnabled or false
 
 local funHeader2 = Instance.new("TextLabel")
 funHeader2.Parent = LimbsPanel
@@ -7754,28 +8397,28 @@ local function funTog(title, sub, order, flag, onMsg)
     end)
 end
 
-funTog("Look Behind", "Head snaps 180 when someone is behind you.", 31, "_HaloLookBehindEnabled", "Look Behind")
-funTog("Head Tilt", "Permanent curious head tilt.", 32, "_HaloHeadTiltEnabled", "Head Tilt")
-funTog("Nod Loop", "Head slowly nods yes on a loop.", 33, "_HaloNodLoopEnabled", "Nod Loop")
-funTog("Crane Neck", "Neck stretches upward (tall creep).", 34, "_HaloCraneNeckEnabled", "Crane Neck")
-funTog("Hands Up", "Both arms raised overhead.", 35, "_HaloHandsUpEnabled", "Hands Up")
-funTog("Cross Arms", "Arms crossed over chest.", 36, "_HaloCrossArmsEnabled", "Cross Arms")
-funTog("Torso Face Nearest", "Upper body turns toward nearest player.", 37, "_HaloTorsoFaceNearest", "Torso Face")
-funTog("Drunk Sway", "Loose upper-body sway like drunk cam.", 38, "_HaloDrunkSwayEnabled", "Drunk Sway")
-funTog("Twitch", "Random micro-twitches on head and arms.", 39, "_HaloTwitchEnabled", "Twitch")
-funTog("Helicopter Arms", "Arms spin like a helicopter. Pure chaos.", 40, "_HaloHeliArmsEnabled", "Heli Arms")
-funTog("Lean Back", "Torso leans backward.", 41, "_HaloLeanBackEnabled", "Lean Back")
-funTog("Shrug Hold", "Both shoulders held in a shrug.", 42, "_HaloShrugEnabled", "Shrug")
+funTog("Look Behind", "Head snaps 180 when someone is behind you.", 31, "_N0IRLookBehindEnabled", "Look Behind")
+funTog("Head Tilt", "Permanent curious head tilt.", 32, "_N0IRHeadTiltEnabled", "Head Tilt")
+funTog("Nod Loop", "Head slowly nods yes on a loop.", 33, "_N0IRNodLoopEnabled", "Nod Loop")
+funTog("Crane Neck", "Neck stretches upward (tall creep).", 34, "_N0IRCraneNeckEnabled", "Crane Neck")
+funTog("Hands Up", "Both arms raised overhead.", 35, "_N0IRHandsUpEnabled", "Hands Up")
+funTog("Cross Arms", "Arms crossed over chest.", 36, "_N0IRCrossArmsEnabled", "Cross Arms")
+funTog("Torso Face Nearest", "Upper body turns toward nearest player.", 37, "_N0IRTorsoFaceNearest", "Torso Face")
+funTog("Drunk Sway", "Loose upper-body sway like drunk cam.", 38, "_N0IRDrunkSwayEnabled", "Drunk Sway")
+funTog("Twitch", "Random micro-twitches on head and arms.", 39, "_N0IRTwitchEnabled", "Twitch")
+funTog("Helicopter Arms", "Arms spin like a helicopter. Pure chaos.", 40, "_N0IRHeliArmsEnabled", "Heli Arms")
+funTog("Lean Back", "Torso leans backward.", 41, "_N0IRLeanBackEnabled", "Lean Back")
+funTog("Shrug Hold", "Both shoulders held in a shrug.", 42, "_N0IRShrugEnabled", "Shrug")
 
 -- Extra limb tools (new)
-_G._HaloDualArmPointerEnabled = _G._HaloDualArmPointerEnabled or false
-_G._HaloGunAimEnabled = _G._HaloGunAimEnabled or false
-_G._HaloWaveArmEnabled = _G._HaloWaveArmEnabled or false
-_G._HaloHeadbangEnabled = _G._HaloHeadbangEnabled or false
-_G._HaloFloppyArmsEnabled = _G._HaloFloppyArmsEnabled or false
-_G._HaloReachMouseEnabled = _G._HaloReachMouseEnabled or false
-_G._HaloWaveArmSide = _G._HaloWaveArmSide or "Right"
-_G._HaloHeadbangSpeed = _G._HaloHeadbangSpeed or 1.4
+_G._N0IRDualArmPointerEnabled = _G._N0IRDualArmPointerEnabled or false
+_G._N0IRGunAimEnabled = _G._N0IRGunAimEnabled or false
+_G._N0IRWaveArmEnabled = _G._N0IRWaveArmEnabled or false
+_G._N0IRHeadbangEnabled = _G._N0IRHeadbangEnabled or false
+_G._N0IRFloppyArmsEnabled = _G._N0IRFloppyArmsEnabled or false
+_G._N0IRReachMouseEnabled = _G._N0IRReachMouseEnabled or false
+_G._N0IRWaveArmSide = _G._N0IRWaveArmSide or "Right"
+_G._N0IRHeadbangSpeed = _G._N0IRHeadbangSpeed or 1.4
 
 do
     local extraHeader = Instance.new("TextLabel")
@@ -7791,81 +8434,81 @@ do
     extraHeader.ZIndex = 33
 end
 
-buildToggle(LimbsPanel, "Both Arms Pointer", "Left + right arm pointer at the same time.", 51, _G._HaloDualArmPointerEnabled, function(state)
-    _G._HaloDualArmPointerEnabled = state
-    _G._HaloLeftArmPointerEnabled = state
-    _G._HaloRightArmPointerEnabled = state
+buildToggle(LimbsPanel, "Both Arms Pointer", "Left + right arm pointer at the same time.", 51, _G._N0IRDualArmPointerEnabled, function(state)
+    _G._N0IRDualArmPointerEnabled = state
+    _G._N0IRLeftArmPointerEnabled = state
+    _G._N0IRRightArmPointerEnabled = state
     if not state then
-        _G._HaloLeftArmPointerNeedsReset = true
-        _G._HaloRightArmPointerNeedsReset = true
+        _G._N0IRLeftArmPointerNeedsReset = true
+        _G._N0IRRightArmPointerNeedsReset = true
     end
     if Notify then Notify("Both Arms Pointer: " .. (state and "ON" or "OFF"), 1.4) end
 end)
 
-buildToggle(LimbsPanel, "Gun Aim", "Right arm aims at mouse like holding a gun.", 52, _G._HaloGunAimEnabled, function(state)
-    _G._HaloGunAimEnabled = state
+buildToggle(LimbsPanel, "Gun Aim", "Right arm aims at mouse like holding a gun.", 52, _G._N0IRGunAimEnabled, function(state)
+    _G._N0IRGunAimEnabled = state
     if state then
-        _G._HaloRightArmPointerEnabled = false
-        _G._HaloHeliArmsEnabled = false
-        _G._HaloHandsUpEnabled = false
+        _G._N0IRRightArmPointerEnabled = false
+        _G._N0IRHeliArmsEnabled = false
+        _G._N0IRHandsUpEnabled = false
     end
     if Notify then Notify("Gun Aim: " .. (state and "ON" or "OFF"), 1.4) end
 end)
 
-buildToggle(LimbsPanel, "Wave Arm", "Looping friendly wave with one arm.", 53, _G._HaloWaveArmEnabled, function(state)
-    _G._HaloWaveArmEnabled = state
+buildToggle(LimbsPanel, "Wave Arm", "Looping friendly wave with one arm.", 53, _G._N0IRWaveArmEnabled, function(state)
+    _G._N0IRWaveArmEnabled = state
     if Notify then Notify("Wave Arm: " .. (state and "ON" or "OFF"), 1.4) end
 end)
 
-buildToggle(LimbsPanel, "Headbang", "Aggressive headbang loop. Party mode.", 54, _G._HaloHeadbangEnabled, function(state)
-    _G._HaloHeadbangEnabled = state
+buildToggle(LimbsPanel, "Headbang", "Aggressive headbang loop. Party mode.", 54, _G._N0IRHeadbangEnabled, function(state)
+    _G._N0IRHeadbangEnabled = state
     if state then
-        _G._HaloSpinHeadEnabled = false
-        _G._HaloNodLoopEnabled = false
-        _G._HaloStareEnabled = false
+        _G._N0IRSpinHeadEnabled = false
+        _G._N0IRNodLoopEnabled = false
+        _G._N0IRStareEnabled = false
     end
     if Notify then Notify("Headbang: " .. (state and "ON" or "OFF"), 1.4) end
 end)
 
-buildToggle(LimbsPanel, "Floppy Arms", "Double-pendulum limp arms — gravity hang + motion lag.", 55, _G._HaloFloppyArmsEnabled, function(state)
-    _G._HaloFloppyArmsEnabled = state
+buildToggle(LimbsPanel, "Floppy Arms", "Double-pendulum limp arms — gravity hang + motion lag.", 55, _G._N0IRFloppyArmsEnabled, function(state)
+    _G._N0IRFloppyArmsEnabled = state
     if state then
-        _G._HaloHandsUpEnabled = false
-        _G._HaloCrossArmsEnabled = false
-        _G._HaloHeliArmsEnabled = false
-        _G._HaloTPoseEnabled = false
+        _G._N0IRHandsUpEnabled = false
+        _G._N0IRCrossArmsEnabled = false
+        _G._N0IRHeliArmsEnabled = false
+        _G._N0IRTPoseEnabled = false
     end
     if Notify then Notify("Floppy Arms: " .. (state and "ON" or "OFF"), 1.4) end
 end)
 
-buildToggle(LimbsPanel, "Reach Mouse", "Both arms stretch and point toward the mouse.", 56, _G._HaloReachMouseEnabled, function(state)
-    _G._HaloReachMouseEnabled = state
+buildToggle(LimbsPanel, "Reach Mouse", "Both arms stretch and point toward the mouse.", 56, _G._N0IRReachMouseEnabled, function(state)
+    _G._N0IRReachMouseEnabled = state
     if state then
-        _G._HaloLeftArmPointerEnabled = true
-        _G._HaloRightArmPointerEnabled = true
-        _G._HaloLeftArmStretching = true
-        _G._HaloRightArmStretching = true
-        _G._HaloArmStretchAmount = math.max(_G._HaloArmStretchAmount or 2.5, 2.2)
+        _G._N0IRLeftArmPointerEnabled = true
+        _G._N0IRRightArmPointerEnabled = true
+        _G._N0IRLeftArmStretching = true
+        _G._N0IRRightArmStretching = true
+        _G._N0IRArmStretchAmount = math.max(_G._N0IRArmStretchAmount or 2.5, 2.2)
     else
-        _G._HaloLeftArmPointerEnabled = false
-        _G._HaloRightArmPointerEnabled = false
-        _G._HaloLeftArmStretching = false
-        _G._HaloRightArmStretching = false
-        _G._HaloLeftArmPointerNeedsReset = true
-        _G._HaloRightArmPointerNeedsReset = true
+        _G._N0IRLeftArmPointerEnabled = false
+        _G._N0IRRightArmPointerEnabled = false
+        _G._N0IRLeftArmStretching = false
+        _G._N0IRRightArmStretching = false
+        _G._N0IRLeftArmPointerNeedsReset = true
+        _G._N0IRRightArmPointerNeedsReset = true
     end
     if Notify then Notify("Reach Mouse: " .. (state and "ON" or "OFF"), 1.4) end
 end)
 
 -- Arm Slider (Upper arm welded to hip, stretch controls angle)
-_G._HaloArmSliderEnabled = false
-_G._HaloArmSliderOffsetX = 0
-_G._HaloArmSliderOffsetY = 0
-_G._HaloArmSliderStretch = 1.0
-_G._HaloArmSliderRotationEnabled = false
-_G._HaloArmSliderRotation = 0
-_G._HaloArmSliderPrevEnabled = false
-_G._HaloArmSliderOriginalTransforms = {}
+_G._N0IRArmSliderEnabled = false
+_G._N0IRArmSliderOffsetX = 0
+_G._N0IRArmSliderOffsetY = 0
+_G._N0IRArmSliderStretch = 1.0
+_G._N0IRArmSliderRotationEnabled = false
+_G._N0IRArmSliderRotation = 0
+_G._N0IRArmSliderPrevEnabled = false
+_G._N0IRArmSliderOriginalTransforms = {}
 
 do
     local frame = Instance.new("Frame"); frame.Parent = LimbsPanel
@@ -7924,8 +8567,8 @@ do
             local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 3); c.Parent = fill
         end
         local handle = Instance.new("Frame"); handle.Parent = track
-        handle.Size = UDim2.new(0, 10, 0, 10); handle.AnchorPoint = Vector2.new(0.5, 0.5)
-        handle.Position = UDim2.new(math.clamp(p, 0, 1), 0, 0.5, 0); handle.BackgroundColor3 = C.text; handle.ZIndex = 35
+        handle.Size = UDim2.new(0, 12, 0, 12); handle.AnchorPoint = Vector2.new(0.5, 0.5)
+        handle.Position = UDim2.new(math.clamp(p, 0, 1), 0, 0.5, 0); handle.BackgroundColor3 = Color3.fromRGB(240, 240, 245); handle.ZIndex = 35
         do
             local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1, 0); c.Parent = handle
         end
@@ -7971,15 +8614,15 @@ do
     end
 
     local xSlider = buildMiniSlider(frame, "Left/Right", -2.0, 2.0, 0, 40, function(v)
-        _G._HaloArmSliderOffsetX = v
+        _G._N0IRArmSliderOffsetX = v
         SaveArmSliderConfig()
     end)
     local ySlider = buildMiniSlider(frame, "Up/Down", -2.0, 2.0, 0, 68, function(v)
-        _G._HaloArmSliderOffsetY = v
+        _G._N0IRArmSliderOffsetY = v
         SaveArmSliderConfig()
     end)
     local stretchSlider = buildMiniSlider(frame, "Stretch", 1.0, 10.0, 1.0, 96, function(v)
-        _G._HaloArmSliderStretch = v
+        _G._N0IRArmSliderStretch = v
         SaveArmSliderConfig()
     end)
 
@@ -8007,28 +8650,28 @@ do
     setRotVisualState(false)
 
     local rotSlider = buildMiniSlider(frame, "Tilt", -85.0, 85.0, 0, 146, function(v)
-        _G._HaloArmSliderRotation = v
+        _G._N0IRArmSliderRotation = v
         SaveArmSliderConfig()
     end)
 
     -- Apply loaded config to UI sliders
-    xSlider.setValue(_G._HaloArmSliderOffsetX or 0)
-    ySlider.setValue(_G._HaloArmSliderOffsetY or 0)
-    stretchSlider.setValue(_G._HaloArmSliderStretch or 1.0)
-    rotSlider.setValue(_G._HaloArmSliderRotation or 0)
-    setVisualState(_G._HaloArmSliderEnabled or false)
-    setRotVisualState(_G._HaloArmSliderRotationEnabled or false)
+    xSlider.setValue(_G._N0IRArmSliderOffsetX or 0)
+    ySlider.setValue(_G._N0IRArmSliderOffsetY or 0)
+    stretchSlider.setValue(_G._N0IRArmSliderStretch or 1.0)
+    rotSlider.setValue(_G._N0IRArmSliderRotation or 0)
+    setVisualState(_G._N0IRArmSliderEnabled or false)
+    setRotVisualState(_G._N0IRArmSliderRotationEnabled or false)
 
-    _G._HaloArmSliderSetVisual = setVisualState
-    _G._HaloArmSliderSetRotVisual = setRotVisualState
-    _G._HaloArmSliderReset = function()
-        _G._HaloArmSliderEnabled = false
-        _G._HaloArmSliderOffsetX = 0
-        _G._HaloArmSliderOffsetY = 0
-        _G._HaloArmSliderStretch = 1.0
-        _G._HaloArmSliderRotationEnabled = false
-        _G._HaloArmSliderRotation = 0
-        _G._HaloArmSliderPrevEnabled = false
+    _G._N0IRArmSliderSetVisual = setVisualState
+    _G._N0IRArmSliderSetRotVisual = setRotVisualState
+    _G._N0IRArmSliderReset = function()
+        _G._N0IRArmSliderEnabled = false
+        _G._N0IRArmSliderOffsetX = 0
+        _G._N0IRArmSliderOffsetY = 0
+        _G._N0IRArmSliderStretch = 1.0
+        _G._N0IRArmSliderRotationEnabled = false
+        _G._N0IRArmSliderRotation = 0
+        _G._N0IRArmSliderPrevEnabled = false
         setVisualState(false)
         setRotVisualState(false)
         xSlider.setValue(0)
@@ -8039,13 +8682,13 @@ do
     end
 
     toggleBtn.MouseButton1Click:Connect(function()
-        _G._HaloArmSliderEnabled = not _G._HaloArmSliderEnabled
-        setVisualState(_G._HaloArmSliderEnabled)
+        _G._N0IRArmSliderEnabled = not _G._N0IRArmSliderEnabled
+        setVisualState(_G._N0IRArmSliderEnabled)
         SaveArmSliderConfig()
     end)
     rotToggleBtn.MouseButton1Click:Connect(function()
-        _G._HaloArmSliderRotationEnabled = not _G._HaloArmSliderRotationEnabled
-        setRotVisualState(_G._HaloArmSliderRotationEnabled)
+        _G._N0IRArmSliderRotationEnabled = not _G._N0IRArmSliderRotationEnabled
+        setRotVisualState(_G._N0IRArmSliderRotationEnabled)
         SaveArmSliderConfig()
     end)
 end
@@ -8075,13 +8718,13 @@ stSub.TextXAlignment = Enum.TextXAlignment.Left; stSub.ZIndex = 33
 
 local stToggleBg = Instance.new("Frame"); stToggleBg.Parent = armStretchFrame
 stToggleBg.Size = UDim2.new(0, 42, 0, 24); stToggleBg.Position = UDim2.new(1, -54, 0, 10)
-stToggleBg.BackgroundColor3 = (_G._HaloLeftArmStretching or _G._HaloRightArmStretching) and C.green or C.bg3
+stToggleBg.BackgroundColor3 = (_G._N0IRLeftArmStretching or _G._N0IRRightArmStretching) and C.green or C.bg3
 stToggleBg.BorderSizePixel = 0; stToggleBg.ZIndex = 33
 do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1, 0); c.Parent = stToggleBg end
 
 local stToggleKnob = Instance.new("Frame", stToggleBg)
 stToggleKnob.Size = UDim2.new(0, 18, 0, 18)
-stToggleKnob.Position = (_G._HaloLeftArmStretching or _G._HaloRightArmStretching) and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)
+stToggleKnob.Position = (_G._N0IRLeftArmStretching or _G._N0IRRightArmStretching) and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)
 stToggleKnob.BackgroundColor3 = C.white; stToggleKnob.BorderSizePixel = 0; stToggleKnob.ZIndex = 34
 do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1, 0); c.Parent = stToggleKnob end
 
@@ -8095,7 +8738,7 @@ stNumBox.BackgroundColor3 = C.bg3
 stNumBox.BackgroundTransparency = 0.05
 stNumBox.BorderSizePixel = 0
 stNumBox.Font = Enum.Font.GothamMedium
-stNumBox.Text = string.format("%.2f", _G._HaloArmStretchAmount or 2.5)
+stNumBox.Text = string.format("%.2f", _G._N0IRArmStretchAmount or 2.5)
 stNumBox.TextColor3 = C.text
 stNumBox.TextSize = 11
 stNumBox.ClearTextOnFocus = false
@@ -8138,7 +8781,7 @@ stTrack.BackgroundColor3 = C.bg3; stTrack.BackgroundTransparency = 0.15; stTrack
 stTrack.Position = UDim2.new(0, 14, 0, 76); stTrack.Size = UDim2.new(1, -28, 0, 6); stTrack.ZIndex = 33
 do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1, 0); c.Parent = stTrack end
 
-local curAmt = _G._HaloArmStretchAmount or 2.5
+local curAmt = _G._N0IRArmStretchAmount or 2.5
 local stMin, stMax = 0.5, 1000
 local stPct = math.clamp((curAmt - stMin) / (stMax - stMin), 0, 1)
 
@@ -8155,7 +8798,7 @@ do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1, 0); c.Parent
 local stDragBtn = Instance.new("TextButton"); stDragBtn.Parent = stTrack
 stDragBtn.Size = UDim2.new(1, 0, 1, 0); stDragBtn.BackgroundTransparency = 1; stDragBtn.Text = ""; stDragBtn.ZIndex = 36
 
-local ArmStretchEnabled = _G._HaloLeftArmStretching or _G._HaloRightArmStretching or false
+local ArmStretchEnabled = _G._N0IRLeftArmStretching or _G._N0IRRightArmStretching or false
 
 local function updateStretchState()
     if ArmStretchEnabled then
@@ -8163,22 +8806,22 @@ local function updateStretchState()
         TweenService:Create(stToggleKnob, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {
             Position = UDim2.new(1, -21, 0.5, -9), BackgroundColor3 = C.white
         }):Play()
-        _G._HaloLeftArmStretching = true
-        _G._HaloRightArmStretching = true
+        _G._N0IRLeftArmStretching = true
+        _G._N0IRRightArmStretching = true
     else
         TweenService:Create(stToggleBg, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {BackgroundColor3 = C.bg3}):Play()
         TweenService:Create(stToggleKnob, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {
             Position = UDim2.new(0, 3, 0.5, -9), BackgroundColor3 = C.white
         }):Play()
-        _G._HaloLeftArmStretching = false
-        _G._HaloRightArmStretching = false
+        _G._N0IRLeftArmStretching = false
+        _G._N0IRRightArmStretching = false
     end
 end
 
 local function applyArmStretchAmount(val)
-    val = math.clamp(tonumber(val) or (_G._HaloArmStretchAmount or 2.5), stMin, stMax)
+    val = math.clamp(tonumber(val) or (_G._N0IRArmStretchAmount or 2.5), stMin, stMax)
     val = math.floor(val * 100 + 0.5) / 100
-    _G._HaloArmStretchAmount = val
+    _G._N0IRArmStretchAmount = val
     local pct = math.clamp((val - stMin) / (stMax - stMin), 0, 1)
     stFill.Size = UDim2.new(pct, 0, 1, 0)
     stHandle.Position = UDim2.new(pct, 0, 0.5, 0)
@@ -8186,7 +8829,7 @@ local function applyArmStretchAmount(val)
 end
 
 
-_G._HaloResetArmStretch = function()
+_G._N0IRResetArmStretch = function()
     applyArmStretchAmount(2.5)
 end
 
@@ -8199,7 +8842,7 @@ task.spawn(function()
 -- Arm Stretcher (Pointers) — only while a pointer is on
 -- Adjust with Ctrl + Mouse Wheel (or slider below)
 -- ============================================
-_G._HaloPointerStretchAmount = _G._HaloPointerStretchAmount or 1.0
+_G._N0IRPointerStretchAmount = _G._N0IRPointerStretchAmount or 1.0
 local ptrStretchFrame = Instance.new("Frame"); ptrStretchFrame.Parent = StretchingPanel
 ptrStretchFrame.Size = UDim2.new(1, 0, 0, 110)
 ptrStretchFrame.BackgroundColor3 = C.bg1
@@ -8228,7 +8871,7 @@ local pstNumBox = Instance.new("TextBox"); pstNumBox.Parent = ptrStretchFrame
 pstNumBox.BackgroundColor3 = C.bg2; pstNumBox.BackgroundTransparency = 0.2
 pstNumBox.BorderSizePixel = 0; pstNumBox.Position = UDim2.new(1, -64, 0, 8)
 pstNumBox.Size = UDim2.new(0, 50, 0, 22); pstNumBox.Font = Enum.Font.GothamBold
-pstNumBox.Text = string.format("%.2f", _G._HaloPointerStretchAmount or 1.0)
+pstNumBox.Text = string.format("%.2f", _G._N0IRPointerStretchAmount or 1.0)
 pstNumBox.TextColor3 = C.accent; pstNumBox.TextSize = 11; pstNumBox.ZIndex = 33
 do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 6); c.Parent = pstNumBox end
 
@@ -8241,7 +8884,7 @@ local pstMin, pstMax = 1.0, 8.0
 local function pstPct(val)
     return math.clamp((val - pstMin) / (pstMax - pstMin), 0, 1)
 end
-local p0 = pstPct(_G._HaloPointerStretchAmount or 1.0)
+local p0 = pstPct(_G._N0IRPointerStretchAmount or 1.0)
 
 local pstFill = Instance.new("Frame"); pstFill.Parent = pstTrack
 pstFill.BackgroundColor3 = C.accent; pstFill.BackgroundTransparency = 0.15; pstFill.BorderSizePixel = 0
@@ -8262,14 +8905,14 @@ pstHint.TextSize = 9; pstHint.TextXAlignment = Enum.TextXAlignment.Left; pstHint
 local function applyPointerStretchAmount(val)
     val = math.clamp(tonumber(val) or 1.0, pstMin, pstMax)
     val = math.floor(val * 100 + 0.5) / 100
-    _G._HaloPointerStretchAmount = val
+    _G._N0IRPointerStretchAmount = val
     local pct = pstPct(val)
     pstFill.Size = UDim2.new(pct, 0, 1, 0)
     pstHandle.Position = UDim2.new(pct, 0, 0.5, 0)
     pstNumBox.Text = string.format("%.2f", val)
 end
-_G._HaloApplyPointerStretchAmount = applyPointerStretchAmount
-applyPointerStretchAmount(_G._HaloPointerStretchAmount or 1.0)
+_G._N0IRApplyPointerStretchAmount = applyPointerStretchAmount
+applyPointerStretchAmount(_G._N0IRPointerStretchAmount or 1.0)
 
 pstNumBox.FocusLost:Connect(function()
     applyPointerStretchAmount(pstNumBox.Text)
@@ -8306,18 +8949,18 @@ UserInputService.InputChanged:Connect(function(inp, gp)
     if inp.UserInputType ~= Enum.UserInputType.MouseWheel then return end
     local ctrl = UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.RightControl)
     if not ctrl then return end
-    if not (_G._HaloLeftArmPointerEnabled or _G._HaloRightArmPointerEnabled) then return end
-    local cur = tonumber(_G._HaloPointerStretchAmount) or 1.0
+    if not (_G._N0IRLeftArmPointerEnabled or _G._N0IRRightArmPointerEnabled) then return end
+    local cur = tonumber(_G._N0IRPointerStretchAmount) or 1.0
     local step = 0.15
     local delta = inp.Position.Z -- +1 scroll up, -1 scroll down
     local nextVal = cur + (delta > 0 and step or -step)
-    if _G._HaloApplyPointerStretchAmount then
-        _G._HaloApplyPointerStretchAmount(nextVal)
+    if _G._N0IRApplyPointerStretchAmount then
+        _G._N0IRApplyPointerStretchAmount(nextVal)
     else
-        _G._HaloPointerStretchAmount = math.clamp(nextVal, 1.0, 8.0)
+        _G._N0IRPointerStretchAmount = math.clamp(nextVal, 1.0, 8.0)
     end
     if Notify then
-        Notify("Pointer Stretch: " .. string.format("%.2f", _G._HaloPointerStretchAmount), 0.8)
+        Notify("Pointer Stretch: " .. string.format("%.2f", _G._N0IRPointerStretchAmount), 0.8)
     end
 end)
 end)
@@ -8367,7 +9010,7 @@ stNumBox.FocusLost:Connect(function()
     if val then
         applyArmStretchAmount(val)
     else
-        stNumBox.Text = string.format("%.2f", _G._HaloArmStretchAmount or 2.5)
+        stNumBox.Text = string.format("%.2f", _G._N0IRArmStretchAmount or 2.5)
     end
 end)
 
@@ -8383,34 +9026,34 @@ stResetBtn.MouseButton1Click:Connect(function()
 end)
 
 -- Ctrl + MouseWheel stretch control
-_G._HaloReanimConns = _G._HaloReanimConns or {}
-_G._HaloCtrlHeld = false
+_G._N0IRReanimConns = _G._N0IRReanimConns or {}
+_G._N0IRCtrlHeld = false
 
-local function _haloStretchWheelAction(actionName, inputState, inputObj)
+local function _n0irStretchWheelAction(actionName, inputState, inputObj)
     -- Ctrl+Wheel is reserved for Arm Stretcher (Pointers) only.
     -- Always sink so the camera does not zoom; never touch regular Arm Stretch.
     return Enum.ContextActionResult.Sink
 end
 
-_G._HaloReanimConns.StretchCtrlBegan = UserInputService.InputBegan:Connect(function(inp, gp)
+_G._N0IRReanimConns.StretchCtrlBegan = UserInputService.InputBegan:Connect(function(inp, gp)
     if gp then return end
     if inp.KeyCode == Enum.KeyCode.LeftControl or inp.KeyCode == Enum.KeyCode.RightControl then
-        if not _G._HaloCtrlHeld then
-            _G._HaloCtrlHeld = true
+        if not _G._N0IRCtrlHeld then
+            _G._N0IRCtrlHeld = true
             pcall(function()
-                ContextActionService:BindAction("HaloStretchWheel", _haloStretchWheelAction, false, Enum.UserInputType.MouseWheel)
+                ContextActionService:BindAction("N0IRStretchWheel", _n0irStretchWheelAction, false, Enum.UserInputType.MouseWheel)
             end)
         end
     end
 end)
 
-_G._HaloReanimConns.StretchCtrlEnded = UserInputService.InputEnded:Connect(function(inp, gp)
+_G._N0IRReanimConns.StretchCtrlEnded = UserInputService.InputEnded:Connect(function(inp, gp)
     if inp.KeyCode == Enum.KeyCode.LeftControl or inp.KeyCode == Enum.KeyCode.RightControl then
         local stillHeld = UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.RightControl)
         if not stillHeld then
-            _G._HaloCtrlHeld = false
+            _G._N0IRCtrlHeld = false
             pcall(function()
-                ContextActionService:UnbindAction("HaloStretchWheel")
+                ContextActionService:UnbindAction("N0IRStretchWheel")
             end)
         end
     end
@@ -8571,10 +9214,10 @@ local function startLimbsSystem()
         local anim = animData
 
         -- Fun head modes (spin / stare) take priority over camera head tracker
-        if _G._HaloSpinHeadEnabled or _G._HaloStareEnabled or _G._HaloLookBehindEnabled
-            or _G._HaloNodLoopEnabled or _G._HaloHeadTiltEnabled or _G._HaloCraneNeckEnabled then
+        if _G._N0IRSpinHeadEnabled or _G._N0IRStareEnabled or _G._N0IRLookBehindEnabled
+            or _G._N0IRNodLoopEnabled or _G._N0IRHeadTiltEnabled or _G._N0IRCraneNeckEnabled then
             -- handled by fun tracking PreSimulation loop
-        elseif _G._HaloHeadTrackerEnabled then
+        elseif _G._N0IRHeadTrackerEnabled then
             local headConstraint = anim.constraints["Head"];
             if headConstraint then
                 local camera = workspace.CurrentCamera;
@@ -8597,7 +9240,7 @@ local function startLimbsSystem()
                             -- Extract yaw & pitch and clamp to realistic neck limits
                             local yaw = math.atan2(localLookDir.X, -localLookDir.Z);
                             local pitch = math.asin(math.clamp(localLookDir.Y, -1, 1));
-                            if not _G._HaloHeadTracker360 then
+                            if not _G._N0IRHeadTracker360 then
                                 local maxYaw = math.rad(75);
                                 local maxPitch = math.rad(55);
                                 yaw = math.clamp(yaw, -maxYaw, maxYaw);
@@ -8630,9 +9273,9 @@ local function startLimbsSystem()
                             end;
 
                             -- Smooth interpolation so it feels like a real neck turning
-                            local smoothed = _G._HaloHeadTrackerSmoothedCF or bindTransform;
+                            local smoothed = _G._N0IRHeadTrackerSmoothedCF or bindTransform;
                             smoothed = smoothed:Lerp(targetTransform, 0.15);
-                            _G._HaloHeadTrackerSmoothedCF = smoothed;
+                            _G._N0IRHeadTrackerSmoothedCF = smoothed;
                             headConstraint.Transform = smoothed;
                         end;
                     end;
@@ -8641,7 +9284,7 @@ local function startLimbsSystem()
         end;
 
         -- Arm Pointer: straight arm pointing at mouse target
-        if _G._HaloLeftArmPointerEnabled or _G._HaloRightArmPointerEnabled then
+        if _G._N0IRLeftArmPointerEnabled or _G._N0IRRightArmPointerEnabled then
             local camera = workspace.CurrentCamera
             local mouse = plr:GetMouse()
             if camera and mouse then
@@ -8674,7 +9317,7 @@ local function startLimbsSystem()
 
                     -- Refresh to straight bind pose on first frame after re-enable
                     local isLeft = upperName:find("Left") ~= nil
-                    local resetFlag = isLeft and _G._HaloLeftArmPointerNeedsReset or _G._HaloRightArmPointerNeedsReset
+                    local resetFlag = isLeft and _G._N0IRLeftArmPointerNeedsReset or _G._N0IRRightArmPointerNeedsReset
                     if resetFlag then
                         local orig = anim.original_transforms[shoulderConstraint]
                         if orig then shoulderConstraint.Transform = orig end
@@ -8682,8 +9325,8 @@ local function startLimbsSystem()
                         if elbowConstraint then elbowConstraint.Transform = CFrame.new() end
                         local wristConstraint = anim.constraints[handName]
                         if wristConstraint then wristConstraint.Transform = CFrame.new() end
-                        if isLeft then _G._HaloLeftArmPointerNeedsReset = false
-                        else _G._HaloRightArmPointerNeedsReset = false end
+                        if isLeft then _G._N0IRLeftArmPointerNeedsReset = false
+                        else _G._N0IRRightArmPointerNeedsReset = false end
                     end
 
                     local shoulderWorldCF = nil;
@@ -8732,11 +9375,11 @@ local function startLimbsSystem()
                     end
 
                     local armKey = isLeft and "Left" or "Right"
-                    _G._HaloArmPointerSmoothed = _G._HaloArmPointerSmoothed or {}
-                    local prevArm = _G._HaloArmPointerSmoothed[armKey]
-                    local smoothAmt = tonumber(_G._HaloArmPointerSmooth) or 0.15
+                    _G._N0IRArmPointerSmoothed = _G._N0IRArmPointerSmoothed or {}
+                    local prevArm = _G._N0IRArmPointerSmoothed[armKey]
+                    local smoothAmt = tonumber(_G._N0IRArmPointerSmooth) or 0.15
                     local smoothedArm = (prevArm and prevArm:Lerp(shoulderResult, smoothAmt)) or shoulderResult
-                    _G._HaloArmPointerSmoothed[armKey] = smoothedArm
+                    _G._N0IRArmPointerSmoothed[armKey] = smoothedArm
                     shoulderConstraint.Transform = smoothedArm
                     -- Force elbow and wrist to pure bind pose (identity) so the arm
                     -- stays perfectly straight and never drifts over time.
@@ -8777,7 +9420,7 @@ local function startLimbsSystem()
                     end
                 end
 
-                local stretchAmt = _G._HaloArmStretchAmount or 2.5
+                local stretchAmt = _G._N0IRArmStretchAmount or 2.5
                 local function stretchArmOnly(lowerName, handName, stretchMult)
                     if not stretchMult or stretchMult == 1.0 then return end
                     local lower = (animData and animData.constraints_cache and animData.constraints_cache[lowerName]) or (clone and clone:FindFirstChild(lowerName, true))
@@ -8786,18 +9429,18 @@ local function startLimbsSystem()
                     if lower and lower.Parent then lower.Transform = offset * baseL end
                 end
 
-                if _G._HaloRightArmPointerEnabled then
+                if _G._N0IRRightArmPointerEnabled then
                     -- Pointer stretch only (Ctrl+Wheel / Arm Stretcher Pointers) — not general Arm Stretch
-                    local pStretch = tonumber(_G._HaloPointerStretchAmount) or 1.0
+                    local pStretch = tonumber(_G._N0IRPointerStretchAmount) or 1.0
                     pointArm("RightUpperArm", "RightLowerArm", "RightHand", pStretch)
-                elseif not _G._HaloLeftArmPointerEnabled and not _G._HaloRightArmPointerEnabled and _G._HaloRightArmStretching and stretchAmt ~= 1.0 then
+                elseif not _G._N0IRLeftArmPointerEnabled and not _G._N0IRRightArmPointerEnabled and _G._N0IRRightArmStretching and stretchAmt ~= 1.0 then
                     stretchArmOnly("RightLowerArm", "RightHand", stretchAmt)
                 end
 
-                if _G._HaloLeftArmPointerEnabled then
-                    local pStretch = tonumber(_G._HaloPointerStretchAmount) or 1.0
+                if _G._N0IRLeftArmPointerEnabled then
+                    local pStretch = tonumber(_G._N0IRPointerStretchAmount) or 1.0
                     pointArm("LeftUpperArm", "LeftLowerArm", "LeftHand", pStretch)
-                elseif not _G._HaloRightArmPointerEnabled and not _G._HaloLeftArmPointerEnabled and _G._HaloLeftArmStretching and stretchAmt ~= 1.0 then
+                elseif not _G._N0IRRightArmPointerEnabled and not _G._N0IRLeftArmPointerEnabled and _G._N0IRLeftArmStretching and stretchAmt ~= 1.0 then
                     stretchArmOnly("LeftLowerArm", "LeftHand", stretchAmt)
                 end
             end
@@ -8806,29 +9449,29 @@ local function startLimbsSystem()
             -- ARM SLIDER: Upper arm welded to hip, stretch controls angle
             -- ============================================
             -- Unweld / restore original transforms when toggled off
-            if not _G._HaloArmSliderEnabled and _G._HaloArmSliderPrevEnabled then
-                _G._HaloArmSliderPrevEnabled = false
-                for constraint, orig in pairs(_G._HaloArmSliderOriginalTransforms) do
+            if not _G._N0IRArmSliderEnabled and _G._N0IRArmSliderPrevEnabled then
+                _G._N0IRArmSliderPrevEnabled = false
+                for constraint, orig in pairs(_G._N0IRArmSliderOriginalTransforms) do
                     if constraint and constraint.Parent then
                         pcall(function() constraint.Transform = orig end)
                     end
                 end
-                _G._HaloArmSliderOriginalTransforms = {}
+                _G._N0IRArmSliderOriginalTransforms = {}
             end
-            if _G._HaloArmSliderEnabled then
-                _G._HaloArmSliderPrevEnabled = true
-                local offsetX = _G._HaloArmSliderOffsetX or 0
-                local offsetY = _G._HaloArmSliderOffsetY or 0
-                local stretch = _G._HaloArmSliderStretch or 1.0
-                local rotEnabled = _G._HaloArmSliderRotationEnabled or false
-                local rotDeg = _G._HaloArmSliderRotation or 0
+            if _G._N0IRArmSliderEnabled then
+                _G._N0IRArmSliderPrevEnabled = true
+                local offsetX = _G._N0IRArmSliderOffsetX or 0
+                local offsetY = _G._N0IRArmSliderOffsetY or 0
+                local stretch = _G._N0IRArmSliderStretch or 1.0
+                local rotEnabled = _G._N0IRArmSliderRotationEnabled or false
+                local rotDeg = _G._N0IRArmSliderRotation or 0
 
-                local rUpper = anim.constraints["RightUpperArm"] or _HaloFindConstraintOnClone(clone, "RightUpperArm")
-                local rLower = anim.constraints["RightLowerArm"] or _HaloFindConstraintOnClone(clone, "RightLowerArm")
-                local rHand = anim.constraints["RightHand"] or _HaloFindConstraintOnClone(clone, "RightHand")
+                local rUpper = anim.constraints["RightUpperArm"] or _N0IRFindConstraintOnClone(clone, "RightUpperArm")
+                local rLower = anim.constraints["RightLowerArm"] or _N0IRFindConstraintOnClone(clone, "RightLowerArm")
+                local rHand = anim.constraints["RightHand"] or _N0IRFindConstraintOnClone(clone, "RightHand")
                 local hipJoint = anim.constraints["LowerTorso"] or anim.constraints["Waist"] or anim.constraints["Torso"]
-                    or _HaloFindConstraintOnClone(clone, "LowerTorso") or _HaloFindConstraintOnClone(clone, "Waist")
-                    or _HaloFindConstraintOnClone(clone, "Root") or _HaloFindConstraintOnClone(clone, "Torso")
+                    or _N0IRFindConstraintOnClone(clone, "LowerTorso") or _N0IRFindConstraintOnClone(clone, "Waist")
+                    or _N0IRFindConstraintOnClone(clone, "Root") or _N0IRFindConstraintOnClone(clone, "Torso")
 
                 if rUpper and hipJoint then
                     -- Get the hip's live world CFrame (position + rotation)
@@ -8887,19 +9530,19 @@ local function startLimbsSystem()
                         local desiredCF = CFrame.fromMatrix(targetPos, xAxis, yAxis)
 
                         -- Save original transforms before modifying (for unweld on toggle off)
-                        if not _G._HaloArmSliderOriginalTransforms[rUpper] then
+                        if not _G._N0IRArmSliderOriginalTransforms[rUpper] then
                             pcall(function()
-                                _G._HaloArmSliderOriginalTransforms[rUpper] = rUpper.Transform
+                                _G._N0IRArmSliderOriginalTransforms[rUpper] = rUpper.Transform
                             end)
                         end
-                        if rLower and not _G._HaloArmSliderOriginalTransforms[rLower] then
+                        if rLower and not _G._N0IRArmSliderOriginalTransforms[rLower] then
                             pcall(function()
-                                _G._HaloArmSliderOriginalTransforms[rLower] = rLower.Transform
+                                _G._N0IRArmSliderOriginalTransforms[rLower] = rLower.Transform
                             end)
                         end
-                        if rHand and not _G._HaloArmSliderOriginalTransforms[rHand] then
+                        if rHand and not _G._N0IRArmSliderOriginalTransforms[rHand] then
                             pcall(function()
-                                _G._HaloArmSliderOriginalTransforms[rHand] = rHand.Transform
+                                _G._N0IRArmSliderOriginalTransforms[rHand] = rHand.Transform
                             end)
                         end
 
@@ -8949,7 +9592,7 @@ local function startLimbsSystem()
 
         end
         -- Torso Stretcher + Torso Camera Control
-        local doTorso = _G._HaloTorsoStretcherEnabled or _G._HaloLimbsTorsoCamControl
+        local doTorso = _G._N0IRTorsoStretcherEnabled or _G._N0IRLimbsTorsoCamControl
         if doTorso then
             local animData = ReanimateAPI and ReanimateAPI.get_animation_data and ReanimateAPI.get_animation_data()
             local waistConstraint = nil
@@ -8976,7 +9619,7 @@ local function startLimbsSystem()
             if waistConstraint and waistConstraint.Parent then
                 local baseRot = waistConstraint.Transform.Rotation
 
-                if _G._HaloLimbsTorsoCamControl then
+                if _G._N0IRLimbsTorsoCamControl then
                     local camera = workspace.CurrentCamera
                     if camera then
                         local parentWorldCF = nil
@@ -8995,7 +9638,7 @@ local function startLimbsSystem()
                             local yaw = math.atan2(localLookDir.X, -localLookDir.Z)
                             local pitch = math.asin(math.clamp(localLookDir.Y, -1, 1))
 
-                            local camMode = _G._HaloLimbsTorsoCamMode or "360"
+                            local camMode = _G._N0IRLimbsTorsoCamMode or "360"
                             local camRotCF
                             if camMode == "Locked" then
                                 yaw = math.clamp(yaw, -math.rad(45), math.rad(45))
@@ -9008,18 +9651,18 @@ local function startLimbsSystem()
                                 camRotCF = CFrame.fromEulerAnglesYXZ(fullPitch, -yaw, 0)
                             end
 
-                            local smoothed = _G._HaloTorsoCamSmoothedCF or camRotCF
+                            local smoothed = _G._N0IRTorsoCamSmoothedCF or camRotCF
                             smoothed = smoothed:Lerp(camRotCF, 0.25)
-                            _G._HaloTorsoCamSmoothedCF = smoothed
+                            _G._N0IRTorsoCamSmoothedCF = smoothed
                             baseRot = smoothed * baseRot
                         end
                     end
                 else
-                    _G._HaloTorsoCamSmoothedCF = nil
+                    _G._N0IRTorsoCamSmoothedCF = nil
                 end
 
-                local utHeight = _G._HaloLimbsUpperTorsoHeight or 1.0
-                local stretchY = _G._HaloTorsoStretcherEnabled and ((utHeight - 1.0) * 2.5) or 0
+                local utHeight = _G._N0IRLimbsUpperTorsoHeight or 1.0
+                local stretchY = _G._N0IRTorsoStretcherEnabled and ((utHeight - 1.0) * 2.5) or 0
                 waistConstraint.Transform = CFrame.new(0, stretchY, 0) * baseRot
             end
             limbsState.wasTorsoOn = true
@@ -9049,12 +9692,12 @@ local function startLimbsSystem()
                         waistConstraint.Transform = target
                         limbsState.wasTorsoOn = false
                         limbsState.torsoCleanup = 0
-                        _G._HaloTorsoCamSmoothedCF = nil
+                        _G._N0IRTorsoCamSmoothedCF = nil
                     end
                 else
                     limbsState.wasTorsoOn = false
                     limbsState.torsoCleanup = 0
-                    _G._HaloTorsoCamSmoothedCF = nil
+                    _G._N0IRTorsoCamSmoothedCF = nil
                 end
             end
         end
@@ -9062,9 +9705,9 @@ local function startLimbsSystem()
         -- ============================================
         -- LEG STRETCHER (Independent of Torso)
         -- ============================================
-        local doLegs = _G._HaloLegStretcherEnabled
+        local doLegs = _G._N0IRLegStretcherEnabled
         if doLegs then
-            local legScale = math.clamp(_G._HaloLimbsLegHeight or 1.0, 0.4, 100.0)
+            local legScale = math.clamp(_G._N0IRLimbsLegHeight or 1.0, 0.4, 100.0)
             local animData = ReanimateAPI and ReanimateAPI.get_animation_data and ReanimateAPI.get_animation_data()
             local rll = (animData and animData.constraints_cache and (animData.constraints_cache["RightLowerLeg"] or animData.constraints_cache["RightKnee"]))
                 or clone:FindFirstChild("RightKnee", true)
@@ -9118,10 +9761,10 @@ local function startLimbsSystem()
     end))
 end
 -- Hook into reanimate toggle (no extra locals — stays under register limit)
-_G._HaloDoReanimToggle_prev_limbs = _G._HaloDoReanimToggle
-_G._HaloDoReanimToggle = function()
+_G._N0IRDoReanimToggle_prev_limbs = _G._N0IRDoReanimToggle
+_G._N0IRDoReanimToggle = function()
     local wasReanimated = State.isReanimated
-    local prev = _G._HaloDoReanimToggle_prev_limbs
+    local prev = _G._N0IRDoReanimToggle_prev_limbs
     if type(prev) == "function" then prev() end
     if State.isReanimated and not wasReanimated then
         startLimbsSystem()
@@ -9157,12 +9800,12 @@ end
 
 
 -- Central Reset Function: Turns off all toggles & resets all sliders to default
-function _G._HaloResetTogglesAndSliders()
+function _G._N0IRResetTogglesAndSliders()
     -- 1. Stretching Tab
-    _G._HaloTorsoStretcherEnabled = false
-    _G._HaloLegStretcherEnabled = false
-    _G._HaloLimbsUpperTorsoHeight = 1.0
-    _G._HaloLimbsLegHeight = 1.0
+    _G._N0IRTorsoStretcherEnabled = false
+    _G._N0IRLegStretcherEnabled = false
+    _G._N0IRLimbsUpperTorsoHeight = 1.0
+    _G._N0IRLimbsLegHeight = 1.0
     if torsoStretcherToggle and torsoStretcherToggle.setVisualState then
         torsoStretcherToggle.setVisualState(false)
     end
@@ -9177,36 +9820,36 @@ function _G._HaloResetTogglesAndSliders()
     end
 
     -- 2. Arm Stretch
-    _G._HaloLeftArmStretching = false
-    _G._HaloRightArmStretching = false
-    _G._HaloArmStretchAmount = 2.5
-    if _G._HaloResetArmStretch then
-        _G._HaloResetArmStretch()
+    _G._N0IRLeftArmStretching = false
+    _G._N0IRRightArmStretching = false
+    _G._N0IRArmStretchAmount = 2.5
+    if _G._N0IRResetArmStretch then
+        _G._N0IRResetArmStretch()
     end
 
     -- 3. Limbs Tab
-    _G._HaloHeadTrackerEnabled = false
+    _G._N0IRHeadTrackerEnabled = false
     if htWidget and htWidget.setVisualState then htWidget.setVisualState(false) end
 
-    _G._HaloLeftArmPointerEnabled = false
+    _G._N0IRLeftArmPointerEnabled = false
     if laWidget and laWidget.setVisualState then laWidget.setVisualState(false) end
 
-    _G._HaloRightArmPointerEnabled = false
+    _G._N0IRRightArmPointerEnabled = false
     if raWidget and raWidget.setVisualState then raWidget.setVisualState(false) end
 
-    _G._HaloLimbsTorsoCamControl = false
-    _G._HaloLimbsTorsoCamMode = "360"
-    if _G._HaloUpdateCamToggleState then
-        _G._HaloUpdateCamToggleState(false)
+    _G._N0IRLimbsTorsoCamControl = false
+    _G._N0IRLimbsTorsoCamMode = "360"
+    if _G._N0IRUpdateCamToggleState then
+        _G._N0IRUpdateCamToggleState(false)
     end
 
     -- Extra limb tools
-    _G._HaloDualArmPointerEnabled = false
-    _G._HaloGunAimEnabled = false
-    _G._HaloWaveArmEnabled = false
-    _G._HaloHeadbangEnabled = false
-    _G._HaloFloppyArmsEnabled = false
-    _G._HaloReachMouseEnabled = false
+    _G._N0IRDualArmPointerEnabled = false
+    _G._N0IRGunAimEnabled = false
+    _G._N0IRWaveArmEnabled = false
+    _G._N0IRHeadbangEnabled = false
+    _G._N0IRFloppyArmsEnabled = false
+    _G._N0IRReachMouseEnabled = false
 
     -- 4. Clear limb caches & restore hip height
     limbsCache = nil
@@ -9218,15 +9861,15 @@ function _G._HaloResetTogglesAndSliders()
 end
 
 task.defer(function()
-    if _G._HaloResetTogglesAndSliders then
-        _G._HaloResetTogglesAndSliders()
+    if _G._N0IRResetTogglesAndSliders then
+        _G._N0IRResetTogglesAndSliders()
     end
 end)
 
 
 StatesPanel.Parent = body
 StatesPanel.Size = UDim2.new(1,-20,1,-148)
-StatesPanel.Position = UDim2.new(0,10,0,104)
+StatesPanel.Position = UDim2.new(0,12,0,126)
 StatesPanel.BackgroundTransparency = 1; StatesPanel.BorderSizePixel = 0
 StatesPanel.ZIndex = 32
 
@@ -9241,31 +9884,31 @@ statesHeader.TextXAlignment = Enum.TextXAlignment.Left; statesHeader.ZIndex = 35
 do
     local function buildUIToggle(parent, title, subText, layoutOrder, defaultState, onChange)
         local frame = Instance.new("Frame"); frame.Parent = parent
-        frame.Size = UDim2.new(1,0,0,54)
-        frame.BackgroundColor3 = C.bg1; frame.BackgroundTransparency = 0.12; frame.BorderSizePixel = 0
+        frame.Size = UDim2.new(1,0,0,52)
+        frame.BackgroundColor3 = Color3.fromRGB(12, 12, 13); frame.BackgroundTransparency = 0; frame.BorderSizePixel = 0
         frame.LayoutOrder = layoutOrder
         do
-            local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,10); c.Parent = frame
-            local s = Instance.new("UIStroke"); s.Color = C.border; s.Transparency = 0.4; s.Thickness = 1; s.Parent = frame
+            local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,6); c.Parent = frame
+            local s = Instance.new("UIStroke"); s.Color = Color3.fromRGB(48, 48, 52); s.Transparency = 0.35; s.Thickness = 1; s.Parent = frame
         end
         local lbl = Instance.new("TextLabel"); lbl.Parent = frame
-        lbl.BackgroundTransparency = 1; lbl.Position = UDim2.new(0,10,0,6)
+        lbl.BackgroundTransparency = 1; lbl.Position = UDim2.new(0,12,0,6)
         lbl.Size = UDim2.new(1,-70,0,16); lbl.Font = Enum.Font.GothamBold
-        lbl.Text = title; lbl.TextColor3 = C.text; lbl.TextSize = 10
+        lbl.Text = title; lbl.TextColor3 = Color3.fromRGB(215, 215, 222); lbl.TextSize = 11
         lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.ZIndex = 33
         local sub = Instance.new("TextLabel"); sub.Parent = frame
-        sub.BackgroundTransparency = 1; sub.Position = UDim2.new(0,10,0,24)
-        sub.Size = UDim2.new(1,-70,0,24); sub.Font = Enum.Font.Gotham
-        sub.Text = subText; sub.TextColor3 = C.text3; sub.TextSize = 9
+        sub.BackgroundTransparency = 1; sub.Position = UDim2.new(0,12,0,24)
+        sub.Size = UDim2.new(1,-70,0,22); sub.Font = Enum.Font.Gotham
+        sub.Text = subText; sub.TextColor3 = Color3.fromRGB(95, 95, 102); sub.TextSize = 9
         sub.TextXAlignment = Enum.TextXAlignment.Left; sub.TextWrapped = true; sub.ZIndex = 33
         local bg = Instance.new("Frame"); bg.Parent = frame
-        bg.Size = UDim2.new(0,42,0,24); bg.Position = UDim2.new(1,-54,0,16)
-        bg.BackgroundColor3 = defaultState and C.green or C.bg3; bg.BorderSizePixel = 0; bg.ZIndex = 33
-        local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,11); c.Parent = bg
+        bg.Size = UDim2.new(0,42,0,22); bg.Position = UDim2.new(1,-54,0,15)
+        bg.BackgroundColor3 = defaultState and Color3.fromRGB(185, 185, 192) or Color3.fromRGB(28, 28, 30); bg.BorderSizePixel = 0; bg.ZIndex = 33
+        local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1,0); c.Parent = bg
         local knob = Instance.new("Frame"); knob.Parent = bg
-        knob.Size = UDim2.new(0,18,0,18); knob.Position = defaultState and UDim2.new(1,-21,0.5,-9) or UDim2.new(0,3,0.5,-9)
-        knob.BackgroundColor3 = C.white; knob.BorderSizePixel = 0; knob.ZIndex = 34
-        local ck = Instance.new("UICorner"); ck.CornerRadius = UDim.new(0,8); ck.Parent = knob
+        knob.Size = UDim2.new(0,16,0,16); knob.Position = defaultState and UDim2.new(1,-19,0.5,-8) or UDim2.new(0,3,0.5,-8)
+        knob.BackgroundColor3 = Color3.fromRGB(245, 245, 250); knob.BorderSizePixel = 0; knob.ZIndex = 34
+        local ck = Instance.new("UICorner"); ck.CornerRadius = UDim.new(1,0); ck.Parent = knob
         local btn = Instance.new("TextButton"); btn.Parent = bg
         btn.Size = UDim2.new(1,0,1,0); btn.BackgroundTransparency = 1; btn.Text = ""; btn.ZIndex = 35
         local state = defaultState
@@ -9299,9 +9942,9 @@ do
         "Enable Dragging",
         "Turn off if the menu keeps unsticking while you still hold click (laggy devices)",
         -9,
-        (_G._HaloDragEnabled == nil) and true or _G._HaloDragEnabled,
+        (_G._N0IRDragEnabled == nil) and true or _G._N0IRDragEnabled,
         function(state)
-            _G._HaloDragEnabled = state
+            _G._N0IRDragEnabled = state
             if Notify then Notify("Dragging", state and "Enabled" or "Disabled", 1.8) end
         end
     )
@@ -9311,9 +9954,9 @@ do
         "Smooth Drag",
         "Lerp the window while dragging. Disable for instant/raw movement (less lag)",
         -8,
-        (_G._HaloSmoothDrag == nil) and true or _G._HaloSmoothDrag,
+        (_G._N0IRSmoothDrag == nil) and true or _G._N0IRSmoothDrag,
         function(state)
-            _G._HaloSmoothDrag = state
+            _G._N0IRSmoothDrag = state
             if Notify then Notify("Smooth Drag", state and "Enabled" or "Disabled", 1.8) end
         end
     )
@@ -9323,10 +9966,10 @@ do
         "Tab Grid Mode",
         "Show all tabs as a grid so you can jump to any tab without horizontal scrolling",
         -7,
-        (_G._HaloTabGridMode == nil) and false or _G._HaloTabGridMode,
+        (_G._N0IRTabGridMode == nil) and false or _G._N0IRTabGridMode,
         function(state)
-            _G._HaloTabGridMode = state
-            if _G._HaloSetTabGridMode then pcall(_G._HaloSetTabGridMode, state) end
+            _G._N0IRTabGridMode = state
+            if _G._N0IRSetTabGridMode then pcall(_G._N0IRSetTabGridMode, state) end
             if SwitchTab and State and State.currentTab then pcall(SwitchTab, State.currentTab) end
             if Notify then Notify("Tab Grid", state and "Enabled" or "Disabled", 1.8) end
         end
@@ -9352,11 +9995,11 @@ task.spawn(function()
             local g2 = workspace:FindFirstChild("N0IR_AM_Gizmo")
             if g2 then g2:Destroy() end
         end
-        if _G._HaloAnimMaker and _G._HaloAnimMaker.gui then
-            pcall(function() _G._HaloAnimMaker.gui:Destroy() end)
+        if _G._N0IRAnimMaker and _G._N0IRAnimMaker.gui then
+            pcall(function() _G._N0IRAnimMaker.gui:Destroy() end)
         end
-        if _G._HaloAnimMaker and _G._HaloAnimMaker.stopGizmo then
-            pcall(_G._HaloAnimMaker.stopGizmo)
+        if _G._N0IRAnimMaker and _G._N0IRAnimMaker.stopGizmo then
+            pcall(_G._N0IRAnimMaker.stopGizmo)
         end
     end)
 
@@ -9377,11 +10020,11 @@ task.spawn(function()
         dirty = true,
     }
     -- preserve keyframes across re-exec if any
-    if _G._HaloAnimMaker and type(_G._HaloAnimMaker.keyframes) == "table" then
-        AM.keyframes = _G._HaloAnimMaker.keyframes
+    if _G._N0IRAnimMaker and type(_G._N0IRAnimMaker.keyframes) == "table" then
+        AM.keyframes = _G._N0IRAnimMaker.keyframes
     end
-    _G._HaloAnimMaker = AM
-    _G._HaloAnimMakerOpen = false
+    _G._N0IRAnimMaker = AM
+    _G._N0IRAnimMakerOpen = false
 
     local BONES = {
         "Head", "UpperTorso", "LowerTorso",
@@ -9932,7 +10575,7 @@ task.spawn(function()
         if AM._gizmoUISDown then AM._gizmoUISDown:Disconnect(); AM._gizmoUISDown = nil end
         if AM._gizmoUpUIS then AM._gizmoUpUIS:Disconnect(); AM._gizmoUpUIS = nil end
         AM.open = false
-        _G._HaloAnimMakerOpen = false
+        _G._N0IRAnimMakerOpen = false
         AM._livePose = nil
         if AM.gui then AM.gui.Visible = false end
     end
@@ -9955,22 +10598,22 @@ task.spawn(function()
                 ReanimateAPI.stop_animation()
             end
         end)
-        _G._HaloSpinHeadEnabled = false
-        _G._HaloStareEnabled = false
-        _G._HaloIdleWobbleEnabled = false
-        _G._HaloIdleGlitchEnabled = false
-        _G._HaloIdleGlitchTorsoEnabled = false
-        _G._HaloHeadTrackerEnabled = false
-        _G._HaloLeftArmPointerEnabled = false
-        _G._HaloRightArmPointerEnabled = false
-        _G._HaloGunAimEnabled = false
-        _G._HaloWaveArmEnabled = false
-        _G._HaloHeadbangEnabled = false
-        _G._HaloFloppyArmsEnabled = false
-        _G._HaloHeliArmsEnabled = false
-        _G._HaloHandsUpEnabled = false
-        _G._HaloCrossArmsEnabled = false
-        _G._HaloTPoseEnabled = false
+        _G._N0IRSpinHeadEnabled = false
+        _G._N0IRStareEnabled = false
+        _G._N0IRIdleWobbleEnabled = false
+        _G._N0IRIdleGlitchEnabled = false
+        _G._N0IRIdleGlitchTorsoEnabled = false
+        _G._N0IRHeadTrackerEnabled = false
+        _G._N0IRLeftArmPointerEnabled = false
+        _G._N0IRRightArmPointerEnabled = false
+        _G._N0IRGunAimEnabled = false
+        _G._N0IRWaveArmEnabled = false
+        _G._N0IRHeadbangEnabled = false
+        _G._N0IRFloppyArmsEnabled = false
+        _G._N0IRHeliArmsEnabled = false
+        _G._N0IRHandsUpEnabled = false
+        _G._N0IRCrossArmsEnabled = false
+        _G._N0IRTPoseEnabled = false
         pcall(function()
             local clone = getClone()
             if clone then
@@ -9986,7 +10629,7 @@ task.spawn(function()
         end)
 
         AM.open = true
-        _G._HaloAnimMakerOpen = true
+        _G._N0IRAnimMakerOpen = true
 
         if AM.gui then
             AM.gui.Visible = true
@@ -10109,7 +10752,7 @@ task.spawn(function()
         nameBox.Parent = top
         nameBox.Position = UDim2.new(0, 360, 0.5, -12)
         nameBox.Size = UDim2.new(0, 140, 0, 24)
-        nameBox.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
+        nameBox.BackgroundColor3 = Color3.fromRGB(18, 18, 20)
         nameBox.BorderSizePixel = 0
         nameBox.Font = Enum.Font.GothamMedium
         nameBox.PlaceholderText = "Name..."
@@ -10226,7 +10869,7 @@ task.spawn(function()
         timeline.Parent = gui
         timeline.Position = UDim2.new(0, 168, 0, 36)
         timeline.Size = UDim2.new(1, -168, 1, -36)
-        timeline.BackgroundColor3 = Color3.fromRGB(16, 16, 16)
+        timeline.BackgroundColor3 = Color3.fromRGB(12, 12, 13)
         timeline.BorderSizePixel = 0
         timeline.ZIndex = 201
         timeline.ClipsDescendants = true
@@ -10551,8 +11194,8 @@ task.spawn(function()
         openBtn.MouseButton1Click:Connect(openMaker)
     end
 
-    _G._HaloOpenAnimMaker = openMaker
-    _G._HaloCloseAnimMaker = closeMaker
+    _G._N0IROpenAnimMaker = openMaker
+    _G._N0IRCloseAnimMaker = closeMaker
 end)
 
 -- HITS TOOLKIT: Profiles, Poses, Packs, Hop, Anti-void, Preview
@@ -10564,12 +11207,12 @@ do
     local PACK_FILE = (CONFIG and CONFIG.FOLDER and (CONFIG.FOLDER .. "/HitsAnimPack.json")) or "HitsAnimPack.json"
     local POSE_FILE = (CONFIG and CONFIG.FOLDER and (CONFIG.FOLDER .. "/HitsPoses.json")) or "HitsPoses.json"
 
-    _G._HaloProfiles = _G._HaloProfiles or {}
-    _G._HaloPoses = _G._HaloPoses or {}
-    _G._HaloAntiVoid = (_G._HaloAntiVoid == nil) and true or _G._HaloAntiVoid
-    _G._HaloAntiVoidY = _G._HaloAntiVoidY or -50
-    _G._HaloLastSafeCF = _G._HaloLastSafeCF or nil
-    _G._HaloAutoReanimAfterHop = _G._HaloAutoReanimAfterHop or false
+    _G._N0IRProfiles = _G._N0IRProfiles or {}
+    _G._N0IRPoses = _G._N0IRPoses or {}
+    _G._N0IRAntiVoid = (_G._N0IRAntiVoid == nil) and true or _G._N0IRAntiVoid
+    _G._N0IRAntiVoidY = _G._N0IRAntiVoidY or -50
+    _G._N0IRLastSafeCF = _G._N0IRLastSafeCF or nil
+    _G._N0IRAutoReanimAfterHop = _G._N0IRAutoReanimAfterHop or false
 
     local function safeWrite(file, data)
         pcall(function()
@@ -10589,40 +11232,40 @@ do
         local raw = safeRead(PROFILE_FILE)
         if raw then
             local d = HttpService:JSONDecode(raw)
-            if type(d) == "table" then _G._HaloProfiles = d end
+            if type(d) == "table" then _G._N0IRProfiles = d end
         end
         raw = safeRead(POSE_FILE)
         if raw then
             local d = HttpService:JSONDecode(raw)
-            if type(d) == "table" then _G._HaloPoses = d end
+            if type(d) == "table" then _G._N0IRPoses = d end
         end
     end)
 
     local function snapshotProfile()
         return {
-            smoothDrag = _G._HaloSmoothDrag,
-            tabGrid = _G._HaloTabGridMode,
-            antiVoid = _G._HaloAntiVoid,
-            armStretch = _G._HaloArmStretchAmount,
-            torsoStretch = _G._HaloLimbsUpperTorsoHeight,
-            legStretch = _G._HaloLimbsLegHeight,
-            spinSpeed = _G._HaloSpinHeadSpeed,
+            smoothDrag = _G._N0IRSmoothDrag,
+            tabGrid = _G._N0IRTabGridMode,
+            antiVoid = _G._N0IRAntiVoid,
+            armStretch = _G._N0IRArmStretchAmount,
+            torsoStretch = _G._N0IRLimbsUpperTorsoHeight,
+            legStretch = _G._N0IRLimbsLegHeight,
+            spinSpeed = _G._N0IRSpinHeadSpeed,
         }
     end
 
     local function applyProfile(p)
         if not p then return end
         if p.smoothDrag ~= nil then
-            _G._HaloSmoothDrag = p.smoothDrag
+            _G._N0IRSmoothDrag = p.smoothDrag
         end
-        if p.tabGrid ~= nil and _G._HaloSetTabGridMode then
-            pcall(_G._HaloSetTabGridMode, p.tabGrid)
+        if p.tabGrid ~= nil and _G._N0IRSetTabGridMode then
+            pcall(_G._N0IRSetTabGridMode, p.tabGrid)
         end
-        if p.antiVoid ~= nil then _G._HaloAntiVoid = p.antiVoid end
-        if p.armStretch then _G._HaloArmStretchAmount = p.armStretch end
-        if p.torsoStretch then _G._HaloLimbsUpperTorsoHeight = p.torsoStretch end
-        if p.legStretch then _G._HaloLimbsLegHeight = p.legStretch end
-        if p.spinSpeed then _G._HaloSpinHeadSpeed = p.spinSpeed end
+        if p.antiVoid ~= nil then _G._N0IRAntiVoid = p.antiVoid end
+        if p.armStretch then _G._N0IRArmStretchAmount = p.armStretch end
+        if p.torsoStretch then _G._N0IRLimbsUpperTorsoHeight = p.torsoStretch end
+        if p.legStretch then _G._N0IRLimbsLegHeight = p.legStretch end
+        if p.spinSpeed then _G._N0IRSpinHeadSpeed = p.spinSpeed end
     end
 
     local function capturePose()
@@ -10758,14 +11401,14 @@ do
     makeBtn(profRow, "Save", 1, 70, function()
         local n = profName.Text
         if n == "" then n = "default" end
-        _G._HaloProfiles[n] = snapshotProfile()
-        safeWrite(PROFILE_FILE, HttpService:JSONEncode(_G._HaloProfiles))
+        _G._N0IRProfiles[n] = snapshotProfile()
+        safeWrite(PROFILE_FILE, HttpService:JSONEncode(_G._N0IRProfiles))
         if Notify then Notify("Profile saved: " .. n, 2) end
     end)
     makeBtn(profRow, "Load", 2, 70, function()
         local n = profName.Text
         if n == "" then n = "default" end
-        local p = _G._HaloProfiles[n]
+        local p = _G._N0IRProfiles[n]
         if not p then
             if Notify then Notify("No profile: " .. n, 2) end
             return
@@ -10776,8 +11419,8 @@ do
     makeBtn(profRow, "Delete", 3, 70, function()
         local n = profName.Text
         if n == "" then return end
-        _G._HaloProfiles[n] = nil
-        safeWrite(PROFILE_FILE, HttpService:JSONEncode(_G._HaloProfiles))
+        _G._N0IRProfiles[n] = nil
+        safeWrite(PROFILE_FILE, HttpService:JSONEncode(_G._N0IRProfiles))
         if Notify then Notify("Deleted: " .. n, 2) end
     end)
 
@@ -10833,14 +11476,14 @@ do
             if Notify then Notify("No clone", 2) end
             return
         end
-        _G._HaloPoses[n] = pose
-        safeWrite(POSE_FILE, HttpService:JSONEncode(_G._HaloPoses))
+        _G._N0IRPoses[n] = pose
+        safeWrite(POSE_FILE, HttpService:JSONEncode(_G._N0IRPoses))
         if Notify then Notify("Pose saved: " .. n, 2) end
     end)
     makeBtn(poseRow, "Apply", 2, 70, function()
         local n = poseName.Text
         if n == "" then n = "pose1" end
-        local pose = _G._HaloPoses[n]
+        local pose = _G._N0IRPoses[n]
         if not pose then
             if Notify then Notify("No pose: " .. n, 2) end
             return
@@ -10851,8 +11494,8 @@ do
     makeBtn(poseRow, "Delete", 3, 70, function()
         local n = poseName.Text
         if n == "" then return end
-        _G._HaloPoses[n] = nil
-        safeWrite(POSE_FILE, HttpService:JSONEncode(_G._HaloPoses))
+        _G._N0IRPoses[n] = nil
+        safeWrite(POSE_FILE, HttpService:JSONEncode(_G._N0IRPoses))
         if Notify then Notify("Pose deleted", 1.5) end
     end)
 
@@ -10880,7 +11523,7 @@ do
     packLayout.Padding = UDim.new(0, 6)
 
     makeBtn(packRow, "Export Favs", 1, 90, function()
-        local favs = _G._HaloFavorites or State and State.favorites or {}
+        local favs = _G._N0IRFavorites or State and State.favorites or {}
         local payload = HttpService:JSONEncode({type = "HitsAnimPack", v = 1, favs = favs})
         safeWrite(PACK_FILE, payload)
         if setclipboard then pcall(setclipboard, payload) end
@@ -10902,7 +11545,7 @@ do
             return
         end
         if data.favs then
-            _G._HaloFavorites = data.favs
+            _G._N0IRFavorites = data.favs
             if State then State.favorites = data.favs end
             if Notify then Notify("Pack imported", 2) end
         else
@@ -10934,14 +11577,14 @@ do
     hopLayout.Padding = UDim.new(0, 6)
 
     makeBtn(hopRow, "Hop + Reanim", 1, 110, function()
-        _G._HaloAutoReanimAfterHop = true
+        _G._N0IRAutoReanimAfterHop = true
         pcall(function()
             if writefile then writefile("HitsAutoReanim.flag", "1") end
         end)
         pcall(function()
             if queue_on_teleport then
                 queue_on_teleport([[
-                    _G._HaloAutoReanimAfterHop = true
+                    _G._N0IRAutoReanimAfterHop = true
                 ]])
             end
         end)
@@ -10970,11 +11613,11 @@ do
                 if delfile then delfile("HitsAutoReanim.flag") end
             end
         end)
-        if flag or _G._HaloAutoReanimAfterHop then
-            _G._HaloAutoReanimAfterHop = false
+        if flag or _G._N0IRAutoReanimAfterHop then
+            _G._N0IRAutoReanimAfterHop = false
             task.wait(1.2)
-            if not State.isReanimated and type(_G._HaloDoReanimToggle) == "function" then
-                pcall(_G._HaloDoReanimToggle)
+            if not State.isReanimated and type(_G._N0IRDoReanimToggle) == "function" then
+                pcall(_G._N0IRDoReanimToggle)
                 if Notify then Notify("Auto-reanim after hop", 2) end
             end
         end
@@ -11020,13 +11663,13 @@ do
     voidBg.Parent = voidCard
     voidBg.Size = UDim2.new(0, 42, 0, 24)
     voidBg.Position = UDim2.new(1, -54, 0.5, -12)
-    voidBg.BackgroundColor3 = _G._HaloAntiVoid and C.green or C.bg3
+    voidBg.BackgroundColor3 = _G._N0IRAntiVoid and C.green or C.bg3
     voidBg.BorderSizePixel = 0
     voidBg.ZIndex = 33
     do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1, 0); c.Parent = voidBg end
     local voidKnob = Instance.new("Frame", voidBg)
     voidKnob.Size = UDim2.new(0, 18, 0, 18)
-    voidKnob.Position = _G._HaloAntiVoid and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)
+    voidKnob.Position = _G._N0IRAntiVoid and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)
     voidKnob.BackgroundColor3 = C.white
     voidKnob.BorderSizePixel = 0
     voidKnob.ZIndex = 34
@@ -11037,28 +11680,28 @@ do
     voidBtn.Text = ""
     voidBtn.ZIndex = 35
     voidBtn.MouseButton1Click:Connect(function()
-        _G._HaloAntiVoid = not _G._HaloAntiVoid
-        if _G._HaloAntiVoid then
+        _G._N0IRAntiVoid = not _G._N0IRAntiVoid
+        if _G._N0IRAntiVoid then
             TweenService:Create(voidBg, TweenInfo.new(0.18), {BackgroundColor3 = C.green}):Play()
             TweenService:Create(voidKnob, TweenInfo.new(0.18), {Position = UDim2.new(1, -21, 0.5, -9)}):Play()
         else
             TweenService:Create(voidBg, TweenInfo.new(0.18), {BackgroundColor3 = C.bg3}):Play()
             TweenService:Create(voidKnob, TweenInfo.new(0.18), {Position = UDim2.new(0, 3, 0.5, -9)}):Play()
         end
-        if Notify then Notify("Anti-Void", _G._HaloAntiVoid and "ON" or "OFF", 1.5) end
+        if Notify then Notify("Anti-Void", _G._N0IRAntiVoid and "ON" or "OFF", 1.5) end
     end)
 
     -- Anti-void loop
     RunService.Heartbeat:Connect(function()
-        if not _G._HaloAntiVoid then return end
+        if not _G._N0IRAntiVoid then return end
         local char = plr.Character
         if not char then return end
         local hrp = char:FindFirstChild("HumanoidRootPart")
         if not hrp then return end
-        if hrp.Position.Y > (_G._HaloAntiVoidY or -50) then
-            _G._HaloLastSafeCF = hrp.CFrame
+        if hrp.Position.Y > (_G._N0IRAntiVoidY or -50) then
+            _G._N0IRLastSafeCF = hrp.CFrame
         else
-            local safe = _G._HaloLastSafeCF
+            local safe = _G._N0IRLastSafeCF
             if safe then
                 hrp.CFrame = safe + Vector3.new(0, 4, 0)
                 local clone = ReanimateAPI and ReanimateAPI.get_clone and ReanimateAPI.get_clone(plr)
@@ -11147,9 +11790,9 @@ do
         if Notify then Notify("Preview cleared", 1.5) end
     end)
 
-    _G._HaloApplyPose = applyPose
-    _G._HaloCapturePose = capturePose
-    _G._HaloApplyProfile = applyProfile
+    _G._N0IRApplyPose = applyPose
+    _G._N0IRCapturePose = capturePose
+    _G._N0IRApplyProfile = applyProfile
 end
 
 -- 0. Shaders Toggle Frame
@@ -11176,17 +11819,17 @@ shadersSub.TextXAlignment = Enum.TextXAlignment.Left; shadersSub.TextWrapped = t
 
 local shadersToggleBg = Instance.new("Frame", shadersFrame)
 shadersToggleBg.Size = UDim2.new(0,44,0,22); shadersToggleBg.Position = UDim2.new(1,-54,0,16)
-shadersToggleBg.BackgroundColor3 = _G._HaloShadersEnabled and C.green or C.bg4; shadersToggleBg.BorderSizePixel = 0; shadersToggleBg.ZIndex = 33
+shadersToggleBg.BackgroundColor3 = _G._N0IRShadersEnabled and C.green or C.bg4; shadersToggleBg.BorderSizePixel = 0; shadersToggleBg.ZIndex = 33
 do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,11); c.Parent = shadersToggleBg end
 local shadersKnob = Instance.new("Frame", shadersToggleBg)
-shadersKnob.Size = UDim2.new(0,16,0,16); shadersKnob.Position = _G._HaloShadersEnabled and UDim2.new(1,-19,0,3) or UDim2.new(0,3,0,3)
+shadersKnob.Size = UDim2.new(0,16,0,16); shadersKnob.Position = _G._N0IRShadersEnabled and UDim2.new(1,-19,0,3) or UDim2.new(0,3,0,3)
 shadersKnob.BackgroundColor3 = C.white; shadersKnob.BorderSizePixel = 0; shadersKnob.ZIndex = 34
 do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,8); c.Parent = shadersKnob end
 local shadersToggleBtn = Instance.new("TextButton", shadersToggleBg)
 shadersToggleBtn.Size = UDim2.new(1,0,1,0); shadersToggleBtn.BackgroundTransparency = 1; shadersToggleBtn.Text = ""; shadersToggleBtn.ZIndex = 35
 
 local function updateShadersToggle(state)
-    _G._HaloShadersEnabled = state
+    _G._N0IRShadersEnabled = state
     SaveShadersConfig()
     if state then
         TweenService:Create(shadersToggleBg, TweenInfo.new(0.2), {BackgroundColor3 = C.green}):Play()
@@ -11200,7 +11843,7 @@ local function updateShadersToggle(state)
 end
 
 shadersToggleBtn.MouseButton1Click:Connect(function()
-    updateShadersToggle(not _G._HaloShadersEnabled)
+    updateShadersToggle(not _G._N0IRShadersEnabled)
 end)
 
 -- 1. Import from AK Frame
@@ -11685,7 +12328,7 @@ akBtn.MouseButton1Click:Connect(function()
 end)
 end
 
-local VROW_H     = 34
+local VROW_H     = 32
 local VPAD       = 5
 local VPOOL_SIZE = 22
 
@@ -11704,21 +12347,21 @@ local _animWinStart    = -1
 local _customWinStart  = -1
 
 local function CancelListening()
-    if _G._HaloListeningKeyBtn then
-        local id    = _G._HaloListenTarget and _G._HaloListenTarget.name
+    if _G._N0IRListeningKeyBtn then
+        local id    = _G._N0IRListenTarget and _G._N0IRListenTarget.name
         local bound = id and Keybinds[id]
-        _G._HaloListeningKeyBtn.Text             = bound and ("[" .. bound.key.Name .. "]") or "[+]"
-        _G._HaloListeningKeyBtn.BackgroundColor3 = bound and C.bg3 or C.bg2
-        _G._HaloListeningKeyBtn.TextColor3       = bound and C.accent or C.text3
-        _G._HaloListeningKeyBtn = nil
+        _G._N0IRListeningKeyBtn.Text             = bound and ("[" .. bound.key.Name .. "]") or "[+]"
+        _G._N0IRListeningKeyBtn.BackgroundColor3 = bound and C.bg3 or C.bg2
+        _G._N0IRListeningKeyBtn.TextColor3       = bound and C.accent or C.text3
+        _G._N0IRListeningKeyBtn = nil
     end
-    _G._HaloListenTarget = nil
+    _G._N0IRListenTarget = nil
 end
 
 local function BindKey(keyCode)
-    if not _G._HaloListenTarget then return end
-    local name = _G._HaloListenTarget.name
-    local btn  = _G._HaloListenTarget.keyBtn
+    if not _G._N0IRListenTarget then return end
+    local name = _G._N0IRListenTarget.name
+    local btn  = _G._N0IRListenTarget.keyBtn
     for existName, data in pairs(Keybinds) do
         if data.key == keyCode and existName ~= name then
             data.key = nil
@@ -11732,7 +12375,7 @@ local function BindKey(keyCode)
     btn.Text = "[" .. keyCode.Name .. "]"
     btn.BackgroundColor3 = C.bg3
     btn.TextColor3 = C.accent
-    _G._HaloListeningKeyBtn = nil; _G._HaloListenTarget = nil
+    _G._N0IRListeningKeyBtn = nil; _G._N0IRListenTarget = nil
     SaveKeybindsOnly()
     Notify(keyCode.Name .. " -> " .. name, 2)
     
@@ -12024,18 +12667,18 @@ _createAnimRow = function(anim, yPos)
     row.ZIndex = 33; row.Visible = true
 
     local playBtn = Instance.new("TextButton"); playBtn.Parent = row
-    playBtn.BackgroundColor3 = C.bg2
-    playBtn.BackgroundTransparency = 0.5; playBtn.BorderSizePixel = 0
+    playBtn.BackgroundColor3 = Color3.fromRGB(14, 14, 15)
+    playBtn.BackgroundTransparency = 0; playBtn.BorderSizePixel = 0
     playBtn.Size = UDim2.new(1,-82,1,0)
     playBtn.Font = Enum.Font.GothamMedium; playBtn.Text = displayName
-    playBtn.TextColor3 = C.text2; playBtn.TextSize = 11
+    playBtn.TextColor3 = Color3.fromRGB(175, 175, 182); playBtn.TextSize = 11
     playBtn.TextXAlignment = Enum.TextXAlignment.Left
     playBtn.TextTruncate = Enum.TextTruncate.AtEnd
     playBtn.ZIndex = 34; playBtn.AutoButtonColor = false
     do
-        local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,8); c.Parent = playBtn
-        local p = Instance.new("UIPadding"); p.PaddingLeft = UDim.new(0,10); p.Parent = playBtn
-        local s = Instance.new("UIStroke"); s.Color = C.border; s.Transparency = 0.5; s.Thickness = 1; s.Parent = playBtn
+        local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,5); c.Parent = playBtn
+        local p = Instance.new("UIPadding"); p.PaddingLeft = UDim.new(0,12); p.Parent = playBtn
+        local s = Instance.new("UIStroke"); s.Color = Color3.fromRGB(42, 42, 46); s.Transparency = 0.25; s.Thickness = 1; s.Parent = playBtn
     end
 
     local favBtn = Instance.new("TextButton"); favBtn.Parent = row
@@ -12088,9 +12731,9 @@ _createAnimRow = function(anim, yPos)
         favBtn.BackgroundTransparency = isFav and 0 or 0.3
 
         local bound = Keybinds[anim.name]
-        if _G._HaloListenTarget and _G._HaloListenTarget.name == anim.name then
-            _G._HaloListeningKeyBtn = keyBtn
-            _G._HaloListenTarget.keyBtn = keyBtn
+        if _G._N0IRListenTarget and _G._N0IRListenTarget.name == anim.name then
+            _G._N0IRListeningKeyBtn = keyBtn
+            _G._N0IRListenTarget.keyBtn = keyBtn
             keyBtn.Text = "[ ? ]"
             if keyIcon then keyIcon.Visible = false end
             keyBtn.BackgroundColor3 = Color3.fromRGB(220,120,20)
@@ -12116,16 +12759,16 @@ _createAnimRow = function(anim, yPos)
 
     playBtn.MouseEnter:Connect(function()
         local isPlaying = State.selectedAnim == anim.name
-        TweenService:Create(playBtn, TweenInfo.new(0.15), {
-            BackgroundTransparency = isPlaying and 0.1 or 0.35,
-            Size = UDim2.new(1,-78,1,2)
+        TweenService:Create(playBtn, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {
+            BackgroundTransparency = isPlaying and 0.05 or 0.15,
+            TextColor3 = C.text
         }):Play()
     end)
     playBtn.MouseLeave:Connect(function()
         local isPlaying = State.selectedAnim == anim.name
-        TweenService:Create(playBtn, TweenInfo.new(0.15), {
-            BackgroundTransparency = isPlaying and 0.2 or 0.5,
-            Size = UDim2.new(1,-82,1,0)
+        TweenService:Create(playBtn, TweenInfo.new(0.22, Enum.EasingStyle.Quint), {
+            BackgroundTransparency = isPlaying and 0.12 or 0.35,
+            TextColor3 = isPlaying and C.text or C.text2
         }):Play()
     end)
     playBtn.MouseButton1Click:Connect(function()
@@ -12149,14 +12792,14 @@ _createAnimRow = function(anim, yPos)
     end)
 
     keyBtn.MouseButton1Click:Connect(function()
-        if Keybinds[anim.name] and _G._HaloListeningKeyBtn ~= keyBtn then
+        if Keybinds[anim.name] and _G._N0IRListeningKeyBtn ~= keyBtn then
             UnbindKey(anim.name, keyBtn)
             refresh()
             return
         end
-        if _G._HaloListeningKeyBtn then CancelListening() end
-        _G._HaloListeningKeyBtn = keyBtn
-        _G._HaloListenTarget = { name=anim.name, url=anim.url, keyBtn=keyBtn }
+        if _G._N0IRListeningKeyBtn then CancelListening() end
+        _G._N0IRListeningKeyBtn = keyBtn
+        _G._N0IRListenTarget = { name=anim.name, url=anim.url, keyBtn=keyBtn }
         keyBtn.Text = "[ ? ]"; keyBtn.BackgroundColor3 = Color3.fromRGB(220,120,20)
         keyBtn.TextColor3 = Color3.fromRGB(255,255,255)
     end)
@@ -12311,7 +12954,7 @@ RebuildVisible = function()
     _animWinStart = -1  -- force a fresh window build
     RefreshVirtualRows()
 end
-_G._HaloRebuildVisible = RebuildVisible
+_G._N0IRRebuildVisible = RebuildVisible
 
 SearchBox:GetPropertyChangedSignal("Text"):Connect(RebuildVisible)
 
@@ -12327,16 +12970,16 @@ local function _createCustomRow(ca, yPos)
     row.Position = UDim2.new(0,6,0,yPos or 0)
 
     local playBtn = Instance.new("TextButton"); playBtn.Parent = row
-    playBtn.BackgroundColor3 = C.bg2
-    playBtn.BackgroundTransparency = 0.5; playBtn.BorderSizePixel = 0
+    playBtn.BackgroundColor3 = Color3.fromRGB(14, 14, 15)
+    playBtn.BackgroundTransparency = 0; playBtn.BorderSizePixel = 0
     playBtn.Size = UDim2.new(1,-114,1,0)
     playBtn.Font = Enum.Font.GothamMedium; playBtn.Text = ca.name:gsub("%.lua$","")
-    playBtn.TextColor3 = C.text2; playBtn.TextSize = 11
+    playBtn.TextColor3 = Color3.fromRGB(175, 175, 182); playBtn.TextSize = 11
     playBtn.TextXAlignment = Enum.TextXAlignment.Left
     playBtn.TextTruncate = Enum.TextTruncate.AtEnd
     playBtn.ZIndex = 35; playBtn.AutoButtonColor = false
     do
-        local c2 = Instance.new("UICorner"); c2.CornerRadius = UDim.new(0,8); c2.Parent = playBtn
+        local c2 = Instance.new("UICorner"); c2.CornerRadius = UDim.new(0,5); c2.Parent = playBtn
         local p  = Instance.new("UIPadding"); p.PaddingLeft = UDim.new(0,10); p.Parent = playBtn
         local s2 = Instance.new("UIStroke"); s2.Color = C.border; s2.Transparency = 0.8; s2.Thickness = 1; s2.Parent = playBtn
     end
@@ -12436,7 +13079,7 @@ local function _createCustomRow(ca, yPos)
     keyBtn.MouseButton1Click:Connect(function()
         local ckName = "[Custom] " .. ca.name
         local keyIcon = keyBtn:FindFirstChild("Icon")
-        if Keybinds[ckName] and _G._HaloListeningKeyBtn ~= keyBtn then
+        if Keybinds[ckName] and _G._N0IRListeningKeyBtn ~= keyBtn then
             UnbindKey(ckName, keyBtn)
             local bound = Keybinds[ckName]
             if bound then
@@ -12450,9 +13093,9 @@ local function _createCustomRow(ca, yPos)
             keyBtn.TextColor3 = bound and C.accent or C.text3
             return
         end
-        if _G._HaloListeningKeyBtn then CancelListening() end
-        _G._HaloListeningKeyBtn = keyBtn
-        _G._HaloListenTarget = { name = ckName, url = ca.url, keyBtn = keyBtn }
+        if _G._N0IRListeningKeyBtn then CancelListening() end
+        _G._N0IRListeningKeyBtn = keyBtn
+        _G._N0IRListenTarget = { name = ckName, url = ca.url, keyBtn = keyBtn }
         keyBtn.Text = "[ ? ]"; keyBtn.BackgroundColor3 = Color3.fromRGB(220,120,20)
         keyBtn.TextColor3 = Color3.fromRGB(255,255,255)
         if keyIcon then keyIcon.Visible = false end
@@ -12526,9 +13169,9 @@ local function _createCustomRow(ca, yPos)
         local ckName = "[Custom] " .. ca.name
         local bound = Keybinds[ckName]
         local keyIcon = keyBtn:FindFirstChild("Icon")
-        if _G._HaloListenTarget and _G._HaloListenTarget.name == ckName then
-            _G._HaloListeningKeyBtn = keyBtn
-            _G._HaloListenTarget.keyBtn = keyBtn
+        if _G._N0IRListenTarget and _G._N0IRListenTarget.name == ckName then
+            _G._N0IRListeningKeyBtn = keyBtn
+            _G._N0IRListenTarget.keyBtn = keyBtn
             keyBtn.Text = "[ ? ]"
             if keyIcon then keyIcon.Visible = false end
             keyBtn.BackgroundColor3 = Color3.fromRGB(220,120,20)
@@ -12790,14 +13433,14 @@ function RebuildBindsList()
         
         -- Hover effect for key button
         keyBtn.MouseEnter:Connect(function()
-            if _G._HaloListeningKeyBtn ~= keyBtn then
+            if _G._N0IRListeningKeyBtn ~= keyBtn then
                 TweenService:Create(keyBtn, TweenInfo.new(0.1), {
                     BackgroundColor3 = C.accent, TextColor3 = Color3.fromRGB(10,10,10)
                 }):Play()
             end
         end)
         keyBtn.MouseLeave:Connect(function()
-            if _G._HaloListeningKeyBtn ~= keyBtn then
+            if _G._N0IRListeningKeyBtn ~= keyBtn then
                 TweenService:Create(keyBtn, TweenInfo.new(0.1), {
                     BackgroundColor3 = C.bg3, TextColor3 = C.accent
                 }):Play()
@@ -12854,9 +13497,9 @@ function RebuildBindsList()
         
         keyBtn.MouseButton1Click:Connect(function()
             -- Start listening for new key
-            if _G._HaloListeningKeyBtn then CancelListening() end
-            _G._HaloListeningKeyBtn = keyBtn
-            _G._HaloListenTarget = { name = anim.name, url = anim.url, keyBtn = keyBtn }
+            if _G._N0IRListeningKeyBtn then CancelListening() end
+            _G._N0IRListeningKeyBtn = keyBtn
+            _G._N0IRListenTarget = { name = anim.name, url = anim.url, keyBtn = keyBtn }
             keyBtn.Text = "[ ? ]"
             keyBtn.BackgroundColor3 = Color3.fromRGB(180, 180, 180)
             keyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -12937,7 +13580,7 @@ local getLogicalState = LPH_NO_VIRTUALIZE(function(hum)
             local vel = hrp.AssemblyLinearVelocity
             horizSpeed = Vector2.new(vel.X, vel.Z).Magnitude
         end
-        local last = _G._HaloLocoLast or "Idle"
+        local last = _G._N0IRLocoLast or "Idle"
         local nextState = last
         if last == "Run" then
             if horizSpeed < 12 then
@@ -12958,7 +13601,7 @@ local getLogicalState = LPH_NO_VIRTUALIZE(function(hum)
                 nextState = "Idle"
             end
         end
-        _G._HaloLocoLast = nextState
+        _G._N0IRLocoLast = nextState
         return nextState
     end
 end)
@@ -13234,7 +13877,7 @@ startStateSystem = function()
     stateWatchConn = RunService.Heartbeat:Connect(LPH_NO_VIRTUALIZE(function()
         if not State.isReanimated then stopStateSystem(); return end
         -- Don't fight the Animation Copier pose
-        if _G._HaloAnimCopierActive then return end
+        if _G._N0IRAnimCopierActive then return end
         -- FPS optimization: throttle state checks to 20Hz instead of every frame
         _stateCheckThrottle = (_stateCheckThrottle or 0) + 1
         if _stateCheckThrottle % 2 ~= 0 then return end
@@ -13271,7 +13914,7 @@ end)
 
 -- Stop EVERY reanimation animation (state system, any playing clip, and the
 -- clone's default Animate) and keep them stopped until resumed. Used by Face Bang.
-_G._HaloStopReanimAnims = function()
+_G._N0IRStopReanimAnims = function()
     _reanimAnimsSuspended = true
     pcall(stopStateSystem)
     pcall(function() ReanimateAPI.stop_animation() end)
@@ -13290,7 +13933,7 @@ _G._HaloStopReanimAnims = function()
 end
 
 -- Re-allow reanimation animations and restore the correct mode.
-_G._HaloResumeReanimAnims = function()
+_G._N0IRResumeReanimAnims = function()
     _reanimAnimsSuspended = false
     if not State.isReanimated then return end
     if next(StateAnims) then
@@ -13919,7 +14562,7 @@ end
 function SwitchTab(tabName)
     State.currentTab = tabName
     SetTabActive(TabButtons[tabName])
-    if _G._HaloSetGridActive then pcall(_G._HaloSetGridActive, tabName) end
+    if _G._N0IRSetGridActive then pcall(_G._N0IRSetGridActive, tabName) end
     if tabName == "States" then EnsureStatesPanelBuilt() end
     if tabName == "Custom" then EnsureCustomListBuilt() end
     if tabName == "Binds" then RebuildBindsList() end
@@ -13959,14 +14602,6 @@ function SwitchTab(tabName)
 
     if targetPanel then
         targetPanel.Visible = true
-        -- light pop-in
-        local oldT = targetPanel.BackgroundTransparency
-        if targetPanel:IsA("ScrollingFrame") or targetPanel:IsA("Frame") then
-            targetPanel.BackgroundTransparency = math.min((oldT or 0.5) + 0.25, 0.95)
-            TweenService:Create(targetPanel, TweenInfo.new(0.22, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
-                BackgroundTransparency = oldT or 0.5
-            }):Play()
-        end
     end
     
     local noSearch = (tabName == "Custom" or tabName == "Settings" or tabName == "States" or tabName == "Speed" or tabName == "Binds" or tabName == "Copier" or tabName == "Tracking" or tabName == "Stretching")
@@ -13975,7 +14610,7 @@ function SwitchTab(tabName)
 
     -- Account for Tab Grid height when positioning content
     local gridExtra = 0
-    if _G._HaloTabGridMode then
+    if _G._N0IRTabGridMode then
         local tg = body:FindFirstChild("TabGrid")
         if tg then gridExtra = math.max(0, tg.Size.Y.Offset - 26) end
     end
@@ -14183,8 +14818,8 @@ for i = 1, 6 do
     end)
 
     kbtn.MouseButton1Click:Connect(function()
-        if _G._HaloListeningSpeedIdx == ci then
-            _G._HaloListeningSpeedIdx = nil
+        if _G._N0IRListeningSpeedIdx == ci then
+            _G._N0IRListeningSpeedIdx = nil
             local sk = SpeedKeybinds[ci]
             kbtn.Text = sk.key and ("["..sk.key.Name.."]") or "[+]"
             kbtn.BackgroundColor3 = sk.key and C.bg3 or C.bg2
@@ -14196,7 +14831,7 @@ for i = 1, 6 do
             kbtn.BackgroundColor3 = C.bg2; kbtn.TextColor3 = C.text3
             SaveData(); return
         end
-        _G._HaloListeningSpeedIdx = ci
+        _G._N0IRListeningSpeedIdx = ci
         kbtn.Text = "[?]"; kbtn.BackgroundColor3 = Color3.fromRGB(180,80,20)
         kbtn.TextColor3 = Color3.fromRGB(255,220,180)
     end)
@@ -14294,8 +14929,8 @@ end
         end)
 
         rkbtn.MouseButton1Click:Connect(function()
-            if _G._HaloListeningRevSpeedIdx == ci then
-                _G._HaloListeningRevSpeedIdx = nil
+            if _G._N0IRListeningRevSpeedIdx == ci then
+                _G._N0IRListeningRevSpeedIdx = nil
                 local sk = ReverseSpeedKeybinds[ci]
                 rkbtn.Text = sk.key and ("["..sk.key.Name.."]") or "[+]"
                 rkbtn.BackgroundColor3 = sk.key and C.bg3 or C.bg2
@@ -14307,7 +14942,7 @@ end
                 rkbtn.BackgroundColor3 = C.bg2; rkbtn.TextColor3 = C.text3
                 SaveData(); return
             end
-            _G._HaloListeningRevSpeedIdx = ci
+            _G._N0IRListeningRevSpeedIdx = ci
             rkbtn.Text = "[?]"; rkbtn.BackgroundColor3 = Color3.fromRGB(180,80,20)
             rkbtn.TextColor3 = Color3.fromRGB(255,220,180)
         end)
@@ -14394,7 +15029,7 @@ local function doMouseTeleport()
     rootPart.CFrame = rootPart.CFrame + moveOffset
 
     -- Sync reanimated models if active
-    local api = ReanimateAPI or _G._HaloReanimateAPI
+    local api = ReanimateAPI or _G._N0IRReanimateAPI
     if api then
         local models = {}
         local seen = { [character] = true }
@@ -14414,14 +15049,22 @@ local function doMouseTeleport()
         end
     end
 end
-_G._HaloDoMouseTeleport = doMouseTeleport
+_G._N0IRDoMouseTeleport = doMouseTeleport
 
-_G._HaloReanimConns = _G._HaloReanimConns or {}
-_G._HaloReanimConns.KeybindInputBegan = UserInputService.InputBegan:Connect(LPH_NO_VIRTUALIZE(function(input, gameProcessed)
+_G._N0IRReanimConns = _G._N0IRReanimConns or {}
+_G._N0IRReanimConns.KeybindInputBegan = UserInputService.InputBegan:Connect(LPH_NO_VIRTUALIZE(function(input, gameProcessed)
     if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
     local kc = input.KeyCode
 
-    if _G._HaloTeleportKey and kc == _G._HaloTeleportKey then
+    -- Typing guard: if a TextBox/chat has focus, only allow keybind *assignment* listeners
+    local _typing = false
+    pcall(function()
+        if UserInputService:GetFocusedTextBox() then _typing = true end
+    end)
+    local _listening = _G._N0IRListeningKeyBtn or _G._N0IRListeningSpeedIdx or _G._N0IRListeningRevSpeedIdx
+    if _typing and not _listening then return end
+
+    if _G._N0IRTeleportKey and kc == _G._N0IRTeleportKey then
         if UserInputService:GetFocusedTextBox() then return end
         pcall(doMouseTeleport)
         return
@@ -14439,14 +15082,14 @@ _G._HaloReanimConns.KeybindInputBegan = UserInputService.InputBegan:Connect(LPH_
         return
     end
 
-    if _G._HaloInstantResetKey and kc == _G._HaloInstantResetKey then
+    if _G._N0IRInstantResetKey and kc == _G._N0IRInstantResetKey then
         if gameProcessed then return end
         local char = plr.Character
         if not char then return end
 
         -- Cooldown so you can't spam-break it
-        if _G._HaloResetLastTick and (tick() - _G._HaloResetLastTick < 0.8) then return end
-        _G._HaloResetLastTick = tick()
+        if _G._N0IRResetLastTick and (tick() - _G._N0IRResetLastTick < 0.8) then return end
+        _G._N0IRResetLastTick = tick()
 
         local savedCF = nil
         local wasReanimated = State.isReanimated
@@ -14538,39 +15181,39 @@ _G._HaloReanimConns.KeybindInputBegan = UserInputService.InputBegan:Connect(LPH_
     end
 
     -- Left Arm Pointer keybind toggle
-    if _G._HaloLeftArmKey and kc == _G._HaloLeftArmKey then
+    if _G._N0IRLeftArmKey and kc == _G._N0IRLeftArmKey then
         if gameProcessed then return end
         if not State.isReanimated then
             Notify("Turn on Reanimation first!", 2)
             return
         end
-        _G._HaloLeftArmPointerEnabled = not (_G._HaloLeftArmPointerEnabled or false)
-        if _G._HaloLeftArmPointerEnabled then
-            _G._HaloLeftArmPointerNeedsReset = true
+        _G._N0IRLeftArmPointerEnabled = not (_G._N0IRLeftArmPointerEnabled or false)
+        if _G._N0IRLeftArmPointerEnabled then
+            _G._N0IRLeftArmPointerNeedsReset = true
         end
-        if _G._HaloUpdateLeftArmPointerUI then _G._HaloUpdateLeftArmPointerUI() end
-        Notify("Left Arm Pointer: " .. (_G._HaloLeftArmPointerEnabled and "ON" or "OFF"), 2)
+        if _G._N0IRUpdateLeftArmPointerUI then _G._N0IRUpdateLeftArmPointerUI() end
+        Notify("Left Arm Pointer: " .. (_G._N0IRLeftArmPointerEnabled and "ON" or "OFF"), 2)
         return
     end
 
     -- Right Arm Pointer keybind toggle
-    if _G._HaloRightArmKey and kc == _G._HaloRightArmKey then
+    if _G._N0IRRightArmKey and kc == _G._N0IRRightArmKey then
         if gameProcessed then return end
         if not State.isReanimated then
             Notify("Turn on Reanimation first!", 2)
             return
         end
-        _G._HaloRightArmPointerEnabled = not (_G._HaloRightArmPointerEnabled or false)
-        if _G._HaloRightArmPointerEnabled then
-            _G._HaloRightArmPointerNeedsReset = true
+        _G._N0IRRightArmPointerEnabled = not (_G._N0IRRightArmPointerEnabled or false)
+        if _G._N0IRRightArmPointerEnabled then
+            _G._N0IRRightArmPointerNeedsReset = true
         end
-        if _G._HaloUpdateRightArmPointerUI then _G._HaloUpdateRightArmPointerUI() end
-        Notify("Right Arm Pointer: " .. (_G._HaloRightArmPointerEnabled and "ON" or "OFF"), 2)
+        if _G._N0IRUpdateRightArmPointerUI then _G._N0IRUpdateRightArmPointerUI() end
+        Notify("Right Arm Pointer: " .. (_G._N0IRRightArmPointerEnabled and "ON" or "OFF"), 2)
         return
     end
 
     -- Player Tracker keybind toggle
-    if _G._HaloTrackerKey and kc == _G._HaloTrackerKey then
+    if _G._N0IRTrackerKey and kc == _G._N0IRTrackerKey then
         if gameProcessed then return end
         trEnabled = not trEnabled
         
@@ -14585,20 +15228,20 @@ _G._HaloReanimConns.KeybindInputBegan = UserInputService.InputBegan:Connect(LPH_
     end
 
     -- Head Tracker keybind toggle
-    if _G._HaloHeadTrackerKey and kc == _G._HaloHeadTrackerKey then
+    if _G._N0IRHeadTrackerKey and kc == _G._N0IRHeadTrackerKey then
         if gameProcessed then return end
         if not State.isReanimated then
             Notify("Turn on Reanimation first!", 2)
             return
         end
-        _G._HaloHeadTrackerEnabled = not (_G._HaloHeadTrackerEnabled or false)
-        if _G._HaloUpdateHeadTrackerUI then _G._HaloUpdateHeadTrackerUI() end
-        Notify("Head Tracker: " .. (_G._HaloHeadTrackerEnabled and "ON" or "OFF"), 2)
+        _G._N0IRHeadTrackerEnabled = not (_G._N0IRHeadTrackerEnabled or false)
+        if _G._N0IRUpdateHeadTrackerUI then _G._N0IRUpdateHeadTrackerUI() end
+        Notify("Head Tracker: " .. (_G._N0IRHeadTrackerEnabled and "ON" or "OFF"), 2)
         return
     end
 
-    if _G._HaloListeningSpeedIdx then
-        local idx = _G._HaloListeningSpeedIdx; _G._HaloListeningSpeedIdx = nil
+    if _G._N0IRListeningSpeedIdx then
+        local idx = _G._N0IRListeningSpeedIdx; _G._N0IRListeningSpeedIdx = nil
         if kc == Enum.KeyCode.Escape then
             local sk = SpeedKeybinds[idx]; local b = speedKeyWidgets[idx].kbtn
             b.Text = sk.key and ("["..sk.key.Name.."]") or "[+]"
@@ -14628,8 +15271,8 @@ _G._HaloReanimConns.KeybindInputBegan = UserInputService.InputBegan:Connect(LPH_
         SaveData(); return
     end
 
-    if _G._HaloListeningRevSpeedIdx then
-        local idx = _G._HaloListeningRevSpeedIdx; _G._HaloListeningRevSpeedIdx = nil
+    if _G._N0IRListeningRevSpeedIdx then
+        local idx = _G._N0IRListeningRevSpeedIdx; _G._N0IRListeningRevSpeedIdx = nil
         if kc == Enum.KeyCode.Escape then
             local sk = ReverseSpeedKeybinds[idx]; local b = revSpeedKeyWidgets[idx].kbtn
             b.Text = sk.key and ("["..sk.key.Name.."]") or "[+]"
@@ -14652,10 +15295,15 @@ _G._HaloReanimConns.KeybindInputBegan = UserInputService.InputBegan:Connect(LPH_
         SaveData(); return
     end
 
-    if _G._HaloListeningKeyBtn then
+    if _G._N0IRListeningKeyBtn then
         if kc == Enum.KeyCode.Escape then CancelListening(); Notify("Keybind cancelled", 1.5); return end
         BindKey(kc); return
     end
+
+    -- Never fire speed / feature / anim binds while typing in chat or any TextBox
+    local focusedBox = nil
+    pcall(function() focusedBox = UserInputService:GetFocusedTextBox() end)
+    if focusedBox then return end
 
     for i = 1, 6 do
         if SpeedKeybinds[i].key == kc then
@@ -14704,8 +15352,8 @@ _G._HaloReanimConns.KeybindInputBegan = UserInputService.InputBegan:Connect(LPH_
     end
 end))
 
-_G._HaloReanimConns = _G._HaloReanimConns or {}
-_G._HaloReanimConns.KeybindInputEnded = UserInputService.InputEnded:Connect(LPH_NO_VIRTUALIZE(function(input, gameProcessed)
+_G._N0IRReanimConns = _G._N0IRReanimConns or {}
+_G._N0IRReanimConns.KeybindInputEnded = UserInputService.InputEnded:Connect(LPH_NO_VIRTUALIZE(function(input, gameProcessed)
     if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
     local kc = input.KeyCode
     if GlobalReverseKeybind and kc == GlobalReverseKeybind then
@@ -14727,215 +15375,6 @@ local _lastApiCheck  = 0
 local _lastAnimCheck = 0
 
 
--- 4. VC Bypass Frame
-local vcFrame = Instance.new("Frame", SettingsPanel)
-vcFrame.Size = UDim2.new(1,0,0,90)
-vcFrame.BackgroundColor3 = C.bg1; vcFrame.BackgroundTransparency = 0.4; vcFrame.BorderSizePixel = 0
-vcFrame.LayoutOrder = 4
-do
-    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,7); c.Parent = vcFrame
-    local s = Instance.new("UIStroke"); s.Color = C.border; s.Transparency = 0.7; s.Thickness = 1; s.Parent = vcFrame
-end
-
-local vcLbl = Instance.new("TextLabel", vcFrame)
-vcLbl.BackgroundTransparency = 1; vcLbl.Position = UDim2.new(0,10,0,6)
-vcLbl.Size = UDim2.new(1,-120,0,16); vcLbl.Font = Enum.Font.GothamBold
-vcLbl.Text = "VC Bypass"; vcLbl.TextColor3 = C.text; vcLbl.TextSize = 11
-vcLbl.TextXAlignment = Enum.TextXAlignment.Left
-
-local vcSub = Instance.new("TextLabel", vcFrame)
-vcSub.BackgroundTransparency = 1; vcSub.Position = UDim2.new(0,10,0,24)
-vcSub.Size = UDim2.new(1,-120,0,24); vcSub.Font = Enum.Font.Gotham
-vcSub.Text = "Select a voice chat bypass method"; vcSub.TextColor3 = C.text3; vcSub.TextSize = 9
-vcSub.TextXAlignment = Enum.TextXAlignment.Left; vcSub.TextWrapped = true
-
-local masklolBtn = Instance.new("TextButton", vcFrame)
-masklolBtn.Size = UDim2.new(0,130,0,28); masklolBtn.Position = UDim2.new(0,10,0,54)
-masklolBtn.BackgroundColor3 = C.bg2; masklolBtn.BackgroundTransparency = 0.2; masklolBtn.BorderSizePixel = 0
-masklolBtn.Font = Enum.Font.GothamBold; masklolBtn.Text = "(masklol) vcbypass"
-masklolBtn.TextColor3 = C.accent; masklolBtn.TextSize = 10; masklolBtn.AutoButtonColor = false
-do
-    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,6); c.Parent = masklolBtn
-    local s = Instance.new("UIStroke"); s.Color = C.border; s.Transparency = 0.7; s.Thickness = 1; s.Parent = masklolBtn
-end
-
-local unicornsBtn = Instance.new("TextButton", vcFrame)
-unicornsBtn.Size = UDim2.new(0,130,0,28); unicornsBtn.Position = UDim2.new(0,150,0,54)
-unicornsBtn.BackgroundColor3 = C.bg2; unicornsBtn.BackgroundTransparency = 0.2; unicornsBtn.BorderSizePixel = 0
-unicornsBtn.Font = Enum.Font.GothamBold; unicornsBtn.Text = "(uni's) vcbypass"
-unicornsBtn.TextColor3 = C.accent; unicornsBtn.TextSize = 10; unicornsBtn.AutoButtonColor = false
-do
-    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,6); c.Parent = unicornsBtn
-    local s = Instance.new("UIStroke"); s.Color = C.border; s.Transparency = 0.7; s.Thickness = 1; s.Parent = unicornsBtn
-end
-
-masklolBtn.MouseButton1Click:Connect(function()
-    pcall(applyVCBypass)
-    Notify("(masklol) VC Bypass applied", 3)
-end)
-
-unicornsBtn.MouseButton1Click:Connect(function()
-    pcall(function()
-        loadstring(game:HttpGet("https://shield.xao.wtf/api/loader/550af30c-aaa3-4338-acab-f44010a5ef09"))()
-    end)
-    Notify("(uni's) VC Bypass applied", 3)
-end)
-
-
--- ============================================
--- VC BYPASS INTEGRATION
--- ============================================
-local VCBypassEnabled = false
-local VCBypassConns = {}
-local VCBypassObjs = {}
-
-local function cleanupVCBypass()
-    for _, conn in ipairs(VCBypassConns) do
-        pcall(function() conn:Enable() end)
-    end
-    table.clear(VCBypassConns)
-
-    if VCBypassObjs.cloned then pcall(function() VCBypassObjs.cloned:Destroy() end) end
-    if VCBypassObjs.hidden then pcall(function() VCBypassObjs.hidden:Destroy() end) end
-
-    if VCBypassObjs.original and VCBypassObjs.container then
-        pcall(function() VCBypassObjs.original.Parent = VCBypassObjs.container end)
-    end
-
-    pcall(function()
-        local vcs = (cloneref or function(...) return ... end)(game:GetService("VoiceChatService"))
-        vcs:leaveVoice()
-        task.wait(0.5)
-        vcs:joinVoice()
-    end)
-
-    VCBypassObjs = {}
-    VCBypassEnabled = false
-    pcall(function()
-        writefile(fpath("ReanimVCBypass.json"), HttpService:JSONEncode({enabled = false}))
-    end)
-end
-
-local function applyUnicornsVCBypass()
-    pcall(function()
-        loadstring(game:HttpGet("https://shield.xao.wtf/api/loader/550af30c-aaa3-4338-acab-f44010a5ef09"))()
-    end)
-end
-
-local function applyVCBypass()
-    if VCBypassEnabled then return end
-    VCBypassEnabled = true
-
-    pcall(function()
-        writefile(fpath("ReanimVCBypass.json"), HttpService:JSONEncode({enabled = true}))
-    end)
-
-    task.spawn(function()
-        local identifyexecutorname = (identifyexecutor and identifyexecutor()) or "Unknown"
-        local clonereference = cloneref or function(...) return ... end
-        local clonefunction = clonefunction or function(...) return ... end
-
-        local voicechatservice = clonereference(game:GetService("VoiceChatService"))
-        local voicechatinternal = clonereference(game:GetService("VoiceChatInternal"))
-        local coregui = game:GetService("CoreGui")
-        local startergui = game:GetService("StarterGui")
-        local players = game:GetService("Players")
-        local localplayer = players.LocalPlayer
-        local getconnectionsfunc = clonefunction(getconnections)
-
-        local mutedimage = "rbxasset://textures/ui/VoiceChat/MicLight/Muted.png"
-        local hiddenfolder = Instance.new("Folder", game:GetService("RobloxReplicatedStorage"))
-        hiddenfolder.Name = "HaloVCBypass"
-        VCBypassObjs.hidden = hiddenfolder
-
-        local topbarapp = coregui:WaitForChild("TopBarApp", 15):WaitForChild("TopBarApp", 15)
-        local unibarleft = topbarapp:WaitForChild("UnibarLeftFrame", 15)
-        local unibarmenu = unibarleft:WaitForChild("UnibarMenu", 15) or unibarleft:WaitForChild("ChromeMenu", 15)
-        local unibarcontainer
-
-        pcall(function()
-            unibarcontainer = unibarmenu:WaitForChild("2", 15):WaitForChild("3", 15)
-        end)
-
-        local micmutebutton = unibarcontainer and unibarcontainer:FindFirstChild("toggle_mic_mute", true)
-
-        local function geticonlabel(button)
-            button = button or micmutebutton
-            return button:WaitForChild("IntegrationIconFrame", 15):WaitForChild("IntegrationIcon", 15)["1"]
-        end
-
-        local function getcurrentmutestate()
-            return voicechatinternal:IsPublishPaused()
-        end
-
-        local function setmutestate(state)
-            voicechatinternal:PublishPause(state)
-        end
-
-        if not micmutebutton then 
-            voicechatservice:joinVoice() 
-            pcall(function()
-                unibarcontainer = unibarmenu:WaitForChild("2", 15):WaitForChild("3", 15)
-                micmutebutton = unibarcontainer:WaitForChild("toggle_mic_mute", 15)
-            end)
-        end
-
-        if not micmutebutton then 
-            VCBypassEnabled = false
-            Notify("VC Bypass Error", "Mic button not found", 3)
-            return 
-        end
-
-        startergui:SetCore("SendNotification", {Title = "Freedom Of Speech", Text = "Unmute to continue.", Duration = 5})
-
-        repeat task.wait(2) until geticonlabel().Image ~= mutedimage
-
-        voicechatservice:leaveVoice()
-        task.wait(2)
-
-        local connections = getconnectionsfunc(voicechatinternal.StateChanged)
-        for i = 7, #connections do 
-            if connections[i] then 
-                connections[i]:Disable() 
-                table.insert(VCBypassConns, connections[i])
-            end 
-        end
-
-        task.wait(2)
-        voicechatservice:joinVoice()
-
-        pcall(function()
-            unibarcontainer = unibarmenu:WaitForChild("2", 15):WaitForChild("3", 15)
-            micmutebutton = unibarcontainer:WaitForChild("toggle_mic_mute", 15)
-        end)
-
-        if micmutebutton and unibarcontainer then
-            local clonedmutebutton = micmutebutton:Clone()
-            micmutebutton.Parent = hiddenfolder
-            clonedmutebutton.Name = "toggle_mic_mute_new"
-            clonedmutebutton.Parent = unibarcontainer
-            VCBypassObjs.cloned = clonedmutebutton
-            VCBypassObjs.original = micmutebutton
-            VCBypassObjs.container = unibarcontainer
-
-            local clonedicon = geticonlabel(clonedmutebutton)
-            local originalicon = geticonlabel(micmutebutton)
-
-            setmutestate(true)
-            clonedicon.Image = mutedimage
-
-            clonedmutebutton:WaitForChild("IconHitArea_toggle_mic_mute", 15).Activated:Connect(function()
-                local newstate = not getcurrentmutestate()
-                setmutestate(newstate)
-                if newstate then
-                    clonedicon.Image = mutedimage
-                else
-                    clonedicon.Image = originalicon.Image
-                end
-            end)
-        end
-    end)
-end
 local function buildSettingsUI()
         local sc = SettingsPanel
         local fnGui
@@ -14965,11 +15404,11 @@ local function buildSettingsUI()
         if FPSLimiterEnabled then
             tw(fpsToggleBg, 0.2, {BackgroundColor3 = C.green}):Play()
             tw(fpsToggleKnob, 0.2, {Position = UDim2.new(1,-18,0,3)}):Play()
-            _G._HaloFPSLimit = true
+            _G._N0IRFPSLimit = true
         else
             tw(fpsToggleBg, 0.2, {BackgroundColor3 = C.bg4}):Play()
             tw(fpsToggleKnob, 0.2, {Position = UDim2.new(0,3,0,3)}):Play()
-            _G._HaloFPSLimit = false
+            _G._N0IRFPSLimit = false
         end
     end
     fpsToggleBtn.MouseButton1Click:Connect(function()
@@ -15006,7 +15445,7 @@ local function buildSettingsUI()
         if not char then return end
         
         local ghostModel = Instance.new("Model")
-        ghostModel.Name = "HaloGhostTrail"
+        ghostModel.Name = "N0IRGhostTrail"
         ghostModel.Parent = workspace
         
         for _, part in ipairs(char:GetDescendants()) do
@@ -15064,7 +15503,7 @@ local function buildSettingsUI()
     -- (Head Tracker, Arm Pointers, and Arm Stretch moved to Limbs Panel)
 
 
-    _G.HaloHiddenPlayers = _G.HaloHiddenPlayers or {}
+    _G.N0IRHiddenPlayers = _G.N0IRHiddenPlayers or {}
     _G.FriendListenerEnabled = false
     _G.FriendListenerAutoExecute = false
 
@@ -15096,8 +15535,8 @@ local function buildSettingsUI()
     -- Multi-layered State Manager
     local function getShouldMute(userId)
         if userId == plr.UserId then return false end
-        _G.HaloHiddenPlayers = _G.HaloHiddenPlayers or {}
-        local isHidden = _G.HaloHiddenPlayers[userId]
+        _G.N0IRHiddenPlayers = _G.N0IRHiddenPlayers or {}
+        local isHidden = _G.N0IRHiddenPlayers[userId]
         local isFriendUser = isFriend(userId)
         local shouldMute = isHidden or (_G.FriendListenerEnabled and not isFriendUser)
         return shouldMute
@@ -15105,7 +15544,7 @@ local function buildSettingsUI()
 
     local function updatePlayerState(p)
         if not p or p == plr then return end
-        local shouldHide = _G.HaloHiddenPlayers and _G.HaloHiddenPlayers[p.UserId]
+        local shouldHide = _G.N0IRHiddenPlayers and _G.N0IRHiddenPlayers[p.UserId]
         local shouldMute = shouldHide or (_G.FriendListenerEnabled and not isFriend(p.UserId))
 
         -- 1. Roblox Core Muting (if supported by game setup)
@@ -15133,7 +15572,7 @@ local function buildSettingsUI()
             updatePlayerState(p)
         end
     end
-    _G.HaloApplyAllMutes = applyAllMutes
+    _G.N0IRApplyAllMutes = applyAllMutes
 
     -- Monitor Character additions
     local function hookCharacter(p)
@@ -15241,8 +15680,8 @@ local function buildSettingsUI()
 
     -- Load Friend Config
     pcall(function()
-        if readfile and isfile and isfile("HaloV2Folder/friend_listener_config.json") then
-            local data = game:GetService("HttpService"):JSONDecode(readfile("HaloV2Folder/friend_listener_config.json"))
+        if readfile and isfile and isfile("N0IRV2Folder/friend_listener_config.json") then
+            local data = game:GetService("HttpService"):JSONDecode(readfile("N0IRV2Folder/friend_listener_config.json"))
             if data then
                 _G.FriendListenerAutoExecute = data.autoExecute or false
                 if _G.FriendListenerAutoExecute then
@@ -15342,7 +15781,7 @@ local function buildSettingsUI()
 
     -- The draggable button itself
     local mobileBtnGui = Instance.new("ScreenGui")
-    mobileBtnGui.Name = "HaloMobileWheelBtn"
+    mobileBtnGui.Name = "N0IRMobileWheelBtn"
     mobileBtnGui.ResetOnSpawn = false
     mobileBtnGui.IgnoreGuiInset = true
     mobileBtnGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
@@ -15438,7 +15877,7 @@ local function buildSettingsUI()
             local data = HttpService:JSONDecode(raw)
             if data and (data.enabled == true or data.enabled == 1) then
                 mobileEnabled = true
-                _G._HaloMobileWheelEnabled = true
+                _G._N0IRMobileWheelEnabled = true
                 mobileBtn.Visible = true
                 mobileToggleBg.BackgroundColor3 = C.accent
                 mobileToggleKnob.Position = UDim2.new(1,-18,0,3)
@@ -15466,7 +15905,7 @@ local function buildSettingsUI()
     local function doMobileToggle()
         mobileEnabled = not mobileEnabled
         mobileBtn.Visible = mobileEnabled
-        _G._HaloMobileWheelEnabled = mobileEnabled
+        _G._N0IRMobileWheelEnabled = mobileEnabled
         if mobileEnabled then
             tw(mobileToggleBg, 0.2, {BackgroundColor3 = C.accent}):Play()
             tw(mobileToggleKnob, 0.2, {Position = UDim2.new(1,-18,0,3)}):Play()
@@ -15475,11 +15914,11 @@ local function buildSettingsUI()
             tw(mobileToggleKnob, 0.2, {Position = UDim2.new(0,3,0,3)}):Play()
         end
         pcall(saveMobileBtnState)
-        if _G._HaloUpdateMobileBtnText then pcall(_G._HaloUpdateMobileBtnText) end
+        if _G._N0IRUpdateMobileBtnText then pcall(_G._N0IRUpdateMobileBtnText) end
     end
 
-    _G._HaloToggleMobileWheel = doMobileToggle
-    _G._HaloMobileWheelEnabled = mobileEnabled
+    _G._N0IRToggleMobileWheel = doMobileToggle
+    _G._N0IRMobileWheelEnabled = mobileEnabled
 
     mobileToggleBtn.MouseButton1Click:Connect(function()
         doMobileToggle()
@@ -15497,7 +15936,7 @@ local function buildSettingsUI()
                 end
                 pcall(function()
                     for _, child in ipairs(game:GetService("SoundService"):GetChildren()) do
-                        if child.Name == "HaloEmoteSound" or child.Name == "HaloClickSound" then
+                        if child.Name == "N0IREmoteSound" or child.Name == "N0IRClickSound" then
                             child:Stop(); child:Destroy()
                         end
                     end
@@ -15524,7 +15963,7 @@ local function buildSettingsUI()
     corner(irBtn,5); stroke(irBtn,C.border,1,0.7)
 
     local function updateIrBtnText()
-        local keyName = _G._HaloInstantResetKey and _G._HaloInstantResetKey.Name or "None"
+        local keyName = _G._N0IRInstantResetKey and _G._N0IRInstantResetKey.Name or "None"
         irBtn.Text = "Key: " .. keyName
     end
     _G._UniUpdateIrBtnText = updateIrBtnText
@@ -15533,8 +15972,8 @@ local function buildSettingsUI()
     local settingIrKey = false
     irBtn.MouseButton1Click:Connect(function()
         if settingIrKey then return end
-        if _G._HaloInstantResetKey then
-            _G._HaloInstantResetKey = nil
+        if _G._N0IRInstantResetKey then
+            _G._N0IRInstantResetKey = nil
             SaveData()
             updateIrBtnText()
             return
@@ -15552,7 +15991,7 @@ local function buildSettingsUI()
                 updateIrBtnText()
                 return
             end
-            _G._HaloInstantResetKey = i.KeyCode
+            _G._N0IRInstantResetKey = i.KeyCode
             SaveData()
             updateIrBtnText()
         end))
@@ -15576,7 +16015,7 @@ local function buildSettingsUI()
     corner(tpBtn,5); stroke(tpBtn,C.border,1,0.7)
 
     local function updateTpBtnText()
-        local keyName = _G._HaloTeleportKey and _G._HaloTeleportKey.Name or "None"
+        local keyName = _G._N0IRTeleportKey and _G._N0IRTeleportKey.Name or "None"
         tpBtn.Text = "Key: " .. keyName
     end
     _G._UniUpdateTpBtnText = updateTpBtnText
@@ -15585,8 +16024,8 @@ local function buildSettingsUI()
     local settingTpKey = false
     tpBtn.MouseButton1Click:Connect(function()
         if settingTpKey then return end
-        if _G._HaloTeleportKey then
-            _G._HaloTeleportKey = nil
+        if _G._N0IRTeleportKey then
+            _G._N0IRTeleportKey = nil
             SaveData()
             updateTpBtnText()
             return
@@ -15604,7 +16043,7 @@ local function buildSettingsUI()
                 updateTpBtnText()
                 return
             end
-            _G._HaloTeleportKey = i.KeyCode
+            _G._N0IRTeleportKey = i.KeyCode
             if GlobalReverseKeybind == i.KeyCode then
                 GlobalReverseKeybind = nil
                 if updateRevBtnText then updateRevBtnText() end
@@ -15618,7 +16057,7 @@ local function buildSettingsUI()
     local infoFrame = new("Frame",sc,{Size=UDim2.new(1,-10,0,50),BackgroundColor3=C.bg2,BackgroundTransparency=0.6,BorderSizePixel=0})
     corner(infoFrame,8); stroke(infoFrame,C.glassBorder,1,0.6)
     new("TextLabel",infoFrame,{Size=UDim2.new(1,-20,1,0),Position=UDim2.new(0,10,0,0),
-        BackgroundTransparency=1,Text="Halo Reanim\nVersion: " .. CONFIG.VERSION .. " | Best reanim out",
+        BackgroundTransparency=1,Text="N0IR Reanim\nVersion: " .. CONFIG.VERSION .. " | Best reanim out",
         TextColor3=C.text3,TextSize=9,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Center,TextYAlignment=Enum.TextYAlignment.Center})
 
     -- Wire up Import from AK button (merged into settings panel handler)
@@ -15866,7 +16305,7 @@ do
                 if assetId and audioSession == session then
                     pcall(function()
                         local sound = Instance.new("Sound")
-                        sound.Name = "HaloEmoteSound"
+                        sound.Name = "N0IREmoteSound"
                         sound.SoundId = assetId
                         sound.Volume = 0
                         sound.Looped = true
@@ -15890,7 +16329,7 @@ do
                 if assetId then
                     pcall(function()
                         local sound = Instance.new("Sound")
-                        sound.Name = "HaloClickSound"
+                        sound.Name = "N0IRClickSound"
                         sound.SoundId = assetId
                         sound.Volume = 0.2
                         sound.Parent = game:GetService("SoundService")
@@ -15941,21 +16380,21 @@ do
 
         -- Fortnite colors
         local FN = {
-            bgDark = Color3.fromRGB(12, 12, 12),
-            bgMid = Color3.fromRGB(22, 22, 22),
-            bgSegment = Color3.fromRGB(32, 32, 32),
-            bgSegmentHover = Color3.fromRGB(180, 180, 180),
-            stroke = Color3.fromRGB(48, 48, 48),
-            strokeHover = Color3.fromRGB(190, 190, 190),
-            textWhite = Color3.fromRGB(255, 255, 255),
-            textGray = Color3.fromRGB(180, 180, 180),
-            textDim = Color3.fromRGB(100, 100, 100),
-            accentBlue = Color3.fromRGB(200, 200, 200),
-            navBg = Color3.fromRGB(22, 22, 22),
-            navHover = Color3.fromRGB(180, 180, 180),
-            centerBg = Color3.fromRGB(8, 8, 8),
-            dotActive = Color3.fromRGB(255, 255, 255),
-            dotInactive = Color3.fromRGB(50, 50, 50),
+            bgDark = Color3.fromRGB(8, 8, 9),
+            bgMid = Color3.fromRGB(14, 14, 15),
+            bgSegment = Color3.fromRGB(18, 18, 20),
+            bgSegmentHover = Color3.fromRGB(200, 200, 208),
+            stroke = Color3.fromRGB(42, 42, 46),
+            strokeHover = Color3.fromRGB(210, 210, 216),
+            textWhite = Color3.fromRGB(245, 245, 250),
+            textGray = Color3.fromRGB(165, 165, 172),
+            textDim = Color3.fromRGB(90, 90, 98),
+            accentBlue = Color3.fromRGB(210, 210, 216),
+            navBg = Color3.fromRGB(14, 14, 15),
+            navHover = Color3.fromRGB(200, 200, 208),
+            centerBg = Color3.fromRGB(6, 6, 7),
+            dotActive = Color3.fromRGB(245, 245, 250),
+            dotInactive = Color3.fromRGB(40, 40, 44),
         }
 
         -- Outer glow ring (subtle blue glow behind wheel)
@@ -16027,8 +16466,8 @@ do
 
         task.spawn(function()
             pcall(function() delfile(iconsFolder .. "/_wheel_title.png") end)
-            local url = "https://i.postimg.cc/JzbXQrW0/halowheel.png"
-            local assetId = getLocalAsset(url, iconsFolder, "halowheel.png")
+            local url = "https://i.postimg.cc/JzbXQrW0/n0irwheel.png"
+            local assetId = getLocalAsset(url, iconsFolder, "n0irwheel.png")
             if assetId then
                 wheelTitleIcon.Image = assetId
             end
@@ -16404,9 +16843,9 @@ do
             end
         end)
 
-        if _G._HaloReanimGlobalConns then
-            table.insert(_G._HaloReanimGlobalConns, keyBeganConn)
-            table.insert(_G._HaloReanimGlobalConns, keyEndedConn)
+        if _G._N0IRReanimGlobalConns then
+            table.insert(_G._N0IRReanimGlobalConns, keyBeganConn)
+            table.insert(_G._N0IRReanimGlobalConns, keyEndedConn)
         end
     end))
 
@@ -16415,7 +16854,7 @@ end
 pcall(function()
     ScreenGui.Parent = _screenGuiTarget
     if not ScreenGui.Parent then
-        warn("[Halo Reanim] Failed to parent ScreenGui to " .. tostring(_screenGuiTarget))
+        warn("[N0IR Reanim] Failed to parent ScreenGui to " .. tostring(_screenGuiTarget))
         ScreenGui.Parent = PlayerGui
     end
     ScreenGui.Enabled = true
@@ -16457,13 +16896,13 @@ task.spawn(function()
 end)
 
 function _runEmbeddedReanimation()
-    if _haloReanimHasRun then
+    if _n0irReanimHasRun then
         local found = pcall(function()
             local pg = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
             local cg = game:GetService("CoreGui")
             if pg then
                 for _, sg in ipairs(pg:GetChildren()) do
-                    if sg:IsA("ScreenGui") and sg.Name == "ReanimHaloMenu" then
+                    if sg:IsA("ScreenGui") and sg.Name == "ReanimN0IRMenu" then
                         sg.Enabled = true
                         for _, f in ipairs(sg:GetChildren()) do
                             if f:IsA("Frame") then f.Visible = true end
@@ -16474,7 +16913,7 @@ function _runEmbeddedReanimation()
             end
             if cg then
                 for _, sg in ipairs(cg:GetChildren()) do
-                    if sg:IsA("ScreenGui") and sg.Name == "ReanimHaloMenu" then
+                    if sg:IsA("ScreenGui") and sg.Name == "ReanimN0IRMenu" then
                         sg.Enabled = true
                         for _, f in ipairs(sg:GetChildren()) do
                             if f:IsA("Frame") then f.Visible = true end
@@ -16487,29 +16926,29 @@ function _runEmbeddedReanimation()
         end)
         if found then return end
     end
-    _haloReanimHasRun = true
-    if not _haloReanimCode then
-        warn("[Halo Reanim] Code is nil - already loaded?")
+    _n0irReanimHasRun = true
+    if not _n0irReanimCode then
+        warn("[N0IR Reanim] Code is nil - already loaded?")
         return
     end
-    local ok, fn = pcall(loadstring, _haloReanimCode)
+    local ok, fn = pcall(loadstring, _n0irReanimCode)
     if not ok then
-        warn("[Halo Reanim] loadstring failed: " .. tostring(fn))
+        warn("[N0IR Reanim] loadstring failed: " .. tostring(fn))
         return
     end
     if not fn then
-        warn("[Halo Reanim] loadstring returned nil")
+        warn("[N0IR Reanim] loadstring returned nil")
         return
     end
     local ok2, err = pcall(fn)
     if not ok2 then
-        warn("[Halo Reanim] execution failed: " .. tostring(err))
+        warn("[N0IR Reanim] execution failed: " .. tostring(err))
     end
-    _haloReanimCode = nil
+    _n0irReanimCode = nil
     -- Wait a moment for the ScreenGui to be parented
     task.wait(0.1)
 end
-_G._HaloReanimShowMenu = _runEmbeddedReanimation
+_G._N0IRReanimShowMenu = _runEmbeddedReanimation
 
 
 -- ============================================================
@@ -16535,7 +16974,7 @@ local function EnableAutoNoclip()
             local ok, p = pcall(ReanimateAPI.is_animation_playing)
             if ok and p then isPlaying = true end
         end
-        if not isPlaying and _G._HaloAnimCopierActive then
+        if not isPlaying and _G._N0IRAnimCopierActive then
             isPlaying = true
         end
 
@@ -16599,7 +17038,7 @@ plr.CharacterAdded:Connect(function()
 end)
 
 -- Expose toggle
-_G._HaloToggleAutoNoclip = function()
+_G._N0IRToggleAutoNoclip = function()
     AutoNoclipEnabled = not AutoNoclipEnabled
     if AutoNoclipEnabled then
         EnableAutoNoclip()
@@ -16616,8 +17055,8 @@ end
 -- ?permhide <name> = hide + mute + block a player (partial match)
 -- ?unpermhide <name> = unhide a player
 -- ============================================================
-local PermHiddenPlayers = _G._HaloPermHiddenPlayers or {}
-_G._HaloPermHiddenPlayers = PermHiddenPlayers
+local PermHiddenPlayers = _G._N0IRPermHiddenPlayers or {}
+_G._N0IRPermHiddenPlayers = PermHiddenPlayers
 
 local function getPlayerByPartialName(partial)
     partial = partial:lower()
@@ -16937,8 +17376,8 @@ local function doStandalonePointers()
     if not standalonePointerCache then return end
 
     -- 1. Standalone Leg Stretcher (Runs every frame & re-applies HipHeight continuously)
-    if _G._HaloLegStretcherEnabled then
-        local legScale = math.clamp(_G._HaloLimbsLegHeight or 1.0, 0.4, 100.0)
+    if _G._N0IRLegStretcherEnabled then
+        local legScale = math.clamp(_G._N0IRLimbsLegHeight or 1.0, 0.4, 100.0)
         if legScale ~= 1.0 then
             local kneeOffset = CFrame.new(0, -(legScale - 1.0) * 1.5, 0)
             local rll = standalonePointerCache["RightLowerLeg"] or standalonePointerCache["RightKnee"]
@@ -16953,8 +17392,8 @@ local function doStandalonePointers()
     end
 
     -- 2. Standalone Torso Stretcher
-    if _G._HaloTorsoStretcherEnabled then
-        local utHeight = _G._HaloLimbsUpperTorsoHeight or 1.0
+    if _G._N0IRTorsoStretcherEnabled then
+        local utHeight = _G._N0IRLimbsUpperTorsoHeight or 1.0
         local waistConstraint = standalonePointerCache["UpperTorso"] or standalonePointerCache["Waist"] or standalonePointerCache["LowerTorso"]
         if waistConstraint and waistConstraint.Parent then
             local baseRot = waistConstraint.Transform.Rotation
@@ -16994,7 +17433,7 @@ local function doStandalonePointers()
 
         -- Refresh to straight bind pose on first frame after re-enable
         local isLeft = upperName:find("Left") ~= nil
-        local resetFlag = isLeft and _G._HaloLeftArmPointerNeedsReset or _G._HaloRightArmPointerNeedsReset
+        local resetFlag = isLeft and _G._N0IRLeftArmPointerNeedsReset or _G._N0IRRightArmPointerNeedsReset
         if resetFlag then
             local orig = standalonePointerBinds[shoulder]
             if orig then shoulder.Transform = orig end
@@ -17003,11 +17442,11 @@ local function doStandalonePointers()
             local wrist = standalonePointerCache[handName]
             if wrist then wrist.Transform = CFrame.new() end
             if isLeft then
-                _G._HaloLeftArmPointerNeedsReset = false
-                if _G._HaloArmPointerSmoothed then _G._HaloArmPointerSmoothed.Left = nil end
+                _G._N0IRLeftArmPointerNeedsReset = false
+                if _G._N0IRArmPointerSmoothed then _G._N0IRArmPointerSmoothed.Left = nil end
             else
-                _G._HaloRightArmPointerNeedsReset = false
-                if _G._HaloArmPointerSmoothed then _G._HaloArmPointerSmoothed.Right = nil end
+                _G._N0IRRightArmPointerNeedsReset = false
+                if _G._N0IRArmPointerSmoothed then _G._N0IRArmPointerSmoothed.Right = nil end
             end
         end
 
@@ -17045,11 +17484,11 @@ local function doStandalonePointers()
             shoulderResult = bind
         end
         local armKey = isLeft and "Left" or "Right"
-        _G._HaloArmPointerSmoothed = _G._HaloArmPointerSmoothed or {}
-        local prevArm = _G._HaloArmPointerSmoothed[armKey]
-        local smoothAmt = tonumber(_G._HaloArmPointerSmooth) or 0.15
+        _G._N0IRArmPointerSmoothed = _G._N0IRArmPointerSmoothed or {}
+        local prevArm = _G._N0IRArmPointerSmoothed[armKey]
+        local smoothAmt = tonumber(_G._N0IRArmPointerSmooth) or 0.15
         local smoothedArm = (prevArm and prevArm:Lerp(shoulderResult, smoothAmt)) or shoulderResult
-        _G._HaloArmPointerSmoothed[armKey] = smoothedArm
+        _G._N0IRArmPointerSmoothed[armKey] = smoothedArm
         shoulder.Transform = smoothedArm
         -- LOCK elbow and wrist to bind pose so arm stays perfectly straight
         local elbow = standalonePointerCache[lowerName]
@@ -17081,7 +17520,7 @@ local function doStandalonePointers()
         end
     end
 
-    local stretchAmt = _G._HaloArmStretchAmount or 2.5
+    local stretchAmt = _G._N0IRArmStretchAmount or 2.5
     local function _stretchOnly(lowerName, handName, stretchMult)
         if not stretchMult or stretchMult == 1.0 then return end
         local lower = standalonePointerCache and standalonePointerCache[lowerName]
@@ -17093,17 +17532,17 @@ local function doStandalonePointers()
         if hand and hand.Parent then hand.Transform = offset * baseH end
     end
 
-    if _G._HaloRightArmPointerEnabled then
-        local pStretch = tonumber(_G._HaloPointerStretchAmount) or 1.0
+    if _G._N0IRRightArmPointerEnabled then
+        local pStretch = tonumber(_G._N0IRPointerStretchAmount) or 1.0
         _point("RightUpperArm", "RightLowerArm", "RightHand", pStretch)
-    elseif not _G._HaloLeftArmPointerEnabled and not _G._HaloRightArmPointerEnabled and _G._HaloRightArmStretching and stretchAmt ~= 1.0 then
+    elseif not _G._N0IRLeftArmPointerEnabled and not _G._N0IRRightArmPointerEnabled and _G._N0IRRightArmStretching and stretchAmt ~= 1.0 then
         _stretchOnly("RightLowerArm", "RightHand", stretchAmt)
     end
 
-    if _G._HaloLeftArmPointerEnabled then
-        local pStretch = tonumber(_G._HaloPointerStretchAmount) or 1.0
+    if _G._N0IRLeftArmPointerEnabled then
+        local pStretch = tonumber(_G._N0IRPointerStretchAmount) or 1.0
         _point("LeftUpperArm", "LeftLowerArm", "LeftHand", pStretch)
-    elseif not _G._HaloRightArmPointerEnabled and not _G._HaloLeftArmPointerEnabled and _G._HaloLeftArmStretching and stretchAmt ~= 1.0 then
+    elseif not _G._N0IRRightArmPointerEnabled and not _G._N0IRLeftArmPointerEnabled and _G._N0IRLeftArmStretching and stretchAmt ~= 1.0 then
         _stretchOnly("LeftLowerArm", "LeftHand", stretchAmt)
     end
 end
@@ -17115,7 +17554,7 @@ local function startStandalonePointers()
         if not State.isReanimated then return end
         local isPlaying = ReanimateAPI and ReanimateAPI.is_animation_playing and ReanimateAPI.is_animation_playing()
         if isPlaying then return end -- animation system handles pointers when playing
-        if not (_G._HaloLeftArmPointerEnabled or _G._HaloRightArmPointerEnabled or _G._HaloLeftArmStretching or _G._HaloRightArmStretching or _G._HaloLegStretcherEnabled or _G._HaloTorsoStretcherEnabled) then return end
+        if not (_G._N0IRLeftArmPointerEnabled or _G._N0IRRightArmPointerEnabled or _G._N0IRLeftArmStretching or _G._N0IRRightArmStretching or _G._N0IRLegStretcherEnabled or _G._N0IRTorsoStretcherEnabled) then return end
         -- Rebuild cache if invalidated
         for _, c in pairs(standalonePointerCache or {}) do
             if not c.Parent then buildStandalonePointerCache(); break end
@@ -17129,10 +17568,10 @@ local function stopStandalonePointers()
 end
 
 -- Hook into reanimate toggle (no extra locals — stays under register limit)
-_G._HaloDoReanimToggle_prev_ptrs = _G._HaloDoReanimToggle
-_G._HaloDoReanimToggle = function()
+_G._N0IRDoReanimToggle_prev_ptrs = _G._N0IRDoReanimToggle
+_G._N0IRDoReanimToggle = function()
     local wasReanimated = State.isReanimated
-    local prev = _G._HaloDoReanimToggle_prev_ptrs
+    local prev = _G._N0IRDoReanimToggle_prev_ptrs
     if type(prev) == "function" then prev() end
     if State.isReanimated and not wasReanimated then
         startStandalonePointers()
@@ -17149,9 +17588,9 @@ plr.CharacterAdded:Connect(function()
     task.wait(0.5)
     if State.isReanimated then
         buildStandalonePointerCache()
-        if _G._HaloLegStretcherEnabled and applyLegHipHeight then
+        if _G._N0IRLegStretcherEnabled and applyLegHipHeight then
             local clone = ReanimateAPI and ReanimateAPI.get_clone and ReanimateAPI.get_clone(plr)
-            applyLegHipHeight(clone, _G._HaloLimbsLegHeight or 1.0, true)
+            applyLegHipHeight(clone, _G._N0IRLimbsLegHeight or 1.0, true)
         end
         if startStandalonePointers then startStandalonePointers() end
         if startLimbsSystem then startLimbsSystem() end
@@ -17210,7 +17649,7 @@ local function doStandaloneHeadTracker()
     local localLookDir = parentWorldCF.Rotation:Inverse() * camLook
     local yaw = math.atan2(localLookDir.X, -localLookDir.Z)
     local pitch = math.asin(math.clamp(localLookDir.Y, -1, 1))
-    if not _G._HaloHeadTracker360 then
+    if not _G._N0IRHeadTracker360 then
         local maxYaw = math.rad(75)
         local maxPitch = math.rad(55)
         yaw = math.clamp(yaw, -maxYaw, maxYaw)
@@ -17245,11 +17684,11 @@ local function startStandaloneHeadTracker()
     standaloneHeadConn = RunService.PreSimulation:Connect(LPH_NO_VIRTUALIZE(function()
         if not State.isReanimated then return end
         -- Fun head modes take priority over normal head tracker
-        if _G._HaloSpinHeadEnabled or _G._HaloStareEnabled or _G._HaloLookBehindEnabled
-            or _G._HaloNodLoopEnabled or _G._HaloHeadTiltEnabled or _G._HaloCraneNeckEnabled then
+        if _G._N0IRSpinHeadEnabled or _G._N0IRStareEnabled or _G._N0IRLookBehindEnabled
+            or _G._N0IRNodLoopEnabled or _G._N0IRHeadTiltEnabled or _G._N0IRCraneNeckEnabled then
             return
         end
-        if not _G._HaloHeadTrackerEnabled then return end
+        if not _G._N0IRHeadTrackerEnabled then return end
         local isPlaying = ReanimateAPI and ReanimateAPI.is_animation_playing and ReanimateAPI.is_animation_playing()
         if isPlaying then return end
         if not standaloneHeadCache or not standaloneHeadCache.Parent then
@@ -17267,8 +17706,8 @@ end
 -- FUN TRACKING RUNTIME (Stare / Wobble / Spin / T-Pose)
 -- Works with or without a playing custom animation.
 -- ============================================
-local _Fun = _G._HaloFunTrack or { conn = nil, spin = 0, cache = nil, binds = nil, headSmooth = nil }
-_G._HaloFunTrack = _Fun
+local _Fun = _G._N0IRFunTrack or { conn = nil, spin = 0, cache = nil, binds = nil, headSmooth = nil }
+_G._N0IRFunTrack = _Fun
 
 local function buildFunLimbCache()
     local clone = ReanimateAPI and ReanimateAPI.get_clone and ReanimateAPI.get_clone(plr)
@@ -17393,7 +17832,7 @@ local function applyTPose()
 end
 
 local function applyIdleWobble(dt)
-    local spd = tonumber(_G._HaloIdleWobbleSpeed) or 1.0
+    local spd = tonumber(_G._N0IRIdleWobbleSpeed) or 1.0
     local t = tick() * spd
     local head = _Fun.cache and _Fun.cache.Head
     local rU = _Fun.cache and _Fun.cache.RightUpperArm
@@ -17401,7 +17840,7 @@ local function applyIdleWobble(dt)
     local waist = _Fun.cache and (_Fun.cache.Waist or _Fun.cache.UpperTorso or _Fun.cache.Torso or _Fun.cache.LowerTorso)
     local waistBind = _Fun.binds and (_Fun.binds.Waist or _Fun.binds.UpperTorso or _Fun.binds.Torso or _Fun.binds.LowerTorso)
 
-    if head and _Fun.binds and _Fun.binds.Head and not _G._HaloSpinHeadEnabled and not _G._HaloStareEnabled and not _G._HaloHeadTrackerEnabled then
+    if head and _Fun.binds and _Fun.binds.Head and not _G._N0IRSpinHeadEnabled and not _G._N0IRStareEnabled and not _G._N0IRHeadTrackerEnabled then
         local wob = CFrame.Angles(
             math.sin(t * 2.1) * 0.07,
             math.sin(t * 1.6) * 0.09,
@@ -17409,8 +17848,8 @@ local function applyIdleWobble(dt)
         )
         head.Transform = _Fun.binds.Head * wob
     end
-    if not _G._HaloTPoseEnabled then
-        if rU and _Fun.binds and _Fun.binds.RightUpperArm and not _G._HaloRightArmPointerEnabled then
+    if not _G._N0IRTPoseEnabled then
+        if rU and _Fun.binds and _Fun.binds.RightUpperArm and not _G._N0IRRightArmPointerEnabled then
             local wob = CFrame.Angles(
                 math.sin(t * 1.8 + 1) * 0.06,
                 0,
@@ -17418,7 +17857,7 @@ local function applyIdleWobble(dt)
             )
             rU.Transform = _Fun.binds.RightUpperArm * wob
         end
-        if lU and _Fun.binds and _Fun.binds.LeftUpperArm and not _G._HaloLeftArmPointerEnabled then
+        if lU and _Fun.binds and _Fun.binds.LeftUpperArm and not _G._N0IRLeftArmPointerEnabled then
             local wob = CFrame.Angles(
                 math.sin(t * 1.9 + 2) * 0.06,
                 0,
@@ -17440,7 +17879,7 @@ end
 
 -- Harsh random snaps / stutter (glitch idle) — head + arms (+ optional torso)
 local function applyIdleGlitch(dt)
-    local spd = tonumber(_G._HaloIdleGlitchSpeed) or 1.0
+    local spd = tonumber(_G._N0IRIdleGlitchSpeed) or 1.0
     -- Higher speed = shorter intervals between snaps
     local intervalScale = 1 / math.max(spd, 0.15)
     _Fun.glitchT = (_Fun.glitchT or 0) - (dt or 0.016) * spd
@@ -17482,18 +17921,18 @@ local function applyIdleGlitch(dt)
     local tx, ty, tz = _Fun.glitchTX or 0, _Fun.glitchTY or 0, _Fun.glitchTZ or 0
 
     if head and _Fun.binds and _Fun.binds.Head
-        and not _G._HaloSpinHeadEnabled and not _G._HaloStareEnabled and not _G._HaloHeadTrackerEnabled then
+        and not _G._N0IRSpinHeadEnabled and not _G._N0IRStareEnabled and not _G._N0IRHeadTrackerEnabled then
         head.Transform = _Fun.binds.Head * CFrame.Angles(hx, hy, hz)
     end
-    if not _G._HaloTPoseEnabled then
-        if rU and _Fun.binds and _Fun.binds.RightUpperArm and not _G._HaloRightArmPointerEnabled then
+    if not _G._N0IRTPoseEnabled then
+        if rU and _Fun.binds and _Fun.binds.RightUpperArm and not _G._N0IRRightArmPointerEnabled then
             rU.Transform = _Fun.binds.RightUpperArm * CFrame.Angles(ax, 0, az)
         end
-        if lU and _Fun.binds and _Fun.binds.LeftUpperArm and not _G._HaloLeftArmPointerEnabled then
+        if lU and _Fun.binds and _Fun.binds.LeftUpperArm and not _G._N0IRLeftArmPointerEnabled then
             lU.Transform = _Fun.binds.LeftUpperArm * CFrame.Angles(-ax * 0.85, 0, -az)
         end
     end
-    if _G._HaloIdleGlitchTorsoEnabled and waist and waistBind and waist.Parent then
+    if _G._N0IRIdleGlitchTorsoEnabled and waist and waistBind and waist.Parent then
         waist.Transform = waistBind * CFrame.Angles(tx, ty, tz)
     end
 end
@@ -17525,7 +17964,7 @@ local function doFunTracking(dt)
     local headTaken = false
 
     -- ===== ARMS (priority order) =====
-    if _G._HaloHeliArmsEnabled then
+    if _G._N0IRHeliArmsEnabled then
         armPoseTaken = true
         _Fun.heli = (_Fun.heli or 0) + dt * 8
         local a = _Fun.heli
@@ -17533,43 +17972,43 @@ local function doFunTracking(dt)
         if lU then lU.Transform = CFrame.Angles(math.rad(90), 0, a + math.pi) end
         if rL then rL.Transform = CFrame.new() end
         if lL then lL.Transform = CFrame.new() end
-    elseif _G._HaloHandsUpEnabled then
+    elseif _G._N0IRHandsUpEnabled then
         armPoseTaken = true
         if rU then rU.Transform = CFrame.Angles(math.rad(-160), math.rad(-20), math.rad(20)) end
         if lU then lU.Transform = CFrame.Angles(math.rad(-160), math.rad(20), math.rad(-20)) end
         if rL then rL.Transform = CFrame.Angles(math.rad(-20), 0, 0) end
         if lL then lL.Transform = CFrame.Angles(math.rad(-20), 0, 0) end
-    elseif _G._HaloCrossArmsEnabled then
+    elseif _G._N0IRCrossArmsEnabled then
         armPoseTaken = true
         if rU then rU.Transform = CFrame.Angles(math.rad(-70), math.rad(-40), math.rad(50)) end
         if lU then lU.Transform = CFrame.Angles(math.rad(-70), math.rad(40), math.rad(-50)) end
         if rL then rL.Transform = CFrame.Angles(math.rad(-80), 0, math.rad(20)) end
         if lL then lL.Transform = CFrame.Angles(math.rad(-80), 0, math.rad(-20)) end
-    elseif _G._HaloShrugEnabled then
+    elseif _G._N0IRShrugEnabled then
         armPoseTaken = true
         if rU then rU.Transform = CFrame.Angles(math.rad(-30), 0, math.rad(70)) end
         if lU then lU.Transform = CFrame.Angles(math.rad(-30), 0, math.rad(-70)) end
         if rL then rL.Transform = CFrame.Angles(math.rad(-50), 0, 0) end
         if lL then lL.Transform = CFrame.Angles(math.rad(-50), 0, 0) end
-    elseif _G._HaloTPoseEnabled then
+    elseif _G._N0IRTPoseEnabled then
         armPoseTaken = true
         applyTPose()
     end
 
     -- ===== HEAD =====
-    if _G._HaloSpinHeadEnabled and head and headBind then
+    if _G._N0IRSpinHeadEnabled and head and headBind then
         headTaken = true
-        local spd = tonumber(_G._HaloSpinHeadSpeed) or 1.5
+        local spd = tonumber(_G._N0IRSpinHeadSpeed) or 1.5
         _Fun.spin = (_Fun.spin + dt * spd * math.pi * 2) % (math.pi * 2)
         head.Transform = CFrame.Angles(0, _Fun.spin, 0) * headBind
         _Fun.headSmooth = nil
-    elseif _G._HaloStareEnabled and head and headBind then
+    elseif _G._N0IRStareEnabled and head and headBind then
         headTaken = true
         local targetHRP = nearestOtherPlayerHRP()
         if targetHRP then
             aimHeadAtWorldPos(head, headBind, targetHRP.Position + Vector3.new(0, 1.5, 0), true)
         end
-    elseif _G._HaloLookBehindEnabled and head and headBind then
+    elseif _G._N0IRLookBehindEnabled and head and headBind then
         local targetHRP = nearestOtherPlayerHRP()
         local parentWorldCF = getParentWorldCF(head)
         if targetHRP and parentWorldCF then
@@ -17586,17 +18025,27 @@ local function doFunTracking(dt)
                 end
             end
         end
-    elseif _G._HaloNodLoopEnabled and head and headBind then
+    elseif _G._N0IRNodLoopEnabled and head and headBind then
         headTaken = true
         local nod = math.sin(t * 2.5) * math.rad(18)
         head.Transform = headBind * CFrame.Angles(nod, 0, 0)
-    elseif _G._HaloHeadTiltEnabled and head and headBind then
+    elseif _G._N0IRHeadTiltEnabled and head and headBind then
         headTaken = true
         head.Transform = headBind * CFrame.Angles(0, 0, math.rad(18))
+    elseif _G._N0IRHeadAttachEnabled and _G._N0IRHeadAttachTarget and head and headBind then
+        headTaken = true
+        local target = _G._N0IRHeadAttachTarget
+        if target and target.Character then
+            local lt = target.Character:FindFirstChild("LowerTorso") or target.Character:FindFirstChild("Torso")
+            if lt then
+                local attachPos = (lt.CFrame * CFrame.new(0, 0.15, -0.65)).Position
+                aimHeadAtWorldPos(head, headBind, attachPos, true)
+            end
+        end
     end
 
     -- Crane neck (positional offset on head constraint)
-    if _G._HaloCraneNeckEnabled and head then
+    if _G._N0IRCraneNeckEnabled and head then
         local base = head.Transform
         head.Transform = CFrame.new(0, 1.1, 0) * base
         headTaken = true
@@ -17605,7 +18054,7 @@ local function doFunTracking(dt)
     -- ===== TORSO =====
     if waist then
         local base = waist.Transform
-        if _G._HaloTorsoFaceNearest then
+        if _G._N0IRTorsoFaceNearest then
             local targetHRP = nearestOtherPlayerHRP()
             local parentWorldCF = getParentWorldCF(waist)
             if targetHRP and parentWorldCF then
@@ -17621,10 +18070,10 @@ local function doFunTracking(dt)
                 end
             end
         end
-        if _G._HaloLeanBackEnabled then
+        if _G._N0IRLeanBackEnabled then
             waist.Transform = CFrame.Angles(math.rad(-35), 0, 0) * (waistBind or base)
         end
-        if _G._HaloDrunkSwayEnabled then
+        if _G._N0IRDrunkSwayEnabled then
             local sway = CFrame.Angles(
                 math.sin(t * 1.2) * 0.12,
                 math.sin(t * 0.9) * 0.18,
@@ -17635,7 +18084,7 @@ local function doFunTracking(dt)
     end
 
     -- ===== TWITCH =====
-    if _G._HaloTwitchEnabled then
+    if _G._N0IRTwitchEnabled then
         _Fun.twitchT = (_Fun.twitchT or 0) - dt
         if _Fun.twitchT <= 0 then
             _Fun.twitchT = 0.15 + math.random() * 0.55
@@ -17649,10 +18098,10 @@ local function doFunTracking(dt)
             head.Transform = head.Transform * CFrame.Angles((_Fun.twitchH or 0) * 0.4, (_Fun.twitchY or 0) * 0.4, 0)
         end
         if not armPoseTaken then
-            if rU and rUb and not _G._HaloRightArmPointerEnabled then
+            if rU and rUb and not _G._N0IRRightArmPointerEnabled then
                 rU.Transform = rUb * CFrame.Angles(_Fun.twitchA or 0, 0, 0)
             end
-            if lU and lUb and not _G._HaloLeftArmPointerEnabled then
+            if lU and lUb and not _G._N0IRLeftArmPointerEnabled then
                 lU.Transform = lUb * CFrame.Angles(-(_Fun.twitchA or 0), 0, 0)
             end
         end
@@ -17660,7 +18109,7 @@ local function doFunTracking(dt)
 
     -- ===== IDLE WOBBLE / IDLE GLITCH (lowest priority) =====
     -- Only when truly idle AND no custom/state animation is playing.
-    if _G._HaloIdleWobbleEnabled or _G._HaloIdleGlitchEnabled then
+    if _G._N0IRIdleWobbleEnabled or _G._N0IRIdleGlitchEnabled then
         local animPlaying = false
         if ReanimateAPI and ReanimateAPI.is_animation_playing then
             local ok, p = pcall(ReanimateAPI.is_animation_playing)
@@ -17684,9 +18133,9 @@ local function doFunTracking(dt)
                 horiz = Vector2.new(v.X, v.Z).Magnitude
             end
             if horiz < 1.2 then
-                if _G._HaloIdleGlitchEnabled then
+                if _G._N0IRIdleGlitchEnabled then
                     applyIdleGlitch(dt)
-                elseif _G._HaloIdleWobbleEnabled then
+                elseif _G._N0IRIdleWobbleEnabled then
                     applyIdleWobble(dt)
                 end
             end
@@ -17699,13 +18148,15 @@ local function startFunTracking()
     buildFunLimbCache()
     _Fun.conn = RunService.PreSimulation:Connect(LPH_NO_VIRTUALIZE(function(dt)
         if not State.isReanimated then return end
-        if _G._HaloAnimCopierActive then return end
+        if _G._N0IRAnimCopierActive then return end
         if not (
-            _G._HaloStareEnabled or _G._HaloIdleWobbleEnabled or _G._HaloIdleGlitchEnabled or _G._HaloSpinHeadEnabled or _G._HaloTPoseEnabled
-            or _G._HaloLookBehindEnabled or _G._HaloHeadTiltEnabled or _G._HaloNodLoopEnabled
-            or _G._HaloCraneNeckEnabled or _G._HaloHandsUpEnabled or _G._HaloCrossArmsEnabled
-            or _G._HaloTorsoFaceNearest or _G._HaloDrunkSwayEnabled or _G._HaloTwitchEnabled
-            or _G._HaloHeliArmsEnabled or _G._HaloLeanBackEnabled or _G._HaloShrugEnabled
+            _G._N0IRStareEnabled or _G._N0IRIdleWobbleEnabled or _G._N0IRIdleGlitchEnabled or _G._N0IRSpinHeadEnabled or _G._N0IRTPoseEnabled
+            or _G._N0IRLookBehindEnabled or _G._N0IRHeadTiltEnabled or _G._N0IRNodLoopEnabled
+            or _G._N0IRCraneNeckEnabled or _G._N0IRHandsUpEnabled or _G._N0IRCrossArmsEnabled
+            or _G._N0IRTorsoFaceNearest or _G._N0IRDrunkSwayEnabled or _G._N0IRTwitchEnabled
+            or _G._N0IRHeliArmsEnabled or _G._N0IRLeanBackEnabled or _G._N0IRShrugEnabled
+            or _G._N0IRHeadAttachEnabled
+            or _G._N0IRPolesEnabled
         ) then
             return
         end
@@ -17718,10 +18169,10 @@ local function stopFunTracking()
 end
 
 -- Hook into reanimate toggle (chain after existing hooks, no extra locals)
-_G._HaloDoReanimToggle_prev_head = _G._HaloDoReanimToggle
-_G._HaloDoReanimToggle = function()
+_G._N0IRDoReanimToggle_prev_head = _G._N0IRDoReanimToggle
+_G._N0IRDoReanimToggle = function()
     local wasReanimated = State.isReanimated
-    local prev = _G._HaloDoReanimToggle_prev_head
+    local prev = _G._N0IRDoReanimToggle_prev_head
     if type(prev) == "function" then prev() end
     if State.isReanimated and not wasReanimated then
         startStandaloneHeadTracker()
@@ -17753,8 +18204,8 @@ end) -- end standalone/fun isolation (register limit)
 -- Isolated IIFE — keeps locals out of the main register pool
 -- ============================================================
 task.spawn(function()
-    local _Extra = _G._HaloExtraLimbs or { conn = nil, t = 0, cache = nil, binds = nil, floppy = nil }
-    _G._HaloExtraLimbs = _Extra
+    local _Extra = _G._N0IRExtraLimbs or { conn = nil, t = 0, cache = nil, binds = nil, floppy = nil }
+    _G._N0IRExtraLimbs = _Extra
     -- Reset floppy sim whenever the module reloads so state never carries stale angles
     _Extra.floppy = {
         -- angles (rad) and angular velocities for upper / lower / hand per side
@@ -17848,8 +18299,8 @@ task.spawn(function()
 
     local function tickExtra(dt)
         if not State.isReanimated then return end
-        local any = _G._HaloGunAimEnabled or _G._HaloWaveArmEnabled
-            or _G._HaloHeadbangEnabled or _G._HaloFloppyArmsEnabled
+        local any = _G._N0IRGunAimEnabled or _G._N0IRWaveArmEnabled
+            or _G._N0IRHeadbangEnabled or _G._N0IRFloppyArmsEnabled
         if not any then return end
         if not _Extra.cache then rebuildCache() end
         if not _Extra.cache then return end
@@ -17857,14 +18308,14 @@ task.spawn(function()
         local t = _Extra.t
 
         -- Gun Aim (right arm toward mouse, bent elbow)
-        if _G._HaloGunAimEnabled then
+        if _G._N0IRGunAimEnabled then
             local aim = mouseWorldPos()
             aimUpperArm("RightUpperArm", "RightLowerArm", "RightHand", aim, -55)
         end
 
         -- Wave Arm
-        if _G._HaloWaveArmEnabled then
-            local side = _G._HaloWaveArmSide or "Right"
+        if _G._N0IRWaveArmEnabled then
+            local side = _G._N0IRWaveArmSide or "Right"
             local uName = side == "Left" and "LeftUpperArm" or "RightUpperArm"
             local lName = side == "Left" and "LeftLowerArm" or "RightLowerArm"
             local hName = side == "Left" and "LeftHand" or "RightHand"
@@ -17880,11 +18331,11 @@ task.spawn(function()
         end
 
         -- Headbang
-        if _G._HaloHeadbangEnabled then
+        if _G._N0IRHeadbangEnabled then
             local head = _Extra.cache.Head
             local bind = (_Extra.binds and _Extra.binds.Head) or CFrame.new()
             if head then
-                local spd = tonumber(_G._HaloHeadbangSpeed) or 1.4
+                local spd = tonumber(_G._N0IRHeadbangSpeed) or 1.4
                 local bang = math.sin(t * spd * math.pi * 2) * math.rad(32)
                 head.Transform = bind * CFrame.Angles(bang, 0, 0)
             end
@@ -17892,7 +18343,7 @@ task.spawn(function()
 
         -- Floppy Arms: double-pendulum limp chain (gravity + body inertia)
         -- Looks like dead arms hanging from the shoulders, lagging behind motion.
-        if _G._HaloFloppyArmsEnabled then
+        if _G._N0IRFloppyArmsEnabled then
             local fl = _Extra.floppy
             if not fl or not fl.R then
                 fl = {
@@ -18045,8 +18496,8 @@ task.spawn(function()
     end
 
     -- Chain into reanim toggle
-    local prev = _G._HaloDoReanimToggle
-    _G._HaloDoReanimToggle = function()
+    local prev = _G._N0IRDoReanimToggle
+    _G._N0IRDoReanimToggle = function()
         local was = State.isReanimated
         if type(prev) == "function" then prev() end
         if State.isReanimated and not was then
@@ -18060,5 +18511,122 @@ task.spawn(function()
     plr.CharacterAdded:Connect(function()
         task.wait(0.6)
         if State.isReanimated then rebuildCache() end
+    end)
+end)
+
+-- ============================================================
+-- FIXED POLES RUNTIME (button-only, no keybinds)
+-- ============================================================
+task.spawn(function()
+    local function getClone()
+        if ReanimateAPI and ReanimateAPI.get_clone then
+            return ReanimateAPI.get_clone(plr)
+        end
+        return plr.Character
+    end
+
+    local function getConstraintCache(clone)
+        local cache = {}
+        if not clone then return cache end
+        for _, d in ipairs(clone:GetDescendants()) do
+            local name = nil
+            if d:IsA("AnimationConstraint") then
+                local att = d.Attachment1
+                if att and att.Parent then name = att.Parent.Name end
+            elseif d:IsA("Motor6D") and d.Part1 then
+                name = d.Part1.Name
+            end
+            if name and not cache[name] then
+                cache[name] = d
+            end
+        end
+        return cache
+    end
+
+    local poleCache = {}
+    local function rebuildPoleCache()
+        poleCache = getConstraintCache(getClone())
+    end
+
+    local poleConn = RunService.PreSimulation:Connect(function()
+        if not _G._N0IRPolesEnabled then return end
+        if not State.isReanimated then return end
+
+        if not next(poleCache) or (tick() % 2 < 0.03) then
+            rebuildPoleCache()
+        end
+
+        local length = math.max(0.5, _G._N0IRPoleLength or 2.5)
+
+        -- World-fixed orientation: limb stands at the PLACE position and points UP.
+        -- Does not follow the character. Clear removes the pin.
+        local function worldUpCF(pos)
+            -- Local bone -Y should face world +Y
+            local right = Vector3.new(1, 0, 0)
+            local upCol = Vector3.new(0, -1, 0) -- Y column = -worldUp
+            local look = Vector3.new(0, 0, -1)
+            return CFrame.fromMatrix(pos, right, upCol, look)
+        end
+
+        local function setPart1World(constraint, targetCF)
+            if not constraint then return end
+            if constraint:IsA("Motor6D") and constraint.Part0 then
+                local part0CF = constraint.Part0.CFrame
+                local c0, c1 = constraint.C0, constraint.C1
+                pcall(function()
+                    -- Part0*C0*Transform*C1:Inverse() ~= Part1 world
+                    constraint.Transform = c0:Inverse() * part0CF:Inverse() * targetCF * c1
+                end)
+            else
+                local att0 = constraint.Attachment0
+                local att1 = constraint.Attachment1
+                if att0 and att1 then
+                    pcall(function()
+                        constraint.Transform = att0.WorldCFrame:Inverse() * targetCF * att1.CFrame
+                    end)
+                elseif att0 then
+                    pcall(function()
+                        constraint.Transform = att0.WorldCFrame:Inverse() * targetCF
+                    end)
+                end
+            end
+        end
+
+        local function doPole(upperName, lowerName, endName, anchorKey)
+            local anchorPos = _G._N0IRPoleAnchors and _G._N0IRPoleAnchors[anchorKey]
+            if not anchorPos then return end
+
+            local upper = poleCache[upperName]
+            local lower = poleCache[lowerName]
+            local endP = poleCache[endName]
+            if not upper then return end
+
+            -- Pin upper joint at the exact world place position, aiming UP
+            setPart1World(upper, worldUpCF(anchorPos))
+
+            -- Stack lower + tip further UP from the fixed anchor (still world-fixed via parent chain)
+            local seg = math.max(0.4, length * 0.5)
+            if lower then
+                -- Relative extension along bone; combined with fixed upper keeps tip near place+up
+                pcall(function()
+                    lower.Transform = CFrame.new(0, -seg, 0)
+                end)
+            end
+            if endP then
+                pcall(function()
+                    endP.Transform = CFrame.new(0, -math.max(0.2, length * 0.25), 0)
+                end)
+            end
+        end
+
+        doPole("RightUpperArm", "RightLowerArm", "RightHand", "RightArm")
+        doPole("LeftUpperArm", "LeftLowerArm", "LeftHand", "LeftArm")
+        doPole("RightUpperLeg", "RightLowerLeg", "RightFoot", "RightLeg")
+        doPole("LeftUpperLeg", "LeftLowerLeg", "LeftFoot", "LeftLeg")
+    end)
+
+    plr.CharacterAdded:Connect(function()
+        task.wait(0.7)
+        rebuildPoleCache()
     end)
 end)
