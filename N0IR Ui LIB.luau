@@ -249,7 +249,8 @@ local function ensureLogoAsset(force)
     return _G._N0IR_EnsureLogoAsset(force)
 end
 
-local function attachWindowBackground(parent)
+local function attachWindowBackground(parent, radius)
+    radius = radius or 12
     local bg = Instance.new("ImageLabel")
     bg.Name = "N0IR_Bg"
     bg.BackgroundTransparency = 1
@@ -260,7 +261,12 @@ local function attachWindowBackground(parent)
     bg.ZIndex = 0
     bg.Visible = false
     bg.Parent = parent
-    -- dim overlay so controls stay readable
+    do
+        local c = Instance.new("UICorner")
+        c.CornerRadius = UDim.new(0, radius)
+        c.Parent = bg
+    end
+    -- dim overlay so controls stay readable (same rounded corners)
     local veil = Instance.new("Frame")
     veil.Name = "N0IR_BgVeil"
     veil.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
@@ -269,6 +275,11 @@ local function attachWindowBackground(parent)
     veil.Size = UDim2.fromScale(1, 1)
     veil.ZIndex = 0
     veil.Parent = parent
+    do
+        local c = Instance.new("UICorner")
+        c.CornerRadius = UDim.new(0, radius)
+        c.Parent = veil
+    end
     _G._N0IR_RegisterBgTarget(bg)
     local idx = (_G._N0IR_Brand and tonumber(_G._N0IR_Brand.BgIndex)) or 1
     task.defer(function()
@@ -554,7 +565,7 @@ function N0IR:CreateWindow(opts)
     win.Parent = screen
     corner(win, 12)
     stroke(win, T.border, 1, 0.25)
-    attachWindowBackground(win)
+    attachWindowBackground(win, 12)
 
     -- Entrance
     win.Size = UDim2.fromOffset(math.floor(width * 0.92), math.floor(height * 0.92))
@@ -918,22 +929,23 @@ function N0IR:CreateWindow(opts)
             desc.TextTruncate = Enum.TextTruncate.AtEnd
             desc.Parent = row
 
+            -- iOS-style: ON = white track + black knob right | OFF = black track + gray knob left
             local track = Instance.new("Frame")
             track.AnchorPoint = Vector2.new(1, 0.5)
             track.Position = UDim2.new(1, -12, 0.5, 0)
-            track.Size = UDim2.fromOffset(40, 22)
-            track.BackgroundColor3 = state and T.accent or T.bg3
+            track.Size = UDim2.fromOffset(42, 24)
+            track.BackgroundColor3 = state and Color3.fromRGB(245, 245, 245) or Color3.fromRGB(18, 18, 18)
             track.BorderSizePixel = 0
             track.Parent = row
-            corner(track, 11)
+            corner(track, 12)
 
             local knob = Instance.new("Frame")
-            knob.Size = UDim2.fromOffset(16, 16)
-            knob.Position = state and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
-            knob.BackgroundColor3 = state and Color3.fromRGB(10, 10, 10) or T.text
+            knob.Size = UDim2.fromOffset(18, 18)
+            knob.Position = state and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)
+            knob.BackgroundColor3 = state and Color3.fromRGB(10, 10, 10) or Color3.fromRGB(140, 140, 140)
             knob.BorderSizePixel = 0
             knob.Parent = track
-            corner(knob, 8)
+            corner(knob, 9)
 
             local hit = Instance.new("TextButton")
             hit.Size = UDim2.fromScale(1, 1)
@@ -944,10 +956,12 @@ function N0IR:CreateWindow(opts)
             local function set(v, fire)
                 state = v and true or false
                 if flag then N0IR.Flags[flag] = state end
-                tween(track, { BackgroundColor3 = state and T.accent or T.bg3 }, 0.18)
+                tween(track, {
+                    BackgroundColor3 = state and Color3.fromRGB(245, 245, 245) or Color3.fromRGB(18, 18, 18),
+                }, 0.18)
                 tween(knob, {
-                    Position = state and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8),
-                    BackgroundColor3 = state and Color3.fromRGB(10, 10, 10) or T.text,
+                    Position = state and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9),
+                    BackgroundColor3 = state and Color3.fromRGB(10, 10, 10) or Color3.fromRGB(140, 140, 140),
                 }, 0.18)
                 if fire ~= false and togOpts.Callback then
                     task.spawn(togOpts.Callback, state)
