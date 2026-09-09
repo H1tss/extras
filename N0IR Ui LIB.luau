@@ -2513,6 +2513,26 @@ function N0IR:MountUtilities(Window)
     local cmdBarKey = _G._N0IR_CmdBarKey or Enum.KeyCode.Semicolon
     local menuToggleKey = _G._N0IR_ToggleKey or Enum.KeyCode.M
 
+    -- ============================================================
+    -- OWNER IDS  ·  edit this list to unlock owner-only commands
+    -- Put your Roblox UserId(s) here (numbers). Multiple allowed.
+    -- Example: { 123456789, 987654321 }
+    -- ============================================================
+    local OWNER_IDS = {
+        -- YOUR_USER_ID_HERE,
+    }
+    -- Also accept runtime override: _G._N0IR_OwnerIds = { 123 }
+    local function isOwner()
+        local uid = LocalPlayer and LocalPlayer.UserId
+        if not uid then return false end
+        local list = (type(_G._N0IR_OwnerIds) == "table" and _G._N0IR_OwnerIds) or OWNER_IDS
+        for _, id in ipairs(list) do
+            if tonumber(id) == tonumber(uid) then return true end
+        end
+        return false
+    end
+    _G._N0IR_IsOwner = isOwner
+
     local flying = false
     local flyConn = nil
     local spinConn = nil
@@ -2559,6 +2579,17 @@ function N0IR:MountUtilities(Window)
         for w in msg:gmatch("%S+") do table.insert(args, w) end
         local cmd = args[1]
         if not cmd then return end
+
+        -- Owner-only command set (must match catalog ownerOnly flags)
+        local OWNER_CMDS = {
+            bring = true,
+            -- add more restricted cmd names here (lowercase):
+            -- kill = true,
+        }
+        if OWNER_CMDS[cmd] and not isOwner() then
+            notify("Commands", "Owner only")
+            return
+        end
 
         local char = getChar()
         local hum = getHum()
@@ -3343,7 +3374,7 @@ function N0IR:MountUtilities(Window)
         { cmd = "power",     label = "Power boost",   desc = "WS 100 + JP 120",             needsArg = false },
         { cmd = "normal",    label = "Defaults",      desc = "Reset WS/JP/gravity",         needsArg = false },
         { cmd = "goto",      label = "Goto player",   desc = "Teleport to player",          needsArg = true,  example = "" },
-        { cmd = "bring",     label = "Bring player",  desc = "Bring player to you",         needsArg = true,  example = "" },
+        { cmd = "bring",     label = "Bring player",  desc = "Bring player to you (owner)", needsArg = true,  example = "", ownerOnly = true },
         { cmd = "tppos",     label = "TP position",   desc = "Teleport to x y z",           needsArg = true,  example = "0 50 0" },
         { cmd = "view",      label = "View player",   desc = "Spectate player",             needsArg = true,  example = "" },
         { cmd = "unview",    label = "Unview",        desc = "Reset camera",                needsArg = false },
@@ -3526,7 +3557,11 @@ function N0IR:MountUtilities(Window)
     end
 
     for _, entry in ipairs(catalog) do
-        makeCmdRow(entry)
+        if entry.ownerOnly and not isOwner() then
+            -- hide owner-only commands from the Commands tab
+        else
+            makeCmdRow(entry)
+        end
     end
 
     -- Chat still works with configured prefix
