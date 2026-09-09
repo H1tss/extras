@@ -591,9 +591,7 @@ task.spawn(function()
             TeleportService:Teleport(game.PlaceId, player)
 
         elseif cmd == ";fov" then
-            if tonumber(args[2]) then
-                camera.FieldOfView = tonumber(args[2])
-            end
+            -- FOV changing disabled
 
         elseif cmd == ";gravity" then
             if tonumber(args[2]) then
@@ -4156,7 +4154,7 @@ local C = {
     easeSpring  = Enum.EasingStyle.Back,
 }
 
-local ScreenGui, Menu, body, NowPlayingLabel, StopBtn, TabButtons, SearchBox, hintLbl, AnimListFrame, StatesPanel, CustomPanel, customSearchBox, customOpenModalBtn, customListFrame, SettingsPanel, SpeedPanel, StretchingPanel, SetTabActive, updateFnWheelBtnText, updateRevBtnText, revFill, revHandle, revSpdLbl, Notify, _screenGuiTarget, spawnTreehouse, deleteTreehouse, teleportToTreehouse, deleteWorkspaceModels, promptTreehouseOnLoad, promptCmdBarOnLoad, promptDiscordOnLoad
+local ScreenGui, Menu, body, NowPlayingLabel, StopBtn, TabButtons, SearchBox, hintLbl, AnimListFrame, StatesPanel, CustomPanel, customSearchBox, customOpenModalBtn, customListFrame, SettingsPanel, SpeedPanel, StretchingPanel, ExtrasPanel, LimbsTabPanel, SetTabActive, updateFnWheelBtnText, updateRevBtnText, revFill, revHandle, revSpdLbl, Notify, _screenGuiTarget, spawnTreehouse, deleteTreehouse, teleportToTreehouse, deleteWorkspaceModels, promptTreehouseOnLoad, promptCmdBarOnLoad, promptDiscordOnLoad
 do
 ScreenGui = Instance.new("ScreenGui")
 
@@ -5872,7 +5870,7 @@ tabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     tabRow.CanvasSize = UDim2.new(0, tabLayout.AbsoluteContentSize.X + 8, 0, 0)
 end)
 
-local TAB_DEFS = { "All", "Favs", "Custom", "Binds", "States", "Speed", "Copier", "Tracking", "Stretching", "Settings" }
+local TAB_DEFS = { "All", "Favs", "Custom", "Binds", "States", "Speed", "Copier", "Tracking", "Limbs", "Stretching", "Extras", "Settings" }
 TabButtons = {}
 local activeTab = nil
 
@@ -7135,6 +7133,72 @@ do
     end)
 end
 
+ExtrasPanel = Instance.new("ScrollingFrame"); ExtrasPanel.Parent = body
+ExtrasPanel.Name = "ExtrasPanel"
+ExtrasPanel.BackgroundColor3 = C.bg0; ExtrasPanel.BackgroundTransparency = 0.15
+ExtrasPanel.BorderSizePixel = 0
+ExtrasPanel.Size = UDim2.new(1,-24,1,-140)
+ExtrasPanel.Position = UDim2.new(0,12,0,126)
+ExtrasPanel.ScrollBarThickness = 4; ExtrasPanel.ScrollBarImageColor3 = C.accent
+ExtrasPanel.ScrollBarImageTransparency = 0.5; ExtrasPanel.ZIndex = 32
+ExtrasPanel.CanvasSize = UDim2.new(0,0,0,0); ExtrasPanel.Visible = false
+do
+    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,7); c.Parent = ExtrasPanel
+    local l = Instance.new("UIListLayout"); l.Parent = ExtrasPanel
+    l.Padding = UDim.new(0,8); l.SortOrder = Enum.SortOrder.LayoutOrder
+    local p = Instance.new("UIPadding"); p.Parent = ExtrasPanel
+    p.PaddingTop = UDim.new(0,8); p.PaddingLeft = UDim.new(0,8); p.PaddingRight = UDim.new(0,8); p.PaddingBottom = UDim.new(0,8)
+    l:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        ExtrasPanel.CanvasSize = UDim2.new(0,0,0,l.AbsoluteContentSize.Y+16)
+    end)
+end
+do
+    local hdr = Instance.new("TextLabel"); hdr.Parent = ExtrasPanel
+    hdr.BackgroundTransparency = 1; hdr.Size = UDim2.new(1,0,0,16)
+    hdr.LayoutOrder = 0; hdr.Font = Enum.Font.GothamBold; hdr.TextSize = 11
+    hdr.Text = "Extras"; hdr.TextColor3 = C.text
+    hdr.TextXAlignment = Enum.TextXAlignment.Left; hdr.ZIndex = 33
+    local sub = Instance.new("TextLabel"); sub.Parent = ExtrasPanel
+    sub.BackgroundTransparency = 1; sub.Size = UDim2.new(1,0,0,14)
+    sub.LayoutOrder = 0.5; sub.Font = Enum.Font.Gotham; sub.TextSize = 9
+    sub.Text = "Poles and other limb tools that are not tracking/stretch."
+    sub.TextColor3 = C.text3 or Color3.fromRGB(110,110,110)
+    sub.TextXAlignment = Enum.TextXAlignment.Left; sub.ZIndex = 33
+end
+
+LimbsTabPanel = Instance.new("ScrollingFrame"); LimbsTabPanel.Parent = body
+LimbsTabPanel.Name = "LimbsTabPanel"
+LimbsTabPanel.BackgroundColor3 = C.bg0; LimbsTabPanel.BackgroundTransparency = 0.15
+LimbsTabPanel.BorderSizePixel = 0
+LimbsTabPanel.Size = UDim2.new(1,-24,1,-140)
+LimbsTabPanel.Position = UDim2.new(0,12,0,126)
+LimbsTabPanel.ScrollBarThickness = 4; LimbsTabPanel.ScrollBarImageColor3 = C.accent
+LimbsTabPanel.ScrollBarImageTransparency = 0.5; LimbsTabPanel.ZIndex = 32
+LimbsTabPanel.CanvasSize = UDim2.new(0,0,0,0); LimbsTabPanel.Visible = false
+do
+    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,7); c.Parent = LimbsTabPanel
+    local l = Instance.new("UIListLayout"); l.Parent = LimbsTabPanel
+    l.Padding = UDim.new(0,8); l.SortOrder = Enum.SortOrder.LayoutOrder
+    local p = Instance.new("UIPadding"); p.Parent = LimbsTabPanel
+    p.PaddingTop = UDim.new(0,8); p.PaddingLeft = UDim.new(0,8); p.PaddingRight = UDim.new(0,8); p.PaddingBottom = UDim.new(0,8)
+    l:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        LimbsTabPanel.CanvasSize = UDim2.new(0,0,0,l.AbsoluteContentSize.Y+16)
+    end)
+end
+do
+    local hdr = Instance.new("TextLabel"); hdr.Parent = LimbsTabPanel
+    hdr.BackgroundTransparency = 1; hdr.Size = UDim2.new(1,0,0,16)
+    hdr.LayoutOrder = 0; hdr.Font = Enum.Font.GothamBold; hdr.TextSize = 11
+    hdr.Text = "Limbs"; hdr.TextColor3 = C.text
+    hdr.TextXAlignment = Enum.TextXAlignment.Left; hdr.ZIndex = 33
+    local sub = Instance.new("TextLabel"); sub.Parent = LimbsTabPanel
+    sub.BackgroundTransparency = 1; sub.Size = UDim2.new(1,0,0,14)
+    sub.LayoutOrder = 0.5; sub.Font = Enum.Font.Gotham; sub.TextSize = 9
+    sub.Text = "Idle motion, poses, and body effects (not mouse/player tracking)."
+    sub.TextColor3 = C.text3 or Color3.fromRGB(110,110,110)
+    sub.TextXAlignment = Enum.TextXAlignment.Left; sub.ZIndex = 33
+end
+
 -- Limbs state
 _G._N0IRLimbsUpperTorsoHeight = _G._N0IRLimbsUpperTorsoHeight or 1.0
 _G._N0IRLimbsLegHeight = _G._N0IRLimbsLegHeight or 1.0
@@ -7979,7 +8043,7 @@ _G._N0IRBobbleHeadEnabled = false
 _G._N0IRHeadAttachEnabled = _G._N0IRHeadAttachEnabled or false
 _G._N0IRHeadAttachTarget = _G._N0IRHeadAttachTarget or nil
 _G._N0IRPolesEnabled = _G._N0IRPolesEnabled or false
-_G._N0IRPoleLength = _G._N0IRPoleLength or 2.5
+_G._N0IRPoleLength = _G._N0IRPoleLength or 150
 _G._N0IRPoleAnchors = _G._N0IRPoleAnchors or {
     RightArm = nil, LeftArm = nil, RightLeg = nil, LeftLeg = nil
 }
@@ -8006,24 +8070,24 @@ buildToggle(LimbsPanel, "Stare Mode", "Head locks onto the nearest other player 
     end
 end)
 
-buildToggle(LimbsPanel, "Idle Wobble", "Soft jiggle on head + arms while idle. Cursed idle energy.", 22, _G._N0IRIdleWobbleEnabled, function(state)
+buildToggle(LimbsTabPanel, "Idle Wobble", "Soft jiggle on head + arms while idle. Cursed idle energy.", 22, _G._N0IRIdleWobbleEnabled, function(state)
     _G._N0IRIdleWobbleEnabled = state
     if Notify then Notify("Idle Wobble: " .. (state and "ON" or "OFF"), 1.5) end
 end)
 
-buildToggle(LimbsPanel, "Idle Glitch", "Spastic jitter / snap glitch on head + arms while idle.", 22.5, _G._N0IRIdleGlitchEnabled, function(state)
+buildToggle(LimbsTabPanel, "Idle Glitch", "Spastic jitter / snap glitch on head + arms while idle.", 22.5, _G._N0IRIdleGlitchEnabled, function(state)
     _G._N0IRIdleGlitchEnabled = state
     if Notify then Notify("Idle Glitch: " .. (state and "ON" or "OFF"), 1.5) end
 end)
 
-buildToggle(LimbsPanel, "Idle Glitch Torso", "Also glitch the torso / waist while Idle Glitch is on.", 22.6, _G._N0IRIdleGlitchTorsoEnabled, function(state)
+buildToggle(LimbsTabPanel, "Idle Glitch Torso", "Also glitch the torso / waist while Idle Glitch is on.", 22.6, _G._N0IRIdleGlitchTorsoEnabled, function(state)
     _G._N0IRIdleGlitchTorsoEnabled = state
     if Notify then Notify("Idle Glitch Torso: " .. (state and "ON" or "OFF"), 1.5) end
 end)
 
 -- Idle Wobble speed slider
 do
-    local frame = Instance.new("Frame"); frame.Parent = LimbsPanel
+    local frame = Instance.new("Frame"); frame.Parent = LimbsTabPanel
     frame.Size = UDim2.new(1, 0, 0, 48)
     frame.BackgroundColor3 = C.bg1; frame.BackgroundTransparency = 0.12; frame.BorderSizePixel = 0
     frame.LayoutOrder = 22.7
@@ -8083,7 +8147,7 @@ end
 
 -- Idle Glitch speed slider
 do
-    local frame = Instance.new("Frame"); frame.Parent = LimbsPanel
+    local frame = Instance.new("Frame"); frame.Parent = LimbsTabPanel
     frame.Size = UDim2.new(1, 0, 0, 48)
     frame.BackgroundColor3 = C.bg1; frame.BackgroundTransparency = 0.12; frame.BorderSizePixel = 0
     frame.LayoutOrder = 22.8
@@ -8141,7 +8205,7 @@ do
     end)
 end
 
-buildToggle(LimbsPanel, "Spin Head", "Head continuously spins (exorcist mode). Overrides stare/head tracker.", 23, _G._N0IRSpinHeadEnabled, function(state)
+buildToggle(LimbsTabPanel, "Spin Head", "Head continuously spins (exorcist mode). Overrides stare/head tracker.", 23, _G._N0IRSpinHeadEnabled, function(state)
     _G._N0IRSpinHeadEnabled = state
     if state then
         _G._N0IRStareEnabled = false
@@ -8153,7 +8217,7 @@ end)
 
 -- Spin speed mini slider card
 do
-    local frame = Instance.new("Frame"); frame.Parent = LimbsPanel
+    local frame = Instance.new("Frame"); frame.Parent = LimbsTabPanel
     frame.Size = UDim2.new(1, 0, 0, 48)
     frame.BackgroundColor3 = C.bg1; frame.BackgroundTransparency = 0.12; frame.BorderSizePixel = 0
     frame.LayoutOrder = 24
@@ -8211,7 +8275,7 @@ do
     end)
 end
 
-buildToggle(LimbsPanel, "T-Pose", "Force a full T-pose on the clone. Instant meme mode.", 25, _G._N0IRTPoseEnabled, function(state)
+buildToggle(LimbsTabPanel, "T-Pose", "Force a full T-pose on the clone. Instant meme mode.", 25, _G._N0IRTPoseEnabled, function(state)
     _G._N0IRTPoseEnabled = state
     if Notify then Notify("T-Pose: " .. (state and "ON" or "OFF"), 1.5) end
 end)
@@ -8334,12 +8398,12 @@ end
 -- ============================================
 do
     local poleFrame = Instance.new("Frame")
-    poleFrame.Parent = LimbsPanel
+    poleFrame.Parent = ExtrasPanel
     poleFrame.Size = UDim2.new(1, 0, 0, 168)
     poleFrame.BackgroundColor3 = C.bg1
     poleFrame.BackgroundTransparency = 0.12
     poleFrame.BorderSizePixel = 0
-    poleFrame.LayoutOrder = 25.8
+    poleFrame.LayoutOrder = 1
     do
         local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 7); c.Parent = poleFrame
         local s = Instance.new("UIStroke"); s.Color = C.border; s.Transparency = 0.7; s.Thickness = 1; s.Parent = poleFrame
@@ -8493,7 +8557,7 @@ do
     lenLbl.Size = UDim2.new(1, -20, 0, 12)
     lenLbl.Font = Enum.Font.Gotham
     lenLbl.TextSize = 10
-    lenLbl.Text = "Length: " .. string.format("%.1f", _G._N0IRPoleLength or 2.5)
+    lenLbl.Text = "Length: " .. string.format("%.0f", _G._N0IRPoleLength or 150)
     lenLbl.TextColor3 = C.text
     lenLbl.TextXAlignment = Enum.TextXAlignment.Left
     lenLbl.ZIndex = 33
@@ -8508,8 +8572,8 @@ do
     track.ZIndex = 33
     do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,4); c.Parent = track end
 
-    local minV, maxV = 0.5, 12
-    local p0 = math.clamp(((_G._N0IRPoleLength or 2.5) - minV) / (maxV - minV), 0, 1)
+    local minV, maxV = 10, 1000
+    local p0 = math.clamp(((_G._N0IRPoleLength or 150) - minV) / (maxV - minV), 0, 1)
     local fill = Instance.new("Frame")
     fill.Parent = track
     fill.BackgroundColor3 = C.accent or Color3.fromRGB(180,180,180)
@@ -8534,7 +8598,7 @@ do
         _G._N0IRPoleLength = minV + pct * (maxV - minV)
         fill.Size = UDim2.new(pct, 0, 1, 0)
         handle.Position = UDim2.new(pct, 0, 0.5, 0)
-        lenLbl.Text = "Length: " .. string.format("%.1f", _G._N0IRPoleLength)
+        lenLbl.Text = "Length: " .. string.format("%.0f", _G._N0IRPoleLength)
     end
     track.InputBegan:Connect(function(inp)
         if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
@@ -8580,25 +8644,28 @@ funHeader2.TextColor3 = C.text
 funHeader2.TextXAlignment = Enum.TextXAlignment.Left
 funHeader2.ZIndex = 33
 
-local function funTog(title, sub, order, flag, onMsg)
-    buildToggle(LimbsPanel, title, sub, order, _G[flag] or false, function(state)
+local function funTog(parent, title, sub, order, flag, onMsg)
+    buildToggle(parent, title, sub, order, _G[flag] or false, function(state)
         _G[flag] = state
         if Notify then Notify(onMsg or title, state and "ON" or "OFF", 1.4) end
     end)
 end
 
-funTog("Look Behind", "Head snaps 180 when someone is behind you.", 31, "_N0IRLookBehindEnabled", "Look Behind")
-funTog("Head Tilt", "Permanent curious head tilt.", 32, "_N0IRHeadTiltEnabled", "Head Tilt")
-funTog("Nod Loop", "Head slowly nods yes on a loop.", 33, "_N0IRNodLoopEnabled", "Nod Loop")
-funTog("Crane Neck", "Neck stretches upward (tall creep).", 34, "_N0IRCraneNeckEnabled", "Crane Neck")
-funTog("Hands Up", "Both arms raised overhead.", 35, "_N0IRHandsUpEnabled", "Hands Up")
-funTog("Cross Arms", "Arms crossed over chest.", 36, "_N0IRCrossArmsEnabled", "Cross Arms")
-funTog("Torso Face Nearest", "Upper body turns toward nearest player.", 37, "_N0IRTorsoFaceNearest", "Torso Face")
-funTog("Drunk Sway", "Loose upper-body sway like drunk cam.", 38, "_N0IRDrunkSwayEnabled", "Drunk Sway")
-funTog("Twitch", "Random micro-twitches on head and arms.", 39, "_N0IRTwitchEnabled", "Twitch")
-funTog("Helicopter Arms", "Arms spin like a helicopter. Pure chaos.", 40, "_N0IRHeliArmsEnabled", "Heli Arms")
-funTog("Lean Back", "Torso leans backward.", 41, "_N0IRLeanBackEnabled", "Lean Back")
-funTog("Shrug Hold", "Both shoulders held in a shrug.", 42, "_N0IRShrugEnabled", "Shrug")
+-- Tracking (player-facing)
+funTog(LimbsPanel, "Look Behind", "Head snaps 180 when someone is behind you.", 31, "_N0IRLookBehindEnabled", "Look Behind")
+funTog(LimbsPanel, "Torso Face Nearest", "Upper body turns toward nearest player.", 37, "_N0IRTorsoFaceNearest", "Torso Face")
+
+-- Limbs (poses / idle body — not mouse tracking)
+funTog(LimbsTabPanel, "Head Tilt", "Permanent curious head tilt.", 32, "_N0IRHeadTiltEnabled", "Head Tilt")
+funTog(LimbsTabPanel, "Nod Loop", "Head slowly nods yes on a loop.", 33, "_N0IRNodLoopEnabled", "Nod Loop")
+funTog(LimbsTabPanel, "Crane Neck", "Neck stretches upward (tall creep).", 34, "_N0IRCraneNeckEnabled", "Crane Neck")
+funTog(LimbsTabPanel, "Hands Up", "Both arms raised overhead.", 35, "_N0IRHandsUpEnabled", "Hands Up")
+funTog(LimbsTabPanel, "Cross Arms", "Arms crossed over chest.", 36, "_N0IRCrossArmsEnabled", "Cross Arms")
+funTog(LimbsTabPanel, "Drunk Sway", "Loose upper-body sway like drunk cam.", 38, "_N0IRDrunkSwayEnabled", "Drunk Sway")
+funTog(LimbsTabPanel, "Twitch", "Random micro-twitches on head and arms.", 39, "_N0IRTwitchEnabled", "Twitch")
+funTog(LimbsTabPanel, "Helicopter Arms", "Arms spin like a helicopter. Pure chaos.", 40, "_N0IRHeliArmsEnabled", "Heli Arms")
+funTog(LimbsTabPanel, "Lean Back", "Torso leans backward.", 41, "_N0IRLeanBackEnabled", "Lean Back")
+funTog(LimbsTabPanel, "Shrug Hold", "Both shoulders held in a shrug.", 42, "_N0IRShrugEnabled", "Shrug")
 
 -- Extra limb tools (new)
 _G._N0IRDualArmPointerEnabled = _G._N0IRDualArmPointerEnabled or false
@@ -8650,7 +8717,7 @@ buildToggle(LimbsPanel, "Wave Arm", "Looping friendly wave with one arm.", 53, _
     if Notify then Notify("Wave Arm: " .. (state and "ON" or "OFF"), 1.4) end
 end)
 
-buildToggle(LimbsPanel, "Headbang", "Aggressive headbang loop. Party mode.", 54, _G._N0IRHeadbangEnabled, function(state)
+buildToggle(LimbsTabPanel, "Headbang", "Aggressive headbang loop. Party mode.", 54, _G._N0IRHeadbangEnabled, function(state)
     _G._N0IRHeadbangEnabled = state
     if state then
         _G._N0IRSpinHeadEnabled = false
@@ -8660,7 +8727,7 @@ buildToggle(LimbsPanel, "Headbang", "Aggressive headbang loop. Party mode.", 54,
     if Notify then Notify("Headbang: " .. (state and "ON" or "OFF"), 1.4) end
 end)
 
-buildToggle(LimbsPanel, "Floppy Arms", "Double-pendulum limp arms — gravity hang + motion lag.", 55, _G._N0IRFloppyArmsEnabled, function(state)
+buildToggle(LimbsTabPanel, "Floppy Arms", "Double-pendulum limp arms — gravity hang + motion lag.", 55, _G._N0IRFloppyArmsEnabled, function(state)
     _G._N0IRFloppyArmsEnabled = state
     if state then
         _G._N0IRHandsUpEnabled = false
@@ -14080,11 +14147,11 @@ function playStateAnim(stKey)
                 if currentStateAnim == stKey then
                     if ReanimateAPI.play_keyframes and data then
                         pcall(function()
-                            ReanimateAPI.play_keyframes(data, State.currentSpeed * STATE_SPEED_MULT)
+                            ReanimateAPI.play_keyframes(data, State.stateSpeed * STATE_SPEED_MULT)
                         end)
                     else
                         pcall(function()
-                            ReanimateAPI.play_raw_animation(url, src, State.currentSpeed * STATE_SPEED_MULT)
+                            ReanimateAPI.play_raw_animation(url, src, State.stateSpeed * STATE_SPEED_MULT)
                         end)
                     end
                 end
@@ -14092,17 +14159,17 @@ function playStateAnim(stKey)
         else
             if ReanimateAPI.play_keyframes and cachedEntry.data then
                 pcall(function()
-                    ReanimateAPI.play_keyframes(cachedEntry.data, State.currentSpeed * STATE_SPEED_MULT)
+                    ReanimateAPI.play_keyframes(cachedEntry.data, State.stateSpeed * STATE_SPEED_MULT)
                 end)
             else
                 pcall(function()
-                    ReanimateAPI.play_raw_animation(url, cachedEntry.src, State.currentSpeed * STATE_SPEED_MULT)
+                    ReanimateAPI.play_raw_animation(url, cachedEntry.src, State.stateSpeed * STATE_SPEED_MULT)
                 end)
             end
         end
     else
         pcall(function()
-            ReanimateAPI.play_animation(url, State.currentSpeed * STATE_SPEED_MULT)
+            ReanimateAPI.play_animation(url, State.stateSpeed * STATE_SPEED_MULT)
         end)
     end
 end
@@ -14693,6 +14760,87 @@ function BuildStatesPanel()
     end
     stateDisplayBtns = {}
 
+    -- State-only speed (independent from Speed tab / State.currentSpeed)
+    do
+        local spdRow = Instance.new("Frame"); spdRow.Parent = StatesPanel
+        spdRow.BackgroundColor3 = C.bg1; spdRow.BackgroundTransparency = 0.15
+        spdRow.BorderSizePixel = 0; spdRow.Size = UDim2.new(1,0,0,64); spdRow.ZIndex = 34
+        spdRow.LayoutOrder = 0
+        do
+            local cr = Instance.new("UICorner"); cr.CornerRadius = UDim.new(0,10); cr.Parent = spdRow
+            local s = Instance.new("UIStroke"); s.Color = C.border; s.Transparency = 0.5; s.Thickness = 1; s.Parent = spdRow
+        end
+        local spdLbl = Instance.new("TextLabel"); spdLbl.Parent = spdRow
+        spdLbl.BackgroundTransparency = 1; spdLbl.Position = UDim2.new(0,14,0,6)
+        spdLbl.Size = UDim2.new(1,-90,0,16); spdLbl.Font = Enum.Font.GothamBold
+        spdLbl.Text = "State Speed: " .. string.format("%.1f", State.stateSpeed or 1.0)
+        spdLbl.TextColor3 = C.text; spdLbl.TextSize = 12
+        spdLbl.TextXAlignment = Enum.TextXAlignment.Left; spdLbl.ZIndex = 35
+        local spdHint = Instance.new("TextLabel"); spdHint.Parent = spdRow
+        spdHint.BackgroundTransparency = 1; spdHint.Position = UDim2.new(0,14,0,22)
+        spdHint.Size = UDim2.new(1,-24,0,12); spdHint.Font = Enum.Font.Gotham
+        spdHint.Text = "Only affects Idle/Walk/Run/Jump states — Speed tab is separate"
+        spdHint.TextColor3 = C.text3; spdHint.TextSize = 9
+        spdHint.TextXAlignment = Enum.TextXAlignment.Left; spdHint.ZIndex = 35
+        local spdBox = Instance.new("TextBox"); spdBox.Parent = spdRow
+        spdBox.AnchorPoint = Vector2.new(1,0); spdBox.Position = UDim2.new(1,-14,0,6)
+        spdBox.Size = UDim2.new(0,48,0,22); spdBox.BackgroundColor3 = C.bg2
+        spdBox.BackgroundTransparency = 0.3; spdBox.BorderSizePixel = 0
+        spdBox.Font = Enum.Font.GothamBold; spdBox.TextSize = 10
+        spdBox.Text = string.format("%.1f", State.stateSpeed or 1.0)
+        spdBox.TextColor3 = C.text2; spdBox.ClearTextOnFocus = false; spdBox.ZIndex = 35
+        do
+            local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,4); c.Parent = spdBox
+            local s = Instance.new("UIStroke"); s.Color = C.border; s.Transparency = 0.7; s.Thickness = 1; s.Parent = spdBox
+        end
+        local track = Instance.new("Frame"); track.Parent = spdRow
+        track.Position = UDim2.new(0,14,0,42); track.Size = UDim2.new(1,-28,0,8)
+        track.BackgroundColor3 = C.bg3; track.BorderSizePixel = 0; track.ZIndex = 35
+        do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,4); c.Parent = track end
+        local fill = Instance.new("Frame"); fill.Parent = track
+        fill.BackgroundColor3 = C.accent; fill.BorderSizePixel = 0; fill.ZIndex = 36
+        do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,4); c.Parent = fill end
+        local handle = Instance.new("Frame"); handle.Parent = track
+        handle.AnchorPoint = Vector2.new(0.5,0.5); handle.Size = UDim2.fromOffset(12,12)
+        handle.BackgroundColor3 = Color3.fromRGB(245,245,245); handle.BorderSizePixel = 0; handle.ZIndex = 37
+        do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1,0); c.Parent = handle end
+        local function syncUI(sp)
+            local frac = math.clamp(((sp or 1) - 0.0) / 3.9, 0, 1)
+            fill.Size = UDim2.new(frac, 0, 1, 0)
+            handle.Position = UDim2.new(frac, 0, 0.5, 0)
+            spdLbl.Text = "State Speed: " .. string.format("%.1f", sp)
+            spdBox.Text = string.format("%.1f", sp)
+        end
+        syncUI(State.stateSpeed or 1.0)
+        _G._N0IRUpdateStateSpeedUI = syncUI
+        local dragging = false
+        local function fromInput(x)
+            local pct = math.clamp((x - track.AbsolutePosition.X) / math.max(track.AbsoluteSize.X, 1), 0, 1)
+            ApplyStateSpeed(0.0 + pct * 3.9)
+        end
+        track.InputBegan:Connect(function(inp)
+            if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+                dragging = true
+                fromInput(inp.Position.X)
+            end
+        end)
+        UserInputService.InputChanged:Connect(function(inp)
+            if not dragging then return end
+            if inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch then
+                fromInput(inp.Position.X)
+            end
+        end)
+        UserInputService.InputEnded:Connect(function(inp)
+            if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+                dragging = false
+            end
+        end)
+        spdBox.FocusLost:Connect(function()
+            local v = tonumber(spdBox.Text)
+            if v then ApplyStateSpeed(v) else syncUI(State.stateSpeed or 1.0) end
+        end)
+    end
+
     for i, stType in ipairs(STATE_TYPES) do
         local row = Instance.new("Frame"); row.Parent = StatesPanel
         row.BackgroundColor3 = C.bg1; row.BackgroundTransparency = 0.2
@@ -14848,7 +14996,7 @@ function SwitchTab(tabName)
     
     local panels = {
         AnimListFrame, CustomPanel, BindsPanel, StatesPanel, SettingsPanel,
-        SpeedPanel, TestingPanel, LimbsPanel, StretchingPanel
+        SpeedPanel, TestingPanel, LimbsPanel, LimbsTabPanel, StretchingPanel, ExtrasPanel
     }
 
     -- Soft fade-out currently visible panels
@@ -14875,15 +15023,19 @@ function SwitchTab(tabName)
         targetPanel = TestingPanel
     elseif tabName == "Tracking" then
         targetPanel = LimbsPanel
+    elseif tabName == "Limbs" then
+        targetPanel = LimbsTabPanel
     elseif tabName == "Stretching" then
         targetPanel = StretchingPanel
+    elseif tabName == "Extras" then
+        targetPanel = ExtrasPanel
     end
 
     if targetPanel then
         targetPanel.Visible = true
     end
     
-    local noSearch = (tabName == "Custom" or tabName == "Settings" or tabName == "States" or tabName == "Speed" or tabName == "Binds" or tabName == "Copier" or tabName == "Tracking" or tabName == "Stretching")
+    local noSearch = (tabName == "Custom" or tabName == "Settings" or tabName == "States" or tabName == "Speed" or tabName == "Binds" or tabName == "Copier" or tabName == "Tracking" or tabName == "Limbs" or tabName == "Stretching" or tabName == "Extras")
     SearchBox.Visible = not noSearch
     hintLbl.Visible   = not noSearch
 
@@ -14899,7 +15051,7 @@ function SwitchTab(tabName)
 
     local allPanels = {
         AnimListFrame, CustomPanel, BindsPanel, StatesPanel, SettingsPanel,
-        SpeedPanel, TestingPanel, LimbsPanel, StretchingPanel
+        SpeedPanel, TestingPanel, LimbsPanel, LimbsTabPanel, StretchingPanel, ExtrasPanel
     }
     for _, p in ipairs(allPanels) do
         if p then
@@ -15243,8 +15395,19 @@ function ApplySpeed(speed)
     SpeedHandle.Position = UDim2.new(fraction, 0, 0.5, 0)
     SpeedLabel.Text      = "Speed: " .. string.format("%.1f", speed)
     SpeedValueBox.Text   = string.format("%.1f", speed)
-    if State.isReanimated then
+    -- Main Speed tab only drives manual / list animations — never state system
+    if State.isReanimated and not currentStateAnim then
         pcall(function() ReanimateAPI.set_animation_speed(speed) end)
+    end
+end
+
+function ApplyStateSpeed(speed)
+    speed = math.clamp(math.floor(speed * 10 + 0.5) / 10, 0.0, 1000.0)
+    State.stateSpeed = speed
+    if _G._N0IRUpdateStateSpeedUI then pcall(_G._N0IRUpdateStateSpeedUI, speed) end
+    -- Live-update only while a state anim is the active driver
+    if State.isReanimated and currentStateAnim then
+        pcall(function() ReanimateAPI.set_animation_speed(speed * (STATE_SPEED_MULT or 1.0)) end)
     end
 end
 
@@ -15637,7 +15800,7 @@ _G._N0IRReanimConns.KeybindInputEnded = UserInputService.InputEnded:Connect(LPH_
     local kc = input.KeyCode
     if GlobalReverseKeybind and kc == GlobalReverseKeybind then
         if State.isReanimated and ReanimateAPI and ReanimateAPI.set_animation_speed then
-            local resumeSpeed = tonumber(State.currentSpeed) or 1.0
+            local resumeSpeed = currentStateAnim and (tonumber(State.stateSpeed) or 1.0) or (tonumber(State.currentSpeed) or 1.0)
             pcall(ReanimateAPI.set_animation_speed, resumeSpeed)
         end
     end
@@ -17594,46 +17757,6 @@ plr.PlayerGui.DescendantAdded:Connect(function(desc)
     end
 end)
 
--- ============================================================
--- AUTO 90 FOV - Injected
--- ============================================================
-local function apply90FOV()
-    pcall(function()
-        local cam = workspace.CurrentCamera
-        if cam then
-            cam.FieldOfView = 90
-        end
-    end)
-end
-
--- Apply immediately
-apply90FOV()
-
--- Re-apply when character respawns
-pcall(function()
-    local Players = game:GetService("Players")
-    local plr = Players.LocalPlayer
-    if plr then
-        plr.CharacterAdded:Connect(function()
-            task.wait(0.05)
-            apply90FOV()
-        end)
-    end
-end)
-
--- Enforce 90 FOV if anything tries to change it
-pcall(function()
-    local cam = workspace.CurrentCamera
-    if cam then
-        cam:GetPropertyChangedSignal("FieldOfView"):Connect(function()
-            pcall(function()
-                if cam.FieldOfView ~= 105 then
-                    cam.FieldOfView = 105
-                end
-            end)
-        end)
-    end
-end)
 
 
 -- ============================================
@@ -18861,7 +18984,8 @@ task.spawn(function()
             rebuildPoleCache()
         end
 
-        local length = math.max(0.5, _G._N0IRPoleLength or 2.5)
+        -- Length: 10..1000 (default 150). Only stretches lower arm/leg — hand/foot stay neutral.
+        local length = math.clamp(tonumber(_G._N0IRPoleLength) or 150, 10, 1000)
 
         -- World-fixed orientation: limb stands at the PLACE position and points UP.
         -- Does not follow the character. Clear removes the pin.
@@ -18909,17 +19033,17 @@ task.spawn(function()
             -- Pin upper joint at the exact world place position, aiming UP
             setPart1World(upper, worldUpCF(anchorPos))
 
-            -- Stack lower + tip further UP from the fixed anchor (still world-fixed via parent chain)
-            local seg = math.max(0.4, length * 0.5)
+            -- Only extend lower arm / lower leg. Hand and foot stay at bind (no length).
+            -- Scale: UI units → studs (100 ≈ 1 stud of lower extension)
+            local lowerOffset = length * 0.01
             if lower then
-                -- Relative extension along bone; combined with fixed upper keeps tip near place+up
                 pcall(function()
-                    lower.Transform = CFrame.new(0, -seg, 0)
+                    lower.Transform = CFrame.new(0, -lowerOffset, 0)
                 end)
             end
             if endP then
                 pcall(function()
-                    endP.Transform = CFrame.new(0, -math.max(0.2, length * 0.25), 0)
+                    endP.Transform = CFrame.new()
                 end)
             end
         end
