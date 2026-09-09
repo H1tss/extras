@@ -109,15 +109,15 @@ _G._N0IR_Brand = {
     BgIndex  = tonumber(_G._N0IR_Brand and _G._N0IR_Brand.BgIndex) or 1, -- 0 = none, 1..n = pack entry
     BgTransparency = 0.42,
     Backgrounds = {
-        { Name = "Clouds With Black Sky",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(3).jfif",  Path = "N0IR/Bg_01.jfif" },
-        { Name = "Minecraft Endermen B&W",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(4).jfif",  Path = "N0IR/Bg_02.jfif" },
-        { Name = "Flowers B&W",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(5).jfif",  Path = "N0IR/Bg_03.jfif" },
-        { Name = "Attack On Titan Snake",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(6).jfif",  Path = "N0IR/Bg_04.jfif" },
-        { Name = "Creepy Girl",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(7).jfif",  Path = "N0IR/Bg_05.jfif" },
-        { Name = "DONT STOP B&W",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(8).jfif",  Path = "N0IR/Bg_06.jfif" },
-        { Name = "Above Clouds",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(9).jfif",  Path = "N0IR/Bg_07.jfif" },
-        { Name = "Above Clouds With Moon", Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(10).jfif", Path = "N0IR/Bg_08.jfif" },
-        { Name = "Monster Can", Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(11).jfif", Path = "N0IR/Bg_09.jfif" },
+        { Name = "Clouds 3",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(3).jfif",  Path = "N0IR/Bg_03.jfif" },
+        { Name = "Clouds 4",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(4).jfif",  Path = "N0IR/Bg_04.jfif" },
+        { Name = "Clouds 5",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(5).jfif",  Path = "N0IR/Bg_05.jfif" },
+        { Name = "Clouds 6",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(6).jfif",  Path = "N0IR/Bg_06.jfif" },
+        { Name = "Clouds 7",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(7).jfif",  Path = "N0IR/Bg_07.jfif" },
+        { Name = "Clouds 8",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(8).jfif",  Path = "N0IR/Bg_08.jfif" },
+        { Name = "Clouds 9",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(9).jfif",  Path = "N0IR/Bg_09.jfif" },
+        { Name = "Clouds 10", Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(10).jfif", Path = "N0IR/Bg_10.jfif" },
+        { Name = "Clouds 11", Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(11).jfif", Path = "N0IR/Bg_11.jfif" },
     },
 }
 
@@ -855,9 +855,9 @@ function N0IR:CreateWindow(opts)
     local tabLayout = Instance.new("UIListLayout")
     tabLayout.FillDirection = Enum.FillDirection.Horizontal
     tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    tabLayout.Padding = UDim.new(0, 4)
+    tabLayout.Padding = UDim.new(0, 6)
     tabLayout.Parent = tabStrip
-    padding(tabStrip, 4, 4, 10, 10)
+    padding(tabStrip, 4, 4, 6, 6)
     tabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
         tabStrip.CanvasSize = UDim2.fromOffset(tabLayout.AbsoluteContentSize.X + 20, 0)
     end)
@@ -903,25 +903,59 @@ function N0IR:CreateWindow(opts)
         _current = nil,
     }
 
+    local function setTabOutline(btn, on, soft)
+        local box = btn and btn:FindFirstChild("OutlineBox")
+        if not box then return end
+        local s = box:FindFirstChild("Stroke") or box:FindFirstChildOfClass("UIStroke")
+        if not s then return end
+        local goal = on and (soft and 0.55 or 0) or 1
+        TweenService:Create(s, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Transparency = goal,
+        }):Play()
+    end
+
     function Window:CreateTab(tabOpts)
         tabOpts = tabOpts or {}
         local name = tabOpts.Name or "Tab"
         local order = tabOpts.Order or (#self.Tabs + 1)
 
+        -- Match reanim tab style: transparent fill + rounded outline + text color tween
+        local inactiveCol = Color3.fromRGB(100, 100, 108)
+        local hoverCol = Color3.fromRGB(180, 180, 185)
+        local activeCol = Color3.fromRGB(235, 235, 240)
+
         local btn = Instance.new("TextButton")
-        btn.Size = UDim2.fromOffset(0, 28)
+        btn.Size = UDim2.fromOffset(0, 22)
         btn.AutomaticSize = Enum.AutomaticSize.X
-        btn.BackgroundColor3 = T.bg3
+        btn.BackgroundColor3 = Color3.fromRGB(18, 18, 20)
         btn.BackgroundTransparency = 1
         btn.BorderSizePixel = 0
-        btn.Font = Enum.Font.GothamMedium
+        btn.Font = Enum.Font.GothamBold
         btn.Text = "  " .. name .. "  "
-        btn.TextSize = 12
-        btn.TextColor3 = T.text3
+        btn.TextSize = 11
+        btn.TextColor3 = inactiveCol
         btn.AutoButtonColor = false
         btn.LayoutOrder = order
         btn.Parent = tabStrip
-        corner(btn, 6)
+        do
+            local box = Instance.new("Frame")
+            box.Name = "OutlineBox"
+            box.Parent = btn
+            box.BackgroundTransparency = 1
+            box.BorderSizePixel = 0
+            box.Size = UDim2.new(1, 0, 1, 0)
+            box.ZIndex = (btn.ZIndex or 1)
+            box.Active = false
+            local c = Instance.new("UICorner")
+            c.CornerRadius = UDim.new(0, 3)
+            c.Parent = box
+            local s = Instance.new("UIStroke")
+            s.Name = "Stroke"
+            s.Color = Color3.fromRGB(210, 210, 216)
+            s.Transparency = 1
+            s.Thickness = 1
+            s.Parent = box
+        end
 
         local page = Instance.new("ScrollingFrame")
         page.Name = name
@@ -952,27 +986,50 @@ function N0IR:CreateWindow(opts)
         }
 
         local function activate()
-            for _, t in ipairs(Window.Tabs) do
-                t.Page.Visible = false
-                t.Button.BackgroundTransparency = 1
-                t.Button.TextColor3 = T.text3
+            local ti = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            for _, tab in ipairs(Window.Tabs) do
+                tab.Page.Visible = false
+                tab.Button.BackgroundTransparency = 1
+                if tab ~= Tab then
+                    TweenService:Create(tab.Button, ti, { TextColor3 = inactiveCol }):Play()
+                    setTabOutline(tab.Button, false)
+                end
             end
             page.Visible = true
-            btn.BackgroundTransparency = 0.15
-            btn.TextColor3 = T.text
+            btn.BackgroundTransparency = 1
+            TweenService:Create(btn, ti, { TextColor3 = activeCol }):Play()
+            setTabOutline(btn, true, false)
             Window._current = Tab
+
+            -- keep active tab visible in horizontal strip (same as reanim)
+            task.defer(function()
+                pcall(function()
+                    local btnX = btn.AbsolutePosition.X - tabStrip.AbsolutePosition.X + tabStrip.CanvasPosition.X
+                    local btnW = btn.AbsoluteSize.X
+                    local visibleW = tabStrip.AbsoluteSize.X
+                    if btnX < tabStrip.CanvasPosition.X then
+                        tabStrip.CanvasPosition = Vector2.new(math.max(0, btnX - 8), 0)
+                    elseif btnX + btnW > tabStrip.CanvasPosition.X + visibleW then
+                        tabStrip.CanvasPosition = Vector2.new(btnX + btnW - visibleW + 8, 0)
+                    end
+                end)
+            end)
         end
 
         btn.MouseButton1Click:Connect(activate)
         btn.MouseEnter:Connect(function()
-            if Window._current ~= Tab then
-                tween(btn, { TextColor3 = T.text2 }, 0.12)
-            end
+            if Window._current == Tab then return end
+            TweenService:Create(btn, TweenInfo.new(0.1, Enum.EasingStyle.Quad), {
+                TextColor3 = hoverCol,
+            }):Play()
+            setTabOutline(btn, true, true)
         end)
         btn.MouseLeave:Connect(function()
-            if Window._current ~= Tab then
-                tween(btn, { TextColor3 = T.text3 }, 0.12)
-            end
+            if Window._current == Tab then return end
+            TweenService:Create(btn, TweenInfo.new(0.1, Enum.EasingStyle.Quad), {
+                TextColor3 = inactiveCol,
+            }):Play()
+            setTabOutline(btn, false)
         end)
 
         table.insert(self.Tabs, Tab)
