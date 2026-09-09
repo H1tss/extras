@@ -1139,38 +1139,73 @@ do
             pcall(n0ir.callbacks.on_play, anim.state.current_url);
         end;
 
+        local last_index = 1
+        local collide_tick = 0
         n0ir.connections.animation_hb = n0ir.services.run_service.PreSimulation:Connect(LPH_NO_VIRTUALIZE(function(deltaTime)
             if not (anim.state.is_playing and clone and clone.Parent) then
                 API.stop_animation();
                 return;
             end;
 
-            for i = 1, #fakeBaseParts do
-                if fakeBaseParts[i] and fakeBaseParts[i].Parent then
-                    fakeBaseParts[i].CanCollide = false;
-                end;
-            end;
+            -- CanCollide only ~2x/sec (not every physics step)
+            collide_tick = collide_tick + deltaTime
+            if collide_tick >= 0.5 then
+                collide_tick = 0
+                local fbp = fakeBaseParts
+                for i = 1, #fbp do
+                    local p = fbp[i]
+                    if p and p.Parent then
+                        p.CanCollide = false
+                    end
+                end
+            end
 
             if not anim.state.keyframes then return end;
 
-            anim.state.elapsed_time = anim.state.elapsed_time + deltaTime * anim.state.speed;
-            if anim.state.total_duration > 0 then
-                anim.state.elapsed_time = anim.state.elapsed_time % anim.state.total_duration;
-            end;
+            local speed = anim.state.speed
+            local total = anim.state.total_duration
+            local elapsed = anim.state.elapsed_time + deltaTime * speed
+            if total > 0 then
+                elapsed = elapsed % total
+            end
+            anim.state.elapsed_time = elapsed
 
             local keyframes = anim.state.keyframes;
-            local elapsed = anim.state.elapsed_time;
             local num_keyframes = #keyframes;
-            local current_frame = nil;
-            local next_frame = nil;
+            if num_keyframes < 1 then return end
 
-            for i = 1, num_keyframes - 1 do
-                if elapsed >= keyframes[i].Time and elapsed < keyframes[i + 1].Time then
-                    current_frame = keyframes[i];
-                    next_frame = keyframes[i + 1];
-                    break;
-                end;
-            end;
+            local current_frame, next_frame
+            local li = last_index
+            if li < 1 or li > num_keyframes then li = 1 end
+
+            -- Fast path: same / next frame cursor (most frames stay put)
+            local kf_li = keyframes[li]
+            local kf_next = (li < num_keyframes) and keyframes[li + 1] or nil
+            if kf_li and elapsed >= kf_li.Time and (not kf_next or elapsed < kf_next.Time) then
+                current_frame = kf_li
+                next_frame = kf_next or keyframes[1]
+            elseif kf_next and elapsed >= kf_next.Time and (li + 1 >= num_keyframes or elapsed < keyframes[li + 2].Time) then
+                li = li + 1
+                last_index = li
+                current_frame = keyframes[li]
+                next_frame = (li < num_keyframes) and keyframes[li + 1] or keyframes[1]
+            else
+                -- Binary search on keyframe times
+                local low, high, found = 1, num_keyframes - 1, 1
+                while low <= high do
+                    local mid = (low + high) // 2
+                    if elapsed >= keyframes[mid].Time then
+                        found = mid
+                        low = mid + 1
+                    else
+                        high = mid - 1
+                    end
+                end
+                li = found
+                last_index = li
+                current_frame = keyframes[li]
+                next_frame = (li < num_keyframes) and keyframes[li + 1] or keyframes[1]
+            end
 
             if not current_frame then
                 current_frame = keyframes[num_keyframes];
@@ -1179,38 +1214,41 @@ do
 
             local frame_duration = next_frame.Time - current_frame.Time;
             if frame_duration <= 0 then
-                frame_duration = anim.state.total_duration;
+                frame_duration = total > 0 and total or 1;
             end;
 
-            local time_in_frame = elapsed - current_frame.Time;
-            local alpha = math.clamp(frame_duration > 0 and time_in_frame / frame_duration or 0, 0, 1);
+            local alpha = (elapsed - current_frame.Time) / frame_duration
+            if alpha < 0 then alpha = 0 elseif alpha > 1 then alpha = 1 end
 
             -- Smooth state crossfade (Idle↔Walk↔Run): part-name keyed
             local bf = anim.blend_from;
             local bAlpha = 1;
             if bf then
                 anim.blend_t = math.clamp((anim.blend_t or 0) + deltaTime / (anim.blend_dur or 0.18), 0, 1);
-                local t = anim.blend_t;
-                bAlpha = t * t * (3 - 2 * t); -- smoothstep
-                if t >= 1 then
+                local bt = anim.blend_t;
+                bAlpha = bt * bt * (3 - 2 * bt); -- smoothstep
+                if bt >= 1 then
                     anim.blend_from = nil;
                     anim.blend_t = 0;
                     bf = nil;
                 end;
             end;
 
-            if current_frame.Data then
-                for partName, pose_cframe in pairs(current_frame.Data) do
+            local data = current_frame.Data
+            if data then
+                local nextData = next_frame.Data
+                for partName, pose_cframe in pairs(data) do
                     local constraint = constraints[partName];
-                    if constraint and constraint.Parent then
-                        local next_pose = next_frame.Data and next_frame.Data[partName];
+                    if constraint then
+                        local next_pose = nextData and nextData[partName];
                         local targetCF = next_pose and pose_cframe:Lerp(next_pose, alpha) or pose_cframe;
-                        if bf and bf[partName] then
-                            targetCF = bf[partName]:Lerp(targetCF, bAlpha);
-                        end;
-                        pcall(function()
-                            constraint.Transform = targetCF;
-                        end);
+                        if bf then
+                            local from = bf[partName]
+                            if from then
+                                targetCF = from:Lerp(targetCF, bAlpha);
+                            end
+                        end
+                        constraint.Transform = targetCF;
                     end;
                 end;
             end;
@@ -2428,22 +2466,25 @@ do
                 end;
             end;
 
-            for partName, pose_cframe in pairs(current_frame.Data) do
-                local constraint = anim.constraints[partName];
-                if constraint and constraint.Parent and anim.original_transforms[constraint] then
-                    local next_pose_cframe = next_frame.Data and next_frame.Data[partName];
-                    local interpolated_transform;
-                    if next_pose_cframe then
-                        interpolated_transform = pose_cframe:Lerp(next_pose_cframe, alpha);
-                    else
-                        interpolated_transform = pose_cframe;
-                    end;
-                    if bf and bf[partName] then
-                        interpolated_transform = bf[partName]:Lerp(interpolated_transform, bAlpha);
-                    end;
-                    constraint.Transform = interpolated_transform;
-                end;
-            end;
+            local data = current_frame.Data
+            if data then
+                local nextData = next_frame and next_frame.Data
+                local cons = anim.constraints
+                for partName, pose_cframe in pairs(data) do
+                    local constraint = cons[partName]
+                    if constraint then
+                        local next_pose = nextData and nextData[partName]
+                        local targetCF = next_pose and pose_cframe:Lerp(next_pose, alpha) or pose_cframe
+                        if bf then
+                            local from = bf[partName]
+                            if from then
+                                targetCF = from:Lerp(targetCF, bAlpha)
+                            end
+                        end
+                        constraint.Transform = targetCF
+                    end
+                end
+            end
 
             -- Fun head modes (spin / stare) take priority over camera head tracker
             if _G._N0IRSpinHeadEnabled or _G._N0IRStareEnabled or _G._N0IRLookBehindEnabled
@@ -17978,14 +18019,27 @@ end
 local function startStandalonePointers()
     if standalonePointerConn then standalonePointerConn:Disconnect(); standalonePointerConn = nil end
     buildStandalonePointerCache()
+    local ptrCacheCheckAt = 0
     standalonePointerConn = RunService.PreSimulation:Connect(LPH_NO_VIRTUALIZE(function()
         if not State.isReanimated then return end
-        local isPlaying = ReanimateAPI and ReanimateAPI.is_animation_playing and ReanimateAPI.is_animation_playing()
-        if isPlaying then return end -- animation system handles pointers when playing
         if not (_G._N0IRLeftArmPointerEnabled or _G._N0IRRightArmPointerEnabled or _G._N0IRLeftArmStretching or _G._N0IRRightArmStretching or _G._N0IRLegStretcherEnabled or _G._N0IRTorsoStretcherEnabled) then return end
-        -- Rebuild cache if invalidated
-        for _, c in pairs(standalonePointerCache or {}) do
-            if not c.Parent then buildStandalonePointerCache(); break end
+        local isPlaying = ReanimateAPI and ReanimateAPI.is_animation_playing and ReanimateAPI.is_animation_playing()
+        if isPlaying then return end
+        -- Validate cache at most ~1/sec instead of every physics step
+        local now = os.clock()
+        if now - ptrCacheCheckAt > 1.0 then
+            ptrCacheCheckAt = now
+            local cache = standalonePointerCache
+            if cache then
+                for _, c in pairs(cache) do
+                    if not c.Parent then
+                        buildStandalonePointerCache()
+                        break
+                    end
+                end
+            else
+                buildStandalonePointerCache()
+            end
         end
         doStandalonePointers()
     end))
@@ -18914,9 +18968,9 @@ task.spawn(function()
     local function start()
         if _Extra.conn then _Extra.conn:Disconnect(); _Extra.conn = nil end
         rebuildCache()
-        _Extra.conn = RunService.PreSimulation:Connect(function(dt)
-            pcall(tickExtra, dt)
-        end)
+        _Extra.conn = RunService.PreSimulation:Connect(LPH_NO_VIRTUALIZE(function(dt)
+            tickExtra(dt)
+        end))
     end
 
     local function stop()
@@ -18972,87 +19026,63 @@ task.spawn(function()
     end
 
     local poleCache = {}
+    local poleCacheAt = 0
     local function rebuildPoleCache()
-        poleCache = getConstraintCache(getClone())
+        poleCache = getConstraintCache(getClone()) or {}
+        poleCacheAt = os.clock()
     end
 
-    local poleConn = RunService.PreSimulation:Connect(function()
-        if not _G._N0IRPolesEnabled then return end
-        if not State.isReanimated then return end
+    -- Hoisted out of PreSimulation (was reallocating closures every physics step)
+    local function worldUpCF(pos)
+        return CFrame.fromMatrix(pos, Vector3.new(1, 0, 0), Vector3.new(0, -1, 0), Vector3.new(0, 0, -1))
+    end
 
-        if not next(poleCache) or (tick() % 2 < 0.03) then
+    local function setPart1World(constraint, targetCF)
+        if not constraint then return end
+        if constraint:IsA("Motor6D") and constraint.Part0 then
+            local part0CF = constraint.Part0.CFrame
+            local c0, c1 = constraint.C0, constraint.C1
+            constraint.Transform = c0:Inverse() * part0CF:Inverse() * targetCF * c1
+        else
+            local att0 = constraint.Attachment0
+            local att1 = constraint.Attachment1
+            if att0 and att1 then
+                constraint.Transform = att0.WorldCFrame:Inverse() * targetCF * att1.CFrame
+            elseif att0 then
+                constraint.Transform = att0.WorldCFrame:Inverse() * targetCF
+            end
+        end
+    end
+
+    local function doPole(upperName, lowerName, endName, anchorKey, length)
+        local anchors = _G._N0IRPoleAnchors
+        local anchorPos = anchors and anchors[anchorKey]
+        if not anchorPos then return end
+        local upper = poleCache[upperName]
+        if not upper then return end
+        setPart1World(upper, worldUpCF(anchorPos))
+        local lower = poleCache[lowerName]
+        if lower then
+            lower.Transform = CFrame.new(0, -(length * 0.01), 0)
+        end
+        local endP = poleCache[endName]
+        if endP then
+            endP.Transform = CFrame.new()
+        end
+    end
+
+    local poleConn = RunService.PreSimulation:Connect(LPH_NO_VIRTUALIZE(function()
+        if not _G._N0IRPolesEnabled or not State.isReanimated then return end
+        if not next(poleCache) or (os.clock() - poleCacheAt) > 1.5 then
             rebuildPoleCache()
         end
-
-        -- Length: 10..1000 (default 150). Only stretches lower arm/leg — hand/foot stay neutral.
-        local length = math.clamp(tonumber(_G._N0IRPoleLength) or 150, 10, 1000)
-
-        -- World-fixed orientation: limb stands at the PLACE position and points UP.
-        -- Does not follow the character. Clear removes the pin.
-        local function worldUpCF(pos)
-            -- Local bone -Y should face world +Y
-            local right = Vector3.new(1, 0, 0)
-            local upCol = Vector3.new(0, -1, 0) -- Y column = -worldUp
-            local look = Vector3.new(0, 0, -1)
-            return CFrame.fromMatrix(pos, right, upCol, look)
-        end
-
-        local function setPart1World(constraint, targetCF)
-            if not constraint then return end
-            if constraint:IsA("Motor6D") and constraint.Part0 then
-                local part0CF = constraint.Part0.CFrame
-                local c0, c1 = constraint.C0, constraint.C1
-                pcall(function()
-                    -- Part0*C0*Transform*C1:Inverse() ~= Part1 world
-                    constraint.Transform = c0:Inverse() * part0CF:Inverse() * targetCF * c1
-                end)
-            else
-                local att0 = constraint.Attachment0
-                local att1 = constraint.Attachment1
-                if att0 and att1 then
-                    pcall(function()
-                        constraint.Transform = att0.WorldCFrame:Inverse() * targetCF * att1.CFrame
-                    end)
-                elseif att0 then
-                    pcall(function()
-                        constraint.Transform = att0.WorldCFrame:Inverse() * targetCF
-                    end)
-                end
-            end
-        end
-
-        local function doPole(upperName, lowerName, endName, anchorKey)
-            local anchorPos = _G._N0IRPoleAnchors and _G._N0IRPoleAnchors[anchorKey]
-            if not anchorPos then return end
-
-            local upper = poleCache[upperName]
-            local lower = poleCache[lowerName]
-            local endP = poleCache[endName]
-            if not upper then return end
-
-            -- Pin upper joint at the exact world place position, aiming UP
-            setPart1World(upper, worldUpCF(anchorPos))
-
-            -- Only extend lower arm / lower leg. Hand and foot stay at bind (no length).
-            -- Scale: UI units → studs (100 ≈ 1 stud of lower extension)
-            local lowerOffset = length * 0.01
-            if lower then
-                pcall(function()
-                    lower.Transform = CFrame.new(0, -lowerOffset, 0)
-                end)
-            end
-            if endP then
-                pcall(function()
-                    endP.Transform = CFrame.new()
-                end)
-            end
-        end
-
-        doPole("RightUpperArm", "RightLowerArm", "RightHand", "RightArm")
-        doPole("LeftUpperArm", "LeftLowerArm", "LeftHand", "LeftArm")
-        doPole("RightUpperLeg", "RightLowerLeg", "RightFoot", "RightLeg")
-        doPole("LeftUpperLeg", "LeftLowerLeg", "LeftFoot", "LeftLeg")
-    end)
+        local length = tonumber(_G._N0IRPoleLength) or 150
+        if length < 10 then length = 10 elseif length > 1000 then length = 1000 end
+        doPole("RightUpperArm", "RightLowerArm", "RightHand", "RightArm", length)
+        doPole("LeftUpperArm", "LeftLowerArm", "LeftHand", "LeftArm", length)
+        doPole("RightUpperLeg", "RightLowerLeg", "RightFoot", "RightLeg", length)
+        doPole("LeftUpperLeg", "LeftLowerLeg", "LeftFoot", "LeftLeg", length)
+    end))
 
     plr.CharacterAdded:Connect(function()
         task.wait(0.7)
