@@ -331,10 +331,13 @@ local function _n0irSaveSettings()
         local brand = _G._N0IR_Brand or {}
         local toggleName = _n0irKeyName(_G._N0IR_ToggleKey) or "M"
         local cmdName = _n0irKeyName(_G._N0IR_CmdBarKey) or "Semicolon"
+        local tpKeyName = _n0irKeyName(_G._N0IRTeleportKey) or "NONE"
         local data = {
             ToggleKey = toggleName,
             CmdBarKey = cmdName,
             CmdPrefix = tostring(_G._N0IR_CmdPrefix or ";"),
+            TeleportKey = tpKeyName,
+            TPKeybindEnabled = (_G._N0IR_TPKeybindEnabled ~= false),
             BgIndex = tonumber(brand.BgIndex) or 1,
             BgTransparency = tonumber(brand.BgTransparency) or 0.42,
             Flags = flags,
@@ -354,6 +357,7 @@ local function _n0irSaveSettings()
         -- also stash on _G so same-session always has it even if disk fails next time
         _G._N0IR_SavedToggleKeyName = toggleName
         _G._N0IR_SavedCmdBarKeyName = cmdName
+        _G._N0IR_SavedTeleportKeyName = tpKeyName
     end)
     if not ok then
         warn("[N0IR] SaveSettings failed: ", err)
@@ -400,6 +404,20 @@ local function _n0irLoadSettings()
                 if data.SmoothDrag ~= nil then _G._N0IRSmoothDrag = data.SmoothDrag end
                 if data.TabGridMode ~= nil then _G._N0IRTabGridMode = data.TabGridMode end
                 if data.FriendLeftNotify ~= nil then _G._N0IR_FriendLeftNotify = data.FriendLeftNotify end
+                if data.TPKeybindEnabled ~= nil then
+                    _G._N0IR_TPKeybindEnabled = data.TPKeybindEnabled and true or false
+                    N0IR.Flags = N0IR.Flags or {}
+                    N0IR.Flags.TPKeybindEnabled = _G._N0IR_TPKeybindEnabled
+                end
+                if type(data.TeleportKey) == "string" and data.TeleportKey ~= "" then
+                    if data.TeleportKey == "NONE" then
+                        _G._N0IRTeleportKey = nil
+                    else
+                        local tpk = _n0irKeyFromName(data.TeleportKey)
+                        if tpk then _G._N0IRTeleportKey = tpk end
+                    end
+                    _G._N0IR_SavedTeleportKeyName = data.TeleportKey
+                end
             end
         end
         toggleName = toggleName or _G._N0IR_SavedToggleKeyName
@@ -408,6 +426,12 @@ local function _n0irLoadSettings()
         if tk then _G._N0IR_ToggleKey = tk end
         local ck = _n0irKeyFromName(cmdName)
         if ck then _G._N0IR_CmdBarKey = ck end
+        if _G._N0IR_TPKeybindEnabled == nil then _G._N0IR_TPKeybindEnabled = true end
+        if _G._N0IRTeleportKey == nil and type(_G._N0IR_SavedTeleportKeyName) == "string"
+            and _G._N0IR_SavedTeleportKeyName ~= "" and _G._N0IR_SavedTeleportKeyName ~= "NONE" then
+            local tpk2 = _n0irKeyFromName(_G._N0IR_SavedTeleportKeyName)
+            if tpk2 then _G._N0IRTeleportKey = tpk2 end
+        end
     end)
     if not ok then
         warn("[N0IR] LoadSettings failed: ", err)
@@ -4133,6 +4157,71 @@ function N0IR:MountUtilities(Window)
         end,
     })
 
+    Settings:CreateSection("Mouse Teleport")
+    Settings:CreateToggle({
+        Name = "TP Keybind",
+        Description = "Enable mouse-cursor teleport on key press",
+        Flag = "TPKeybindEnabled",
+        Default = (_G._N0IR_TPKeybindEnabled ~= false),
+        Callback = function(on)
+            _G._N0IR_TPKeybindEnabled = on and true or false
+            if _G._N0IR_SaveSettings then task.defer(_G._N0IR_SaveSettings) end
+            if _G._UniUpdateTpBtnText then pcall(_G._UniUpdateTpBtnText) end
+        end,
+    })
+    local tpKeyLbl = Settings:CreateLabel(
+        "TP key  ·  " .. tostring((_G._N0IRTeleportKey and _G._N0IRTeleportKey.Name) or "None")
+    )
+    Settings:CreateButton({
+        Name = "Set teleport key",
+        Callback = function()
+            if listening then return end
+            listening = true
+            tpKeyLbl:Set("Press any key...")
+            N0IR:Notify({ Title = "TP Keybind", Content = "Press a key (Esc to clear)", Duration = 2 })
+            task.delay(0.15, function()
+                local conn
+                conn = UserInputService.InputBegan:Connect(function(input, gp)
+                    if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+                    if not conn then return end
+                    conn:Disconnect()
+                    conn = nil
+                    listening = false
+                    if input.KeyCode == Enum.KeyCode.Escape then
+                        _G._N0IRTeleportKey = nil
+                        _G._N0IR_SavedTeleportKeyName = "NONE"
+                        tpKeyLbl:Set("TP key  ·  None")
+                        if _G._N0IR_SaveSettings then _G._N0IR_SaveSettings() end
+                        if _G._UniUpdateTpBtnText then pcall(_G._UniUpdateTpBtnText) end
+                        N0IR:Notify({ Title = "TP Keybind", Content = "Cleared", Duration = 1.5 })
+                        return
+                    end
+                    _G._N0IRTeleportKey = input.KeyCode
+                    _G._N0IR_SavedTeleportKeyName = input.KeyCode.Name
+                    tpKeyLbl:Set("TP key  ·  " .. input.KeyCode.Name)
+                    if _G._N0IR_SaveSettings then _G._N0IR_SaveSettings() end
+                    if _G._UniUpdateTpBtnText then pcall(_G._UniUpdateTpBtnText) end
+                    N0IR:Notify({
+                        Title = "TP Keybind",
+                        Content = "Teleport → " .. input.KeyCode.Name,
+                        Duration = 2,
+                    })
+                end)
+            end)
+        end,
+    })
+    Settings:CreateButton({
+        Name = "Clear teleport key",
+        Callback = function()
+            _G._N0IRTeleportKey = nil
+            _G._N0IR_SavedTeleportKeyName = "NONE"
+            tpKeyLbl:Set("TP key  ·  None")
+            if _G._N0IR_SaveSettings then _G._N0IR_SaveSettings() end
+            if _G._UniUpdateTpBtnText then pcall(_G._UniUpdateTpBtnText) end
+            N0IR:Notify({ Title = "TP Keybind", Content = "Cleared", Duration = 1.5 })
+        end,
+    })
+
     Settings:CreateSection("Command prefix")
     local prefixLbl = Settings:CreateLabel("Current prefix  ·  " .. tostring(_G._N0IR_CmdPrefix or ";"))
     local prefixInput = Settings:CreateInput({
@@ -4179,6 +4268,50 @@ function N0IR:MountUtilities(Window)
             N0IR:Notify({ Title = "NØIR", Content = "Library is alive.", Duration = 2 })
         end,
     })
+
+    -- ---------- Mouse TP keybind runtime (shared with reanim via _G) ----------
+    if not _G._N0IR_UI_TPRuntimeInstalled then
+        _G._N0IR_UI_TPRuntimeInstalled = true
+        if _G._N0IR_TPKeybindEnabled == nil then
+            _G._N0IR_TPKeybindEnabled = true
+        end
+        local VERTICAL_OFFSET = 3
+        local function isValidTeleportPosition(targetPart, targetPosition)
+            if not targetPart then return false end
+            if targetPart.Transparency >= 1 and targetPart.CanCollide then return false end
+            if targetPosition.Y < -100 then return false end
+            return true
+        end
+        local function doLocalMouseTeleport()
+            if type(_G._N0IRDoMouseTeleport) == "function" then
+                pcall(_G._N0IRDoMouseTeleport)
+                return
+            end
+            local character = LocalPlayer.Character
+            if not character then return end
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            local rootPart = character:FindFirstChild("HumanoidRootPart")
+            if not humanoid or humanoid.Health <= 0 or not rootPart then return end
+            local mouse = LocalPlayer:GetMouse()
+            if not mouse or not mouse.Hit then return end
+            if not isValidTeleportPosition(mouse.Target, mouse.Hit.Position) then return end
+            local teleportPosition = mouse.Hit.Position + Vector3.new(0, VERTICAL_OFFSET, 0)
+            rootPart.CFrame = rootPart.CFrame + (teleportPosition - rootPart.Position)
+        end
+        _G._N0IR_UI_DoMouseTeleport = doLocalMouseTeleport
+        UserInputService.InputBegan:Connect(function(input, gameProcessed)
+            if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+            if _G._N0IR_TPKeybindEnabled == false then return end
+            if not _G._N0IRTeleportKey then return end
+            if input.KeyCode ~= _G._N0IRTeleportKey then return end
+            if UserInputService:GetFocusedTextBox() then return end
+            -- Prefer reanim listener when it is installed (clone-aware)
+            if _G._N0IRReanimConns and _G._N0IRReanimConns.KeybindInputBegan then
+                return
+            end
+            pcall(doLocalMouseTeleport)
+        end)
+    end
 
     return {
         Home = Home,
