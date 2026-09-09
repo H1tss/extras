@@ -664,6 +664,7 @@ _G._N0IRNoClipActive = false
 _G._N0IRShadersEnabled = false
 
 _G._N0IRTeleportKey = nil
+_G._N0IR_TPKeybindEnabled = (_G._N0IR_TPKeybindEnabled ~= false) -- default on; UI lib can toggle
 _G._UniCmdBarKey = nil
 
 -- Destroy old ScreenGui if it exists
@@ -3741,12 +3742,46 @@ function LoadData()
             end
         end
 
-        -- Teleport Key
+        -- Teleport Key (+ enabled toggle; UI lib owns primary controls when present)
+        local okTpEn, tpEnRaw = pcall(readfile, fpath("ReanimTeleportEnabled.txt"))
+        if not okTpEn or not tpEnRaw then
+            okTpEn, tpEnRaw = pcall(readfile, "ReanimTeleportEnabled.txt")
+        end
+        if okTpEn and tpEnRaw then
+            local s = tostring(tpEnRaw):match("^%s*(.-)%s*$")
+            if s == "0" or s:lower() == "false" or s == "off" then
+                _G._N0IR_TPKeybindEnabled = false
+            else
+                _G._N0IR_TPKeybindEnabled = true
+            end
+        elseif _G._N0IR_TPKeybindEnabled == nil then
+            _G._N0IR_TPKeybindEnabled = true
+        end
+        -- Prefer shared N0IR/settings.json from UI lib when available
+        pcall(function()
+            if isfile and isfile("N0IR/settings.json") and readfile then
+                local HttpService = game:GetService("HttpService")
+                local data = HttpService:JSONDecode(readfile("N0IR/settings.json"))
+                if type(data) == "table" then
+                    if data.TPKeybindEnabled ~= nil then
+                        _G._N0IR_TPKeybindEnabled = data.TPKeybindEnabled and true or false
+                    end
+                    if type(data.TeleportKey) == "string" and data.TeleportKey ~= "" then
+                        if data.TeleportKey == "NONE" then
+                            _G._N0IRTeleportKey = nil
+                        else
+                            local okK, kc = pcall(function() return Enum.KeyCode[data.TeleportKey] end)
+                            if okK and kc then _G._N0IRTeleportKey = kc end
+                        end
+                    end
+                end
+            end
+        end)
         local okTp, tpKeyName = pcall(readfile, fpath("ReanimTeleportKey.txt"))
         if not okTp or not tpKeyName or tpKeyName == "" then
             okTp, tpKeyName = pcall(readfile, "ReanimTeleportKey.txt")
         end
-        if okTp and tpKeyName and tpKeyName ~= "" then
+        if okTp and tpKeyName and tpKeyName ~= "" and not _G._N0IRTeleportKey then
             tpKeyName = tpKeyName:match("^%s*(.-)%s*$")
             if tpKeyName == "NONE" then
                 _G._N0IRTeleportKey = nil
@@ -3754,8 +3789,13 @@ function LoadData()
                 local okTp2, kc = pcall(function() return Enum.KeyCode[tpKeyName] end)
                 if okTp2 and kc then _G._N0IRTeleportKey = kc end
             end
-        else
-            _G._N0IRTeleportKey = Enum.KeyCode.R
+        elseif not _G._N0IRTeleportKey and not (okTp and tpKeyName and tpKeyName ~= "") then
+            -- only default to R when nothing was ever set
+            if not okTp or not tpKeyName or tpKeyName == "" then
+                if _G._N0IRTeleportKey == nil and _G._N0IR_SavedTeleportKeyName == nil then
+                    _G._N0IRTeleportKey = Enum.KeyCode.R
+                end
+            end
         end
 
         -- Command Bar Key
@@ -3892,6 +3932,7 @@ function SaveData()
             else
                 _safeWriteFile("ReanimTeleportKey.txt", "NONE")
             end
+            _safeWriteFile("ReanimTeleportEnabled.txt", (_G._N0IR_TPKeybindEnabled ~= false) and "1" or "0")
             if _G._UniCmdBarKey then
                 _safeWriteFile("ReanimCmdBarKey.txt", _G._UniCmdBarKey.Name)
             else
@@ -15302,7 +15343,7 @@ _G._N0IRReanimConns.KeybindInputBegan = UserInputService.InputBegan:Connect(LPH_
     local _listening = _G._N0IRListeningKeyBtn or _G._N0IRListeningSpeedIdx or _G._N0IRListeningRevSpeedIdx
     if _typing and not _listening then return end
 
-    if _G._N0IRTeleportKey and kc == _G._N0IRTeleportKey then
+    if _G._N0IR_TPKeybindEnabled ~= false and _G._N0IRTeleportKey and kc == _G._N0IRTeleportKey then
         if UserInputService:GetFocusedTextBox() then return end
         pcall(doMouseTeleport)
         return
@@ -16235,7 +16276,32 @@ local function buildSettingsUI()
         end))
     end)
 
-    -- Mouse Teleport Keybind
+    -- Mouse Teleport Keybind (shared with NØIR UI lib via _G._N0IRTeleportKey / _G._N0IR_TPKeybindEnabled)
+    local tpEnFrame = new("Frame",sc,{Size=UDim2.new(1,-10,0,40),BackgroundColor3=C.bg2,BackgroundTransparency=0.45,BorderSizePixel=0})
+    corner(tpEnFrame,8); stroke(tpEnFrame,C.glassBorder,1,0.6)
+    new("TextLabel",tpEnFrame,{Size=UDim2.new(1,-90,0,16),Position=UDim2.new(0,10,0,4),
+        BackgroundTransparency=1,Text="TP Keybind Enabled",TextColor3=C.text,TextSize=11,
+        Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Left})
+    new("TextLabel",tpEnFrame,{Size=UDim2.new(1,-90,0,14),Position=UDim2.new(0,10,0,22),
+        BackgroundTransparency=1,Text="Master toggle · also controlled from NØIR UI Settings",
+        TextColor3=C.text3,TextSize=9,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left})
+    local tpEnBtn = new("TextButton",tpEnFrame,{Size=UDim2.new(0,72,0,24),Position=UDim2.new(1,-80,0.5,-12),
+        BackgroundColor3=C.bg2,BackgroundTransparency=0.2,BorderSizePixel=0,
+        Font=Enum.Font.GothamBold,Text="ON",TextColor3=C.accent,TextSize=10})
+    corner(tpEnBtn,5); stroke(tpEnBtn,C.border,1,0.7)
+    local function updateTpEnBtn()
+        local on = _G._N0IR_TPKeybindEnabled ~= false
+        tpEnBtn.Text = on and "ON" or "OFF"
+        tpEnBtn.TextColor3 = on and C.accent or C.text3
+    end
+    updateTpEnBtn()
+    tpEnBtn.MouseButton1Click:Connect(function()
+        _G._N0IR_TPKeybindEnabled = not (_G._N0IR_TPKeybindEnabled ~= false)
+        SaveData()
+        updateTpEnBtn()
+        if _G._N0IR_SaveSettings then pcall(_G._N0IR_SaveSettings) end
+    end)
+
     local tpFrame = new("Frame",sc,{Size=UDim2.new(1,-10,0,54),BackgroundColor3=C.bg2,BackgroundTransparency=0.45,BorderSizePixel=0})
     corner(tpFrame,8); stroke(tpFrame,C.glassBorder,1,0.6)
 
@@ -16288,6 +16354,7 @@ local function buildSettingsUI()
             end
             SaveData()
             updateTpBtnText()
+            if _G._N0IR_SaveSettings then pcall(_G._N0IR_SaveSettings) end
         end))
     end)
 
