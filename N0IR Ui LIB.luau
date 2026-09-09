@@ -308,8 +308,18 @@ local function _n0irSaveSettings()
         end
         local brand = _G._N0IR_Brand or {}
         local data = {
-            ToggleKey = (_G._N0IR_ToggleKey and _G._N0IR_ToggleKey.Name) or "M",
-            CmdBarKey = (_G._N0IR_CmdBarKey and _G._N0IR_CmdBarKey.Name) or "Semicolon",
+            ToggleKey = (function()
+                local k = _G._N0IR_ToggleKey
+                if typeof(k) == "EnumItem" then return k.Name end
+                if type(k) == "string" then return k end
+                return "M"
+            end)(),
+            CmdBarKey = (function()
+                local k = _G._N0IR_CmdBarKey
+                if typeof(k) == "EnumItem" then return k.Name end
+                if type(k) == "string" then return k end
+                return "Semicolon"
+            end)(),
             CmdPrefix = tostring(_G._N0IR_CmdPrefix or ";"),
             BgIndex = tonumber(brand.BgIndex) or 1,
             BgTransparency = tonumber(brand.BgTransparency) or 0.42,
@@ -1374,8 +1384,8 @@ function N0IR:CreateWindow(opts)
         screen:Destroy()
     end
 
-    -- Toggle keybind (prefer saved → opts → default M)
-    local toggleKey = opts.ToggleKey or _G._N0IR_ToggleKey or Enum.KeyCode.M
+    -- Toggle keybind: saved global wins over opts (Init used to force M and wipe saves)
+    local toggleKey = _G._N0IR_ToggleKey or opts.ToggleKey or Enum.KeyCode.M
     if type(toggleKey) == "string" then
         pcall(function() toggleKey = Enum.KeyCode[toggleKey] end)
     end
@@ -3741,22 +3751,35 @@ function N0IR:MountUtilities(Window)
         listening = true
         labelObj:Set("Press any key...")
         N0IR:Notify({ Title = "Keybind", Content = "Press a key (Esc to cancel)", Duration = 2 })
-        local conn
-        conn = UserInputService.InputBegan:Connect(function(input, gp)
-            if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-            conn:Disconnect()
-            listening = false
-            if input.KeyCode == Enum.KeyCode.Escape then
-                local cur = _G[storeKey] or (storeKey == "_N0IR_ToggleKey" and Enum.KeyCode.M or Enum.KeyCode.Semicolon)
-                labelObj:Set(pretty .. "  ·  " .. cur.Name)
-                N0IR:Notify({ Title = "Keybind", Content = "Cancelled", Duration = 1.5 })
-                return
-            end
-            _G[storeKey] = input.KeyCode
-            labelObj:Set(pretty .. "  ·  " .. input.KeyCode.Name)
-            if _G._N0IR_SaveKeybinds then _G._N0IR_SaveKeybinds() end
-            if _G._N0IR_SaveSettings then _G._N0IR_SaveSettings() end
-            N0IR:Notify({ Title = "Keybind", Content = pretty .. " → " .. input.KeyCode.Name .. "  ·  saved", Duration = 2 })
+        -- delay so the mouse/key that clicked the button isn't captured
+        task.delay(0.15, function()
+            local conn
+            conn = UserInputService.InputBegan:Connect(function(input, gp)
+                if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+                if not conn then return end
+                conn:Disconnect()
+                conn = nil
+                listening = false
+                if input.KeyCode == Enum.KeyCode.Escape then
+                    local cur = _G[storeKey] or (storeKey == "_N0IR_ToggleKey" and Enum.KeyCode.M or Enum.KeyCode.Semicolon)
+                    labelObj:Set(pretty .. "  ·  " .. (typeof(cur) == "EnumItem" and cur.Name or tostring(cur)))
+                    N0IR:Notify({ Title = "Keybind", Content = "Cancelled", Duration = 1.5 })
+                    return
+                end
+                -- write both table index and known globals (some envs treat _G[str] oddly)
+                _G[storeKey] = input.KeyCode
+                if storeKey == "_N0IR_ToggleKey" then
+                    _G._N0IR_ToggleKey = input.KeyCode
+                elseif storeKey == "_N0IR_CmdBarKey" then
+                    _G._N0IR_CmdBarKey = input.KeyCode
+                end
+                labelObj:Set(pretty .. "  ·  " .. input.KeyCode.Name)
+                -- force immediate disk write
+                if _G._N0IR_SaveSettings then
+                    _G._N0IR_SaveSettings()
+                end
+                N0IR:Notify({ Title = "Keybind", Content = pretty .. " → " .. input.KeyCode.Name .. "  ·  saved", Duration = 2 })
+            end)
         end)
     end
 
@@ -3850,7 +3873,7 @@ function N0IR:Init(opts)
         Loading = opts.Loading ~= false,
         LoadingText = opts.LoadingText or "loading modules",
         LoadingDuration = opts.LoadingDuration or 2.2,
-        ToggleKey = opts.ToggleKey or Enum.KeyCode.M,
+        ToggleKey = opts.ToggleKey, -- nil → CreateWindow uses saved _G._N0IR_ToggleKey
     })
     local modules = self:MountUtilities(win)
     return win, modules
