@@ -4105,9 +4105,6 @@ function N0IR:MountUtilities(Window)
                 val = def.example
             end
             if val == "" then
-                if not silent then
-                    N0IR:Notify({ Title = "AutoExec", Content = def.label .. " needs a value", Duration = 2 })
-                end
                 return false
             end
             line = def.cmd .. " " .. val
@@ -4121,12 +4118,9 @@ function N0IR:MountUtilities(Window)
     local function autoExecApplyAll(silent)
         local n = 0
         for _, def in ipairs(autoExecDefs) do
-            if autoExecRunOne(def, silent ~= false) then
+            if autoExecRunOne(def, true) then
                 n = n + 1
             end
-        end
-        if not silent and n > 0 then
-            N0IR:Notify({ Title = "AutoExec", Content = "Ran " .. n .. " command(s)", Duration = 2 })
         end
         return n
     end
@@ -4278,14 +4272,12 @@ function N0IR:MountUtilities(Window)
                 end
             end
             autoExecSave()
-            N0IR:Notify({ Title = "AutoExec", Content = "All disabled", Duration = 1.8 })
         end,
     })
     AutoExec:CreateButton({
         Name = "Save AutoExec now",
         Callback = function()
             autoExecSave()
-            N0IR:Notify({ Title = "AutoExec", Content = "Saved", Duration = 1.5 })
         end,
     })
 
