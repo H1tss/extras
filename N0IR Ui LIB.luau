@@ -290,62 +290,81 @@ local function attachWindowBackground(parent, radius)
 end
 
 -- ============================================================
--- SETTINGS PERSISTENCE  (N0IR/settings.json) — keybinds + flags + UI prefs
+-- SETTINGS PERSISTENCE  (N0IR/settings.json)
+-- Executor-safe keycode encode/decode (no typeof EnumItem dependency)
 -- ============================================================
 local SETTINGS_PATH = "N0IR/settings.json"
-local KEYBINDS_PATH = "N0IR/keybinds.json" -- legacy (migrated on load)
+local KEYBINDS_PATH = "N0IR/keybinds.json"
+
+local function _n0irKeyName(k)
+    if k == nil then return nil end
+    if type(k) == "string" and k ~= "" then return k end
+    local ok, name = pcall(function() return k.Name end)
+    if ok and type(name) == "string" and name ~= "" then return name end
+    local s = tostring(k)
+    local m = string.match(s, "KeyCode%.(%w+)$") or string.match(s, "%.(%w+)$")
+    return m
+end
+
+local function _n0irKeyFromName(name)
+    if type(name) ~= "string" or name == "" then return nil end
+    local ok, key = pcall(function() return Enum.KeyCode[name] end)
+    if ok and key ~= nil then return key end
+    return nil
+end
 
 local function _n0irSaveSettings()
-    pcall(function()
-        if isfolder and not isfolder("N0IR") then makefolder("N0IR") end
+    local ok, err = pcall(function()
+        if makefolder and isfolder and not isfolder("N0IR") then
+            makefolder("N0IR")
+        elseif makefolder then
+            pcall(makefolder, "N0IR")
+        end
         local HttpService = game:GetService("HttpService")
         local flags = {}
         for k, v in pairs(N0IR.Flags or {}) do
             local tv = type(v)
             if tv == "boolean" or tv == "number" or tv == "string" then
-                flags[k] = v
+                flags[tostring(k)] = v
             end
         end
         local brand = _G._N0IR_Brand or {}
+        local toggleName = _n0irKeyName(_G._N0IR_ToggleKey) or "M"
+        local cmdName = _n0irKeyName(_G._N0IR_CmdBarKey) or "Semicolon"
         local data = {
-            ToggleKey = (function()
-                local k = _G._N0IR_ToggleKey
-                if typeof(k) == "EnumItem" then return k.Name end
-                if type(k) == "string" then return k end
-                return "M"
-            end)(),
-            CmdBarKey = (function()
-                local k = _G._N0IR_CmdBarKey
-                if typeof(k) == "EnumItem" then return k.Name end
-                if type(k) == "string" then return k end
-                return "Semicolon"
-            end)(),
+            ToggleKey = toggleName,
+            CmdBarKey = cmdName,
             CmdPrefix = tostring(_G._N0IR_CmdPrefix or ";"),
             BgIndex = tonumber(brand.BgIndex) or 1,
             BgTransparency = tonumber(brand.BgTransparency) or 0.42,
             Flags = flags,
-            -- common globals
             DragEnabled = _G._N0IRDragEnabled,
             SmoothDrag = _G._N0IRSmoothDrag,
             TabGridMode = _G._N0IRTabGridMode,
             FriendLeftNotify = _G._N0IR_FriendLeftNotify,
         }
-        if writefile then
-            writefile(SETTINGS_PATH, HttpService:JSONEncode(data))
-            -- keep legacy file in sync
-            writefile(KEYBINDS_PATH, HttpService:JSONEncode({
-                ToggleKey = data.ToggleKey,
-                CmdBarKey = data.CmdBarKey,
-                CmdPrefix = data.CmdPrefix,
-            }))
-        end
+        local encoded = HttpService:JSONEncode(data)
+        assert(writefile, "writefile missing")
+        writefile(SETTINGS_PATH, encoded)
+        writefile(KEYBINDS_PATH, HttpService:JSONEncode({
+            ToggleKey = toggleName,
+            CmdBarKey = cmdName,
+            CmdPrefix = data.CmdPrefix,
+        }))
+        -- also stash on _G so same-session always has it even if disk fails next time
+        _G._N0IR_SavedToggleKeyName = toggleName
+        _G._N0IR_SavedCmdBarKeyName = cmdName
     end)
+    if not ok then
+        warn("[N0IR] SaveSettings failed: ", err)
+    end
+    return ok
 end
 _G._N0IR_SaveSettings = _n0irSaveSettings
-_G._N0IR_SaveKeybinds = _n0irSaveSettings -- alias
+_G._N0IR_SaveKeybinds = _n0irSaveSettings
 
 local function _n0irLoadSettings()
-    pcall(function()
+    local ok, err = pcall(function()
         local HttpService = game:GetService("HttpService")
         local raw
         if isfile and isfile(SETTINGS_PATH) then
@@ -353,37 +372,46 @@ local function _n0irLoadSettings()
         elseif isfile and isfile(KEYBINDS_PATH) then
             raw = readfile(KEYBINDS_PATH)
         end
-        if not raw or raw == "" then return end
-        local data = HttpService:JSONDecode(raw)
-        if type(data) ~= "table" then return end
-        if type(data.ToggleKey) == "string" and Enum.KeyCode[data.ToggleKey] then
-            _G._N0IR_ToggleKey = Enum.KeyCode[data.ToggleKey]
-        end
-        if type(data.CmdBarKey) == "string" and Enum.KeyCode[data.CmdBarKey] then
-            _G._N0IR_CmdBarKey = Enum.KeyCode[data.CmdBarKey]
-        end
-        if type(data.CmdPrefix) == "string" and data.CmdPrefix ~= "" then
-            _G._N0IR_CmdPrefix = data.CmdPrefix
-        end
-        if data.BgIndex ~= nil then
-            _G._N0IR_Brand = _G._N0IR_Brand or {}
-            _G._N0IR_Brand.BgIndex = tonumber(data.BgIndex) or 1
-        end
-        if data.BgTransparency ~= nil then
-            _G._N0IR_Brand = _G._N0IR_Brand or {}
-            _G._N0IR_Brand.BgTransparency = tonumber(data.BgTransparency) or 0.42
-        end
-        if type(data.Flags) == "table" then
-            N0IR.Flags = N0IR.Flags or {}
-            for k, v in pairs(data.Flags) do
-                N0IR.Flags[k] = v
+        -- fall back to in-memory names from earlier in the same session
+        local toggleName, cmdName
+        if raw and raw ~= "" then
+            local data = HttpService:JSONDecode(raw)
+            if type(data) == "table" then
+                toggleName = data.ToggleKey
+                cmdName = data.CmdBarKey
+                if type(data.CmdPrefix) == "string" and data.CmdPrefix ~= "" then
+                    _G._N0IR_CmdPrefix = data.CmdPrefix
+                end
+                if data.BgIndex ~= nil then
+                    _G._N0IR_Brand = _G._N0IR_Brand or {}
+                    _G._N0IR_Brand.BgIndex = tonumber(data.BgIndex) or 1
+                end
+                if data.BgTransparency ~= nil then
+                    _G._N0IR_Brand = _G._N0IR_Brand or {}
+                    _G._N0IR_Brand.BgTransparency = tonumber(data.BgTransparency) or 0.42
+                end
+                if type(data.Flags) == "table" then
+                    N0IR.Flags = N0IR.Flags or {}
+                    for k, v in pairs(data.Flags) do
+                        N0IR.Flags[k] = v
+                    end
+                end
+                if data.DragEnabled ~= nil then _G._N0IRDragEnabled = data.DragEnabled end
+                if data.SmoothDrag ~= nil then _G._N0IRSmoothDrag = data.SmoothDrag end
+                if data.TabGridMode ~= nil then _G._N0IRTabGridMode = data.TabGridMode end
+                if data.FriendLeftNotify ~= nil then _G._N0IR_FriendLeftNotify = data.FriendLeftNotify end
             end
         end
-        if data.DragEnabled ~= nil then _G._N0IRDragEnabled = data.DragEnabled end
-        if data.SmoothDrag ~= nil then _G._N0IRSmoothDrag = data.SmoothDrag end
-        if data.TabGridMode ~= nil then _G._N0IRTabGridMode = data.TabGridMode end
-        if data.FriendLeftNotify ~= nil then _G._N0IR_FriendLeftNotify = data.FriendLeftNotify end
+        toggleName = toggleName or _G._N0IR_SavedToggleKeyName
+        cmdName = cmdName or _G._N0IR_SavedCmdBarKeyName
+        local tk = _n0irKeyFromName(toggleName)
+        if tk then _G._N0IR_ToggleKey = tk end
+        local ck = _n0irKeyFromName(cmdName)
+        if ck then _G._N0IR_CmdBarKey = ck end
     end)
+    if not ok then
+        warn("[N0IR] LoadSettings failed: ", err)
+    end
 end
 _G._N0IR_LoadSettings = _n0irLoadSettings
 _n0irLoadSettings()
@@ -1384,16 +1412,26 @@ function N0IR:CreateWindow(opts)
         screen:Destroy()
     end
 
-    -- Toggle keybind: saved global wins over opts (Init used to force M and wipe saves)
-    local toggleKey = _G._N0IR_ToggleKey or opts.ToggleKey or Enum.KeyCode.M
-    if type(toggleKey) == "string" then
-        pcall(function() toggleKey = Enum.KeyCode[toggleKey] end)
+    -- Toggle keybind: ALWAYS prefer disk/global save; never wipe with default M
+    do
+        -- re-load right before window bind (covers load-order races)
+        if _G._N0IR_LoadSettings then pcall(_G._N0IR_LoadSettings) end
+        local toggleKey = _G._N0IR_ToggleKey
+        if toggleKey == nil and type(opts.ToggleKey) == "string" then
+            toggleKey = _n0irKeyFromName(opts.ToggleKey)
+        elseif toggleKey == nil then
+            toggleKey = opts.ToggleKey
+        end
+        if toggleKey == nil then
+            toggleKey = Enum.KeyCode.M
+        end
+        -- if somehow a string survived
+        if type(toggleKey) == "string" then
+            toggleKey = _n0irKeyFromName(toggleKey) or Enum.KeyCode.M
+        end
+        _G._N0IR_ToggleKey = toggleKey
+        Window.ToggleKey = toggleKey
     end
-    if typeof(toggleKey) ~= "EnumItem" then
-        toggleKey = Enum.KeyCode.M
-    end
-    _G._N0IR_ToggleKey = toggleKey
-    Window.ToggleKey = toggleKey
 
     local function setWindowVisible(vis)
         if vis then
@@ -3766,19 +3804,25 @@ function N0IR:MountUtilities(Window)
                     N0IR:Notify({ Title = "Keybind", Content = "Cancelled", Duration = 1.5 })
                     return
                 end
-                -- write both table index and known globals (some envs treat _G[str] oddly)
-                _G[storeKey] = input.KeyCode
                 if storeKey == "_N0IR_ToggleKey" then
                     _G._N0IR_ToggleKey = input.KeyCode
+                    _G._N0IR_SavedToggleKeyName = input.KeyCode.Name
                 elseif storeKey == "_N0IR_CmdBarKey" then
                     _G._N0IR_CmdBarKey = input.KeyCode
+                    _G._N0IR_SavedCmdBarKeyName = input.KeyCode.Name
+                else
+                    _G[storeKey] = input.KeyCode
                 end
                 labelObj:Set(pretty .. "  ·  " .. input.KeyCode.Name)
-                -- force immediate disk write
+                local saved = false
                 if _G._N0IR_SaveSettings then
-                    _G._N0IR_SaveSettings()
+                    saved = _G._N0IR_SaveSettings() and true or false
                 end
-                N0IR:Notify({ Title = "Keybind", Content = pretty .. " → " .. input.KeyCode.Name .. "  ·  saved", Duration = 2 })
+                N0IR:Notify({
+                    Title = "Keybind",
+                    Content = pretty .. " → " .. input.KeyCode.Name .. (saved and "  ·  saved" or "  ·  SAVE FAILED"),
+                    Duration = 2.5,
+                })
             end)
         end)
     end
