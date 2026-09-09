@@ -1831,6 +1831,46 @@ function N0IR:MountUtilities(Window)
         },
     }
 
+
+    -- Brand / UGC catalog packs (from Roblox creator-docs commits)
+    local UGC_PACKS = {
+        ["Catwalk Glam (e.l.f.)"] = {
+            Run = 81024476153754, Walk = 109168724482748, Jump = 116936326516985,
+            Idle1 = 133806214992291, Idle2 = 94970088341563, Fall = 92294537340807,
+            Climb = 119377220967554, Swim = 134591743181628, SwimIdle = 98854111361360,
+        },
+        ["Bold (e.l.f.)"] = {
+            Run = 16738337225, Walk = 16738340646, Jump = 16738336650,
+            Idle1 = 16738333868, Idle2 = 16738334710, Fall = 16738333171,
+            Climb = 16744204409, Swim = 16738339158, SwimIdle = 16738339817,
+        },
+        ["No Boundaries (Walmart)"] = {
+            Run = 18747070484, Walk = 18747074203, Jump = 18747069148,
+            Idle1 = 18747067405, Idle2 = 18747063918, Fall = 18747062535,
+            Climb = 18747060903, Swim = 18747073181, SwimIdle = 18747071682,
+        },
+        ["adidas Sports"] = {
+            Run = 18537384940, Walk = 18537392113, Jump = 18537380791,
+            Idle1 = 18537376492, Idle2 = 18537371272, Fall = 18537367238,
+            Climb = 18537363391, Swim = 18537389531, SwimIdle = 18537387180,
+        },
+        ["Wicked Popular"] = {
+            Run = 72301599441680, Walk = 92072849924640, Jump = 104325245285198,
+            Idle1 = 118832222982049, Idle2 = 76049494037641, Fall = 121152442762481,
+            Climb = 131326830509784, Swim = 99384245425157, SwimIdle = 113199415118199,
+        },
+        ["NFL"] = {
+            Run = 117333533048078, Walk = 110358958299415, Jump = 119846112151352,
+            Idle1 = 92080889861410, Idle2 = 74451233229259, Fall = 129773241321032,
+            Climb = 134630013742019, Swim = 136750772888868, SwimIdle = 79090109939093,
+        },
+        ["Oldschool"] = {
+            Run = 10921240218, Walk = 10921244891, Jump = 10921242013,
+            Idle1 = 10921230744, Idle2 = 10921232093, Fall = 10921241244,
+            Climb = 10921229866, Swim = 10921243048, SwimIdle = 10921244018,
+        },
+    }
+
     local ANIM_CACHE_PATH = "N0IR/anim_pack_cache.json"
     local ContentProvider = game:GetService("ContentProvider")
     local HttpService = game:GetService("HttpService")
@@ -1886,11 +1926,15 @@ function N0IR:MountUtilities(Window)
         end
     end
 
-    -- background preload all official packs once (staggered)
+    -- background preload official + UGC packs (staggered)
     task.spawn(function()
-        for name, ids in pairs(OFFICIAL_PACKS) do
+        for _, ids in pairs(OFFICIAL_PACKS) do
             preloadPackIds(ids)
-            task.wait(0.05)
+            task.wait(0.04)
+        end
+        for _, ids in pairs(UGC_PACKS) do
+            preloadPackIds(ids)
+            task.wait(0.04)
         end
     end)
 
@@ -1900,11 +1944,32 @@ function N0IR:MountUtilities(Window)
     end
     table.sort(packNames)
 
+    local ugcNames = {}
+    for name in pairs(UGC_PACKS) do
+        table.insert(ugcNames, name)
+    end
+    table.sort(ugcNames)
+
     local selectedPack = (N0IR.Flags and N0IR.Flags.AnimPackName) or _G._N0IR_LastAnimPack or "Ninja"
-    if not OFFICIAL_PACKS[selectedPack] then
-        selectedPack = "Ninja"
+    local selectedSource = (N0IR.Flags and N0IR.Flags.AnimPackSource) or "official" -- "official" | "ugc"
+    if selectedSource == "ugc" then
+        if not UGC_PACKS[selectedPack] then
+            selectedPack = ugcNames[1] or "Catwalk Glam (e.l.f.)"
+        end
+    else
+        if not OFFICIAL_PACKS[selectedPack] then
+            selectedPack = "Ninja"
+        end
+        selectedSource = "official"
     end
     local autoApplyPack = (N0IR.Flags and N0IR.Flags.AnimPackAutoApply) == true
+
+    local function getSelectedIds()
+        if selectedSource == "ugc" then
+            return UGC_PACKS[selectedPack]
+        end
+        return OFFICIAL_PACKS[selectedPack]
+    end
 
     local function stopTracks(hum)
         if not hum then return end
@@ -2013,30 +2078,61 @@ function N0IR:MountUtilities(Window)
     end
 
     local function applySelectedPack(silent)
-        local ids = OFFICIAL_PACKS[selectedPack]
-        if not ids then return false end
+        local ids = getSelectedIds()
+        if not ids then
+            if not silent then
+                N0IR:Notify({ Title = "Anims", Content = "Unknown pack", Duration = 2 })
+            end
+            return false
+        end
         local ok = applyPackIds(ids)
         if ok then
             saveAnimCache(selectedPack, ids)
             if not silent then
-                N0IR:Notify({ Title = "Anims", Content = selectedPack .. " applied + cached", Duration = 2 })
+                local tag = (selectedSource == "ugc") and "UGC" or "Official"
+                N0IR:Notify({ Title = "Anims", Content = tag .. " · " .. selectedPack .. " applied + cached", Duration = 2 })
             end
         end
         return ok
     end
 
+    Anims:CreateSection("Official packs")
     Anims:CreateDropdown({
-        Name = "Bundle pack",
+        Name = "Official bundle",
         Options = packNames,
-        Default = selectedPack,
-        Flag = "AnimPackName",
+        Default = (selectedSource == "official") and selectedPack or "Ninja",
+        Flag = "AnimPackOfficialName",
         Callback = function(name)
+            selectedSource = "official"
             selectedPack = name
             N0IR.Flags = N0IR.Flags or {}
             N0IR.Flags.AnimPackName = name
+            N0IR.Flags.AnimPackSource = "official"
             if _G._N0IR_SaveSettings then task.defer(_G._N0IR_SaveSettings) end
-            -- preload selected immediately for snappy apply
             preloadPackIds(OFFICIAL_PACKS[name])
+            if autoApplyPack then
+                applySelectedPack(false)
+            end
+        end,
+    })
+
+    Anims:CreateSection("UGC / Brand packs")
+    Anims:CreateParagraph({
+        Content = "Catwalk Glam, Bold, adidas, NFL, Wicked, No Boundaries, Oldschool — separate from classic official packs.",
+    })
+    Anims:CreateDropdown({
+        Name = "UGC bundle",
+        Options = ugcNames,
+        Default = (selectedSource == "ugc") and selectedPack or (ugcNames[1] or "Catwalk Glam (e.l.f.)"),
+        Flag = "AnimPackUgcName",
+        Callback = function(name)
+            selectedSource = "ugc"
+            selectedPack = name
+            N0IR.Flags = N0IR.Flags or {}
+            N0IR.Flags.AnimPackName = name
+            N0IR.Flags.AnimPackSource = "ugc"
+            if _G._N0IR_SaveSettings then task.defer(_G._N0IR_SaveSettings) end
+            preloadPackIds(UGC_PACKS[name])
             if autoApplyPack then
                 applySelectedPack(false)
             end
@@ -2087,14 +2183,14 @@ function N0IR:MountUtilities(Window)
             task.delay(1.2, function()
                 if autoApplyPack then
                     -- prefer cached ids of selected pack
-                    local ids = OFFICIAL_PACKS[selectedPack] or _G._N0IR_LastAnimIds
+                    local ids = getSelectedIds() or _G._N0IR_LastAnimIds
                     if ids then applyPackIds(ids) end
                 end
             end)
         end)
         if autoApplyPack and LocalPlayer.Character then
             task.defer(function()
-                local ids = OFFICIAL_PACKS[selectedPack] or _G._N0IR_LastAnimIds
+                local ids = getSelectedIds() or _G._N0IR_LastAnimIds
                 if ids then applyPackIds(ids) end
             end)
         end
@@ -2128,7 +2224,7 @@ function N0IR:MountUtilities(Window)
     Anims:CreateButton({
         Name = "Load pack into custom slots",
         Callback = function()
-            local ids = OFFICIAL_PACKS[selectedPack]
+            local ids = getSelectedIds()
             if not ids then return end
             for k, v in pairs(ids) do
                 customSlots[k] = v
