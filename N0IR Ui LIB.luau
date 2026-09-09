@@ -1727,242 +1727,172 @@ function N0IR:MountUtilities(Window)
 
     Anims:CreateSection("Animation bundles")
     Anims:CreateParagraph({
-        Content = "Official Roblox + popular UGC-style R15 packs. Select → Apply, or enable Auto-apply. Reset restores classic default Animate IDs.",
+        Content = "Official Roblox catalog packs (Creator Hub IDs). Cached to disk + preloaded for faster apply. Auto-apply on respawn optional.",
     })
 
+    -- Classic default Animate IDs (blocky R15)
     local DEFAULT_ANIMS = {
-        Run = 913376220,
-        Walk = 913402848,
-        Jump = 507765000,
-        Idle1 = 507766388,
-        Idle2 = 507766666,
-        Fall = 507767968,
-        Climb = 507765644,
-        Swim = 913384386,
-        SwimIdle = 913389285,
+        Run = 913376220, Walk = 913402848, Jump = 507765000,
+        Idle1 = 507766388, Idle2 = 507766666, Fall = 507767968,
+        Climb = 507765644, Swim = 913384386, SwimIdle = 913389285,
     }
 
-    -- Official Roblox catalog packs + widely used UGC / community packs
+    -- Verified from https://create.roblox.com/docs/animation/using (Catalog animations)
     local OFFICIAL_PACKS = {
-        -- ===== Official Roblox =====
         ["Default (Classic)"] = {
             Run = 913376220, Walk = 913402848, Jump = 507765000,
             Idle1 = 507766388, Idle2 = 507766666, Fall = 507767968,
-            Swim = 913384386, SwimIdle = 913389285, Climb = 507765644,
-        },
-        ["Zombie"] = {
-            Run = 616163682, Walk = 616168032, Jump = 616161997,
-            Idle1 = 616158929, Idle2 = 616160636, Fall = 616157476,
-            Swim = 616165109, SwimIdle = 616166655, Climb = 616156119,
-        },
-        ["Ninja"] = {
-            Run = 656118852, Walk = 656121766, Jump = 656117878,
-            Idle1 = 656117400, Idle2 = 656118341, Fall = 656115606,
-            Swim = 656119721, SwimIdle = 656121397, Climb = 656114359,
-        },
-        ["Cartoony"] = {
-            Run = 742638842, Walk = 742640026, Jump = 742637942,
-            Idle1 = 742637544, Idle2 = 742638445, Fall = 742637151,
-            Swim = 742639220, SwimIdle = 742639812, Climb = 742636889,
-        },
-        ["Superhero"] = {
-            Run = 619528716, Walk = 619529601, Jump = 619528412,
-            Idle1 = 619528125, Idle2 = 619528125, Fall = 619527817,
-            Swim = 619529095, SwimIdle = 619529095, Climb = 619527470,
-        },
-        ["Stylish"] = {
-            Run = 619512153, Walk = 619512767, Jump = 619511974,
-            Idle1 = 619511648, Idle2 = 619511648, Fall = 619511417,
-            Swim = 619512450, SwimIdle = 619512450, Climb = 619509955,
-        },
-        ["Elder"] = {
-            Run = 845386501, Walk = 845403856, Jump = 845398858,
-            Idle1 = 845397899, Idle2 = 845400520, Fall = 845396048,
-            Swim = 845401742, SwimIdle = 845403127, Climb = 845392038,
-        },
-        ["Toy"] = {
-            Run = 973766674, Walk = 973767371, Jump = 973770652,
-            Idle1 = 973771666, Idle2 = 973771666, Fall = 973768058,
-            Swim = 973772659, SwimIdle = 973772659, Climb = 973773170,
-        },
-        ["Bubbly"] = {
-            Run = 910025107, Walk = 910034870, Jump = 910016857,
-            Idle1 = 910004836, Idle2 = 910009958, Fall = 910001910,
-            Swim = 910028158, SwimIdle = 910030921, Climb = 909997997,
+            Climb = 507765644, Swim = 913384386, SwimIdle = 913389285,
         },
         ["Astronaut"] = {
             Run = 891636393, Walk = 891636393, Jump = 891627522,
             Idle1 = 891621366, Idle2 = 891633237, Fall = 891617961,
-            Swim = 891639666, SwimIdle = 891663592, Climb = 891609353,
+            Climb = 891609353, Swim = 891639666, SwimIdle = 891663592,
         },
-        ["Vampire"] = {
-            Run = 1113740510, Walk = 1113741192, Jump = 1113742359,
-            Idle1 = 1113742618, Idle2 = 1113742618, Fall = 1113742092,
-            Swim = 1113742944, SwimIdle = 1113742944, Climb = 1113743239,
+        ["Bubbly"] = {
+            Run = 910025107, Walk = 910034870, Jump = 910016857,
+            Idle1 = 910004836, Idle2 = 910009958, Fall = 910001910,
+            Climb = 909997997, Swim = 910028158, SwimIdle = 910030921,
         },
-        ["Werewolf"] = {
-            Run = 619535616, Walk = 619537468, Jump = 619536283,
-            Idle1 = 619535834, Idle2 = 619535834, Fall = 619535616,
-            Swim = 619537096, SwimIdle = 619537096, Climb = 619535091,
+        ["Cartoony"] = {
+            Run = 742638842, Walk = 742640026, Jump = 742637942,
+            Idle1 = 742637544, Idle2 = 742638445, Fall = 742637151,
+            Climb = 742636889, Swim = 742639220, SwimIdle = 742639812,
+        },
+        ["Elder"] = {
+            Run = 845386501, Walk = 845403856, Jump = 845398858,
+            Idle1 = 845397899, Idle2 = 845400520, Fall = 845396048,
+            Climb = 845392038, Swim = 845401742, SwimIdle = 845403127,
+        },
+        ["Knight"] = {
+            Run = 657564596, Walk = 657552124, Jump = 658409194,
+            Idle1 = 657595757, Idle2 = 657568135, Fall = 657600338,
+            Climb = 658360781, Swim = 657560551, SwimIdle = 657557095,
         },
         ["Levitation"] = {
-            Run = 619543231, Walk = 619544080, Jump = 619542888,
-            Idle1 = 619542203, Idle2 = 619542203, Fall = 619541867,
-            Swim = 619543721, SwimIdle = 619543721, Climb = 619541458,
+            Run = 616010382, Walk = 616013216, Jump = 616008936,
+            Idle1 = 616006778, Idle2 = 616008087, Fall = 616005863,
+            Climb = 616003713, Swim = 616011509, SwimIdle = 616012453,
         },
         ["Mage"] = {
             Run = 707861613, Walk = 707897309, Jump = 707853694,
             Idle1 = 707742142, Idle2 = 707855907, Fall = 707829716,
-            Swim = 707876443, SwimIdle = 707894699, Climb = 707826056,
+            Climb = 707826056, Swim = 707876443, SwimIdle = 707894699,
         },
-        ["Robot"] = {
-            Run = 619522386, Walk = 619522849, Jump = 619522088,
-            Idle1 = 619521748, Idle2 = 619521748, Fall = 619521521,
-            Swim = 619522642, SwimIdle = 619522642, Climb = 619521311,
+        ["Ninja"] = {
+            Run = 656118852, Walk = 656121766, Jump = 656117878,
+            Idle1 = 656117400, Idle2 = 656118341, Fall = 656115606,
+            Climb = 656114359, Swim = 656119721, SwimIdle = 656121397,
         },
         ["Pirate"] = {
-            Run = 750376759, Walk = 750368091, Jump = 750365912,
-            Idle1 = 750359526, Idle2 = 750361563, Fall = 750363607,
-            Swim = 750381463, SwimIdle = 750381463, Climb = 750344506,
+            Run = 750783738, Walk = 750785693, Jump = 750782230,
+            Idle1 = 750781874, Idle2 = 750782770, Fall = 750780242,
+            Climb = 750779899, Swim = 750784579, SwimIdle = 750785176,
         },
-        ["Knight"] = {
-            Run = 657833688, Walk = 657833546, Jump = 657833338,
-            Idle1 = 657833418, Idle2 = 657833418, Fall = 657833188,
-            Swim = 657833794, SwimIdle = 657833794, Climb = 657832910,
+        ["Robot"] = {
+            Run = 616091570, Walk = 616095330, Jump = 616090535,
+            Idle1 = 616088211, Idle2 = 616089559, Fall = 616087089,
+            Climb = 616086039, Swim = 616092998, SwimIdle = 616094091,
         },
-        ["Oldschool"] = {
-            Run = 5319847204, Walk = 5319844329, Jump = 5319841926,
-            Idle1 = 5319828216, Idle2 = 5319831086, Fall = 5319839762,
-            Swim = 5319850573, SwimIdle = 5319853612, Climb = 5319815087,
-        },
-        ["Bold"] = {
-            Run = 16735182571, Walk = 16735176170, Jump = 16735164743,
-            Idle1 = 16735134169, Idle2 = 16735142582, Fall = 16735157977,
-            Swim = 16735189875, SwimIdle = 16735197275, Climb = 16735125958,
-        },
-        ["Adidas Exclusive"] = {
-            Run = 12259411730, Walk = 12259420425, Jump = 12259405913,
-            Idle1 = 12259389464, Idle2 = 12259396842, Fall = 12259400437,
-            Swim = 12259414772, SwimIdle = 12259417744, Climb = 12259383548,
-        },
-        ["Adidas Football"] = {
-            Run = 13335254678, Walk = 13335236986, Jump = 13335231838,
-            Idle1 = 13335222641, Idle2 = 13335225752, Fall = 13335228370,
-            Swim = 13335259026, SwimIdle = 13335262371, Climb = 13335217435,
-        },
-        ["No Boundaries"] = {
-            Run = 16303976814, Walk = 16303984417, Jump = 16303969536,
-            Idle1 = 16303955719, Idle2 = 16303961583, Fall = 16303965672,
-            Swim = 16303990171, SwimIdle = 16303994235, Climb = 16303950480,
-        },
-        ["Nike Football"] = {
-            Run = 13960146265, Walk = 13960150864, Jump = 13960140468,
-            Idle1 = 13960129556, Idle2 = 13960134019, Fall = 13960136839,
-            Swim = 13960154331, SwimIdle = 13960157696, Climb = 13960124449,
-        },
-        -- ===== Rthro / heavy / style =====
         ["Rthro"] = {
-            Run = 2510202577, Walk = 2510206372, Jump = 2510198475,
-            Idle1 = 2510196951, Idle2 = 2510197257, Fall = 2510195892,
-            Swim = 2510205277, SwimIdle = 2510205479, Climb = 2510192778,
+            Run = 2510198475, Walk = 2510202577, Jump = 2510197830,
+            Idle1 = 2510197257, Idle2 = 2510196951, Fall = 2510195892,
+            Climb = 2510192778, Swim = 2510199791, SwimIdle = 2510201162,
         },
-        ["Heavyweight"] = {
-            Run = 14024828976, Walk = 14024833361, Jump = 14024824411,
-            Idle1 = 14024813608, Idle2 = 14024818575, Fall = 14024821291,
-            Swim = 14024836812, SwimIdle = 14024839918, Climb = 14024809429,
+        ["Stylish"] = {
+            Run = 616140816, Walk = 616146177, Jump = 616139451,
+            Idle1 = 616136790, Idle2 = 616138447, Fall = 616134815,
+            Climb = 616133594, Swim = 616143378, SwimIdle = 616144772,
         },
-        ["Lola"] = {
-            Run = 15519739797, Walk = 15519745254, Jump = 15519734358,
-            Idle1 = 15519722173, Idle2 = 15519727739, Fall = 15519730997,
-            Swim = 15519749248, SwimIdle = 15519752801, Climb = 15519717593,
+        ["Superhero"] = {
+            Run = 616117076, Walk = 616122287, Jump = 616115533,
+            Idle1 = 616111295, Idle2 = 616113536, Fall = 616108001,
+            Climb = 616104706, Swim = 616119360, SwimIdle = 616120861,
         },
-        ["Fashion"] = {
-            Run = 13463016155, Walk = 13463020228, Jump = 13463012417,
-            Idle1 = 13463003696, Idle2 = 13463007934, Fall = 13463010286,
-            Swim = 13463023481, SwimIdle = 13463026558, Climb = 13462999406,
+        ["Toy"] = {
+            Run = 782842708, Walk = 782843345, Jump = 782847020,
+            Idle1 = 782841498, Idle2 = 782845736, Fall = 782846423,
+            Climb = 782843869, Swim = 782844582, SwimIdle = 782845186,
         },
-        ["Sneaky"] = {
-            Run = 11324742774, Walk = 11324746520, Jump = 11324739070,
-            Idle1 = 11324730898, Idle2 = 11324735089, Fall = 11324737212,
-            Swim = 11324749536, SwimIdle = 11324752356, Climb = 11324726993,
+        ["Vampire"] = {
+            Run = 1083462077, Walk = 1083473930, Jump = 1083455352,
+            Idle1 = 1083445855, Idle2 = 1083450166, Fall = 1083443587,
+            Climb = 1083439238, Swim = 1083464683, SwimIdle = 1083467779,
         },
-        ["Confident"] = {
-            Run = 10699870465, Walk = 10699875892, Jump = 10699865809,
-            Idle1 = 10699854820, Idle2 = 10699860076, Fall = 10699863054,
-            Swim = 10699879247, SwimIdle = 10699882373, Climb = 10699850406,
+        ["Werewolf"] = {
+            Run = 1083216690, Walk = 1083178339, Jump = 1083218792,
+            Idle1 = 1083195517, Idle2 = 1083214717, Fall = 1083189019,
+            Climb = 1083182000, Swim = 1083222527, SwimIdle = 1083225406,
         },
-        ["Cower"] = {
-            Run = 10832166906, Walk = 10832171138, Jump = 10832162580,
-            Idle1 = 10832153649, Idle2 = 10832157880, Fall = 10832160177,
-            Swim = 10832174448, SwimIdle = 10832177533, Climb = 10832149813,
-        },
-        ["Agreeable"] = {
-            Run = 12259466204, Walk = 12259470693, Jump = 12259461879,
-            Idle1 = 12259453216, Idle2 = 12259457542, Fall = 12259459691,
-            Swim = 12259474267, SwimIdle = 12259477541, Climb = 12259449263,
-        },
-        -- ===== Popular UGC / community style packs =====
-        ["Catwalk"] = {
-            Run = 13335206692, Walk = 13335211481, Jump = 13335202458,
-            Idle1 = 13335192836, Idle2 = 13335197586, Fall = 13335200102,
-            Swim = 13335215077, SwimIdle = 13335218326, Climb = 13335188638,
-        },
-        ["Wicked"] = {
-            Run = 15256748725, Walk = 15256753479, Jump = 15256743781,
-            Idle1 = 15256733057, Idle2 = 15256738295, Fall = 15256741200,
-            Swim = 15256757043, SwimIdle = 15256760521, Climb = 15256728739,
-        },
-        ["CartRide"] = {
-            Run = 10921261956, Walk = 10921266259, Jump = 10921257838,
-            Idle1 = 10921248219, Idle2 = 10921253040, Fall = 10921255549,
-            Swim = 10921269733, SwimIdle = 10921272815, Climb = 10921244094,
-        },
-        ["Default R15 (Modern)"] = {
-            Run = 10921261956, Walk = 10921266259, Jump = 10921257838,
-            Idle1 = 10921248219, Idle2 = 10921253040, Fall = 10921255549,
-            Swim = 10921269733, SwimIdle = 10921272815, Climb = 10921244094,
-        },
-        ["Goofy"] = {
-            Run = 891636393, Walk = 742640026, Jump = 742637942,
-            Idle1 = 742637544, Idle2 = 910009958, Fall = 616157476,
-            Swim = 742639220, SwimIdle = 910030921, Climb = 742636889,
-        },
-        ["Sturdy"] = {
-            Run = 16735182571, Walk = 657833546, Jump = 16735164743,
-            Idle1 = 16735134169, Idle2 = 16735142582, Fall = 16735157977,
-            Swim = 16735189875, SwimIdle = 16735197275, Climb = 16735125958,
-        },
-        ["Military"] = {
-            Run = 657833688, Walk = 657833546, Jump = 619528412,
-            Idle1 = 619528125, Idle2 = 657833418, Fall = 619527817,
-            Swim = 619529095, SwimIdle = 619529095, Climb = 657832910,
-        },
-        ["Horror"] = {
-            Run = 616163682, Walk = 616168032, Jump = 1113742359,
-            Idle1 = 1113742618, Idle2 = 616160636, Fall = 616157476,
-            Swim = 616165109, SwimIdle = 616166655, Climb = 616156119,
-        },
-        ["Smooth"] = {
-            Run = 619512153, Walk = 619512767, Jump = 619511974,
-            Idle1 = 891621366, Idle2 = 619511648, Fall = 619511417,
-            Swim = 619512450, SwimIdle = 619512450, Climb = 619509955,
-        },
-        ["Floaty"] = {
-            Run = 619543231, Walk = 619544080, Jump = 619542888,
-            Idle1 = 619542203, Idle2 = 891633237, Fall = 619541867,
-            Swim = 619543721, SwimIdle = 619543721, Climb = 619541458,
-        },
-        ["Arcade"] = {
-            Run = 742638842, Walk = 742640026, Jump = 973770652,
-            Idle1 = 973771666, Idle2 = 742638445, Fall = 742637151,
-            Swim = 742639220, SwimIdle = 742639812, Climb = 742636889,
-        },
-        ["Stealth"] = {
-            Run = 656118852, Walk = 11324746520, Jump = 656117878,
-            Idle1 = 11324730898, Idle2 = 656118341, Fall = 656115606,
-            Swim = 656119721, SwimIdle = 656121397, Climb = 656114359,
+        ["Zombie"] = {
+            Run = 616163682, Walk = 616168032, Jump = 616161997,
+            Idle1 = 616158929, Idle2 = 616160636, Fall = 616157476,
+            Climb = 616156119, Swim = 616165109, SwimIdle = 616166655,
         },
     }
+
+    local ANIM_CACHE_PATH = "N0IR/anim_pack_cache.json"
+    local ContentProvider = game:GetService("ContentProvider")
+    local HttpService = game:GetService("HttpService")
+
+    local function saveAnimCache(packName, ids)
+        pcall(function()
+            if isfolder and not isfolder("N0IR") then makefolder("N0IR") end
+            if writefile then
+                writefile(ANIM_CACHE_PATH, HttpService:JSONEncode({
+                    pack = packName,
+                    ids = ids,
+                    t = os.time(),
+                }))
+            end
+        end)
+        _G._N0IR_LastAnimPack = packName
+        _G._N0IR_LastAnimIds = ids
+    end
+
+    local function loadAnimCache()
+        local ok, data = pcall(function()
+            if isfile and isfile(ANIM_CACHE_PATH) then
+                return HttpService:JSONDecode(readfile(ANIM_CACHE_PATH))
+            end
+            return nil
+        end)
+        if ok and type(data) == "table" and type(data.ids) == "table" then
+            _G._N0IR_LastAnimPack = data.pack
+            _G._N0IR_LastAnimIds = data.ids
+            return data
+        end
+        return nil
+    end
+    loadAnimCache()
+
+    local function preloadPackIds(ids)
+        if not ids then return end
+        local list = {}
+        for _, id in pairs(ids) do
+            if type(id) == "number" and id > 0 then
+                local a = Instance.new("Animation")
+                a.AnimationId = "rbxassetid://" .. tostring(id)
+                table.insert(list, a)
+            end
+        end
+        if #list > 0 then
+            pcall(function()
+                ContentProvider:PreloadAsync(list)
+            end)
+        end
+        for _, a in ipairs(list) do
+            pcall(function() a:Destroy() end)
+        end
+    end
+
+    -- background preload all official packs once (staggered)
+    task.spawn(function()
+        for name, ids in pairs(OFFICIAL_PACKS) do
+            preloadPackIds(ids)
+            task.wait(0.05)
+        end
+    end)
 
     local packNames = {}
     for name in pairs(OFFICIAL_PACKS) do
@@ -1970,30 +1900,45 @@ function N0IR:MountUtilities(Window)
     end
     table.sort(packNames)
 
-    local selectedPack = N0IR.Flags and N0IR.Flags.AnimPackName or "Ninja"
+    local selectedPack = (N0IR.Flags and N0IR.Flags.AnimPackName) or _G._N0IR_LastAnimPack or "Ninja"
     if not OFFICIAL_PACKS[selectedPack] then
-        selectedPack = packNames[1] or "Ninja"
+        selectedPack = "Ninja"
     end
     local autoApplyPack = (N0IR.Flags and N0IR.Flags.AnimPackAutoApply) == true
 
     local function stopTracks(hum)
         if not hum then return end
-        for _, tr in ipairs(hum:GetPlayingAnimationTracks()) do
-            pcall(function() tr:Stop(0) end)
-        end
+        pcall(function()
+            for _, tr in ipairs(hum:GetPlayingAnimationTracks()) do
+                tr:Stop(0)
+            end
+        end)
         local animator = hum:FindFirstChildOfClass("Animator")
         if animator then
-            for _, tr in ipairs(animator:GetPlayingAnimationTracks()) do
-                pcall(function() tr:Stop(0) end)
-            end
+            pcall(function()
+                for _, tr in ipairs(animator:GetPlayingAnimationTracks()) do
+                    tr:Stop(0)
+                end
+            end)
         end
     end
 
-    local function setAnimId(obj, id)
-        if not obj or not id then return end
-        pcall(function()
-            obj.AnimationId = "rbxassetid://" .. tostring(id)
-        end)
+    local function setAnimOn(obj, id)
+        if not obj or not id or id == 0 then return end
+        local uri = "rbxassetid://" .. tostring(id)
+        if obj:IsA("Animation") then
+            pcall(function() obj.AnimationId = uri end)
+        elseif obj:IsA("StringValue") or obj:IsA("StringValue") then
+            pcall(function() obj.Value = uri end)
+        end
+        -- also set nested Animation if folder-like
+        for _, d in ipairs(obj:GetDescendants()) do
+            if d:IsA("Animation") then
+                pcall(function() d.AnimationId = uri end)
+            elseif d:IsA("StringValue") and (d.Name:lower():find("anim") or d.Name:lower():find("id")) then
+                pcall(function() d.Value = uri end)
+            end
+        end
     end
 
     local function applyPackIds(ids)
@@ -2008,39 +1953,62 @@ function N0IR:MountUtilities(Window)
             N0IR:Notify({ Title = "Anims", Content = "Animate script not found (need R15)", Duration = 2.5 })
             return false
         end
+
+        preloadPackIds(ids)
         stopTracks(hum)
 
-        local function childAnim(folderName, animName)
-            local folder = animate:FindFirstChild(folderName)
-            if not folder then return nil end
-            return folder:FindFirstChild(animName) or folder:FindFirstChildOfClass("Animation")
+        local function folder(name)
+            return animate:FindFirstChild(name)
         end
 
-        setAnimId(childAnim("run", "RunAnim"), ids.Run)
-        setAnimId(childAnim("walk", "WalkAnim"), ids.Walk)
-        setAnimId(childAnim("jump", "JumpAnim"), ids.Jump)
-        setAnimId(childAnim("fall", "FallAnim"), ids.Fall)
-        setAnimId(childAnim("climb", "ClimbAnim"), ids.Climb)
-        setAnimId(childAnim("swim", "Swim"), ids.Swim)
-        setAnimId(childAnim("swimidle", "SwimIdle"), ids.SwimIdle or ids.Swim)
+        local map = {
+            run = { "RunAnim", ids.Run },
+            walk = { "WalkAnim", ids.Walk },
+            jump = { "JumpAnim", ids.Jump },
+            fall = { "FallAnim", ids.Fall },
+            climb = { "ClimbAnim", ids.Climb },
+            swim = { "Swim", ids.Swim },
+            swimidle = { "SwimIdle", ids.SwimIdle or ids.Swim },
+        }
 
-        local idle = animate:FindFirstChild("idle")
+        for folderName, pair in pairs(map) do
+            local f = folder(folderName)
+            if f then
+                local anim = f:FindFirstChild(pair[1]) or f:FindFirstChildOfClass("Animation")
+                setAnimOn(anim or f, pair[2])
+            end
+        end
+
+        local idle = folder("idle")
         if idle then
-            setAnimId(idle:FindFirstChild("Animation1"), ids.Idle1 or ids.Idle)
-            setAnimId(idle:FindFirstChild("Animation2"), ids.Idle2 or ids.Idle1 or ids.Idle)
+            setAnimOn(idle:FindFirstChild("Animation1") or idle:FindFirstChildOfClass("Animation"), ids.Idle1 or ids.Idle)
+            local a2 = idle:FindFirstChild("Animation2")
+            if a2 then setAnimOn(a2, ids.Idle2 or ids.Idle1 or ids.Idle) end
         end
 
-        -- nudge humanoid so new ids take effect
-        pcall(function()
-            if hum then
-                hum:ChangeState(Enum.HumanoidStateType.Freefall)
-                task.defer(function()
-                    if hum and hum.Parent then
-                        hum:ChangeState(Enum.HumanoidStateType.Running)
-                    end
+        -- Some Animate variants store IDs as StringValues on the script root
+        local rootMap = {
+            run = ids.Run, walk = ids.Walk, jump = ids.Jump, fall = ids.Fall,
+            climb = ids.Climb, swim = ids.Swim, swimidle = ids.SwimIdle or ids.Swim,
+            idle = ids.Idle1 or ids.Idle,
+        }
+        for _, child in ipairs(animate:GetChildren()) do
+            if child:IsA("StringValue") and rootMap[child.Name:lower()] then
+                pcall(function()
+                    child.Value = "rbxassetid://" .. tostring(rootMap[child.Name:lower()])
                 end)
             end
+        end
+
+        -- Force Animate to re-read by briefly disabling
+        pcall(function()
+            if animate:IsA("LocalScript") or animate:IsA("Script") then
+                animate.Disabled = true
+                task.wait()
+                animate.Disabled = false
+            end
         end)
+
         return true
     end
 
@@ -2048,8 +2016,11 @@ function N0IR:MountUtilities(Window)
         local ids = OFFICIAL_PACKS[selectedPack]
         if not ids then return false end
         local ok = applyPackIds(ids)
-        if ok and not silent then
-            N0IR:Notify({ Title = "Anims", Content = selectedPack .. " applied", Duration = 2 })
+        if ok then
+            saveAnimCache(selectedPack, ids)
+            if not silent then
+                N0IR:Notify({ Title = "Anims", Content = selectedPack .. " applied + cached", Duration = 2 })
+            end
         end
         return ok
     end
@@ -2064,6 +2035,8 @@ function N0IR:MountUtilities(Window)
             N0IR.Flags = N0IR.Flags or {}
             N0IR.Flags.AnimPackName = name
             if _G._N0IR_SaveSettings then task.defer(_G._N0IR_SaveSettings) end
+            -- preload selected immediately for snappy apply
+            preloadPackIds(OFFICIAL_PACKS[name])
             if autoApplyPack then
                 applySelectedPack(false)
             end
@@ -2072,7 +2045,7 @@ function N0IR:MountUtilities(Window)
 
     Anims:CreateToggle({
         Name = "Auto-apply selected bundle",
-        Description = "Applies the selected pack on select + every character respawn",
+        Description = "Applies on select + every character respawn (uses cache)",
         Flag = "AnimPackAutoApply",
         Default = autoApplyPack,
         Callback = function(on)
@@ -2100,25 +2073,29 @@ function N0IR:MountUtilities(Window)
                 selectedPack = "Default (Classic)"
                 N0IR.Flags = N0IR.Flags or {}
                 N0IR.Flags.AnimPackName = selectedPack
+                saveAnimCache(selectedPack, DEFAULT_ANIMS)
                 if _G._N0IR_SaveSettings then task.defer(_G._N0IR_SaveSettings) end
                 N0IR:Notify({ Title = "Anims", Content = "Reset to classic default", Duration = 2 })
             end
         end,
     })
 
-    -- auto-apply on respawn when toggle is on
+    -- auto-apply on respawn
     pcall(function()
         LocalPlayer.CharacterAdded:Connect(function()
             if not autoApplyPack then return end
-            task.delay(1.0, function()
+            task.delay(1.2, function()
                 if autoApplyPack then
-                    applySelectedPack(true)
+                    -- prefer cached ids of selected pack
+                    local ids = OFFICIAL_PACKS[selectedPack] or _G._N0IR_LastAnimIds
+                    if ids then applyPackIds(ids) end
                 end
             end)
         end)
         if autoApplyPack and LocalPlayer.Character then
             task.defer(function()
-                applySelectedPack(true)
+                local ids = OFFICIAL_PACKS[selectedPack] or _G._N0IR_LastAnimIds
+                if ids then applyPackIds(ids) end
             end)
         end
     end)
