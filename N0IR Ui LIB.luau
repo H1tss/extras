@@ -345,6 +345,7 @@ local function _n0irSaveSettings()
             SmoothDrag = _G._N0IRSmoothDrag,
             TabGridMode = _G._N0IRTabGridMode,
             FriendLeftNotify = _G._N0IR_FriendLeftNotify,
+            AutoExec = _G._N0IR_AutoExec or {},
         }
         local encoded = HttpService:JSONEncode(data)
         assert(writefile, "writefile missing")
@@ -404,6 +405,9 @@ local function _n0irLoadSettings()
                 if data.SmoothDrag ~= nil then _G._N0IRSmoothDrag = data.SmoothDrag end
                 if data.TabGridMode ~= nil then _G._N0IRTabGridMode = data.TabGridMode end
                 if data.FriendLeftNotify ~= nil then _G._N0IR_FriendLeftNotify = data.FriendLeftNotify end
+                if type(data.AutoExec) == "table" then
+                    _G._N0IR_AutoExec = data.AutoExec
+                end
                 if data.TPKeybindEnabled ~= nil then
                     _G._N0IR_TPKeybindEnabled = data.TPKeybindEnabled and true or false
                     N0IR.Flags = N0IR.Flags or {}
@@ -4044,6 +4048,261 @@ function N0IR:MountUtilities(Window)
     -- auto-start if default on
     startFriendLeft()
 
+    -- ---------- AutoExec ----------
+    local AutoExec = Window:CreateTab({ Name = "AutoExec" })
+    AutoExec:CreateSection("Auto-execute on load / respawn")
+    AutoExec:CreateParagraph({
+        Content = "Toggle commands to run automatically when the suite loads and after you respawn. Values save to N0IR/settings.json.",
+    })
+
+    _G._N0IR_AutoExec = type(_G._N0IR_AutoExec) == "table" and _G._N0IR_AutoExec or {}
+
+    local autoExecDefs = {
+        { cmd = "ws",        label = "WalkSpeed",      needsArg = true,  example = "50" },
+        { cmd = "jp",        label = "JumpPower",      needsArg = true,  example = "75" },
+        { cmd = "hh",        label = "HipHeight",      needsArg = true,  example = "2" },
+        { cmd = "loopws",    label = "Loop WalkSpeed", needsArg = true,  example = "50" },
+        { cmd = "loopjp",    label = "Loop JumpPower", needsArg = true,  example = "75" },
+        { cmd = "power",     label = "Power boost",    needsArg = false },
+        { cmd = "noclip",    label = "Noclip",         needsArg = false },
+        { cmd = "fly",       label = "Fly",            needsArg = true,  example = "50" },
+        { cmd = "infjump",   label = "Infinite jump",  needsArg = false },
+        { cmd = "god",       label = "God mode",       needsArg = false },
+        { cmd = "antiafk",   label = "Anti AFK",       needsArg = false },
+        { cmd = "antiragdoll", label = "Anti ragdoll", needsArg = false },
+        { cmd = "esp",       label = "ESP",            needsArg = false },
+        { cmd = "fullbright",label = "Fullbright",     needsArg = false },
+        { cmd = "nofog",     label = "No fog",         needsArg = false },
+        { cmd = "fps",       label = "FPS cap",        needsArg = true,  example = "60" },
+        { cmd = "fov",       label = "FOV",            needsArg = true,  example = "90" },
+        { cmd = "gravity",   label = "Gravity",        needsArg = true,  example = "196.2" },
+        { cmd = "shiftlock", label = "Shift lock",     needsArg = false },
+        { cmd = "vcbypass",  label = "VC Bypass",      needsArg = false },
+    }
+
+    local function autoExecSave()
+        if _G._N0IR_SaveSettings then task.defer(_G._N0IR_SaveSettings) end
+    end
+
+    local function autoExecGet(cmd)
+        local e = _G._N0IR_AutoExec[cmd]
+        if type(e) ~= "table" then
+            e = { enabled = false, value = "" }
+            _G._N0IR_AutoExec[cmd] = e
+        end
+        if e.enabled == nil then e.enabled = false end
+        if e.value == nil then e.value = "" end
+        return e
+    end
+
+    local function autoExecRunOne(def, silent)
+        local e = autoExecGet(def.cmd)
+        if not e.enabled then return false end
+        local line = def.cmd
+        local val = tostring(e.value or ""):gsub("^%s+", ""):gsub("%s+$", "")
+        if def.needsArg then
+            if val == "" and def.example and def.example ~= "" then
+                val = def.example
+            end
+            if val == "" then
+                if not silent then
+                    N0IR:Notify({ Title = "AutoExec", Content = def.label .. " needs a value", Duration = 2 })
+                end
+                return false
+            end
+            line = def.cmd .. " " .. val
+        elseif val ~= "" then
+            line = def.cmd .. " " .. val
+        end
+        pcall(function() runCmd(line) end)
+        return true
+    end
+
+    local function autoExecApplyAll(silent)
+        local n = 0
+        for _, def in ipairs(autoExecDefs) do
+            if autoExecRunOne(def, silent ~= false) then
+                n = n + 1
+            end
+        end
+        if not silent and n > 0 then
+            N0IR:Notify({ Title = "AutoExec", Content = "Ran " .. n .. " command(s)", Duration = 2 })
+        end
+        return n
+    end
+    _G._N0IR_AutoExecApply = autoExecApplyAll
+
+    local autoRowUpdaters = {}
+
+    local function makeAutoRow(def)
+        AutoExec._order = (AutoExec._order or 0) + 1
+        local page = AutoExec.Page
+        local rowH = def.needsArg and 72 or 44
+        local row = Instance.new("Frame")
+        row.Size = UDim2.new(1, 0, 0, rowH)
+        row.BackgroundColor3 = T.bg1
+        row.BackgroundTransparency = 0.25
+        row.BorderSizePixel = 0
+        row.LayoutOrder = AutoExec._order
+        row.Parent = page
+        corner(row, 8)
+        stroke(row, T.border, 1, 0.65)
+
+        local entry = autoExecGet(def.cmd)
+        if entry.value == "" and def.example then
+            entry.value = def.example
+        end
+
+        local name = Instance.new("TextLabel")
+        name.BackgroundTransparency = 1
+        name.Position = UDim2.fromOffset(12, 6)
+        name.Size = UDim2.new(1, -70, 0, 16)
+        name.Font = Enum.Font.GothamMedium
+        name.Text = def.label .. "  ·  " .. def.cmd
+        name.TextSize = 12
+        name.TextColor3 = T.text
+        name.TextXAlignment = Enum.TextXAlignment.Left
+        name.Parent = row
+
+        local hint = Instance.new("TextLabel")
+        hint.BackgroundTransparency = 1
+        hint.Position = UDim2.fromOffset(12, 24)
+        hint.Size = UDim2.new(1, -70, 0, 12)
+        hint.Font = Enum.Font.Gotham
+        hint.Text = def.needsArg and ("value e.g. " .. (def.example or "")) or "no argument"
+        hint.TextSize = 10
+        hint.TextColor3 = T.text3
+        hint.TextXAlignment = Enum.TextXAlignment.Left
+        hint.Parent = row
+
+        -- toggle track (right)
+        local state = entry.enabled == true
+        local track = Instance.new("Frame")
+        track.AnchorPoint = Vector2.new(1, 0)
+        track.Position = UDim2.new(1, -12, 0, 10)
+        track.Size = UDim2.fromOffset(42, 24)
+        track.BackgroundColor3 = state and Color3.fromRGB(245, 245, 245) or Color3.fromRGB(18, 18, 18)
+        track.BorderSizePixel = 0
+        track.Parent = row
+        corner(track, 12)
+
+        local knob = Instance.new("Frame")
+        knob.Size = UDim2.fromOffset(18, 18)
+        knob.Position = state and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)
+        knob.BackgroundColor3 = state and Color3.fromRGB(10, 10, 10) or Color3.fromRGB(140, 140, 140)
+        knob.BorderSizePixel = 0
+        knob.Parent = track
+        corner(knob, 9)
+
+        local hit = Instance.new("TextButton")
+        hit.Size = UDim2.new(1, 0, 0, 40)
+        hit.BackgroundTransparency = 1
+        hit.Text = ""
+        hit.ZIndex = 2
+        hit.Parent = row
+
+        local argBox
+        if def.needsArg then
+            argBox = Instance.new("TextBox")
+            argBox.Position = UDim2.fromOffset(12, 42)
+            argBox.Size = UDim2.new(1, -24, 0, 24)
+            argBox.BackgroundColor3 = T.bg2
+            argBox.BorderSizePixel = 0
+            argBox.Font = Enum.Font.Gotham
+            argBox.PlaceholderText = def.example ~= "" and ("value  e.g. " .. def.example) or "value"
+            argBox.PlaceholderColor3 = T.text3
+            argBox.Text = tostring(entry.value or "")
+            argBox.TextSize = 11
+            argBox.TextColor3 = T.text
+            argBox.ClearTextOnFocus = false
+            argBox.ZIndex = 3
+            argBox.Parent = row
+            corner(argBox, 6)
+            argBox.FocusLost:Connect(function()
+                local e = autoExecGet(def.cmd)
+                e.value = tostring(argBox.Text or ""):gsub("^%s+", ""):gsub("%s+$", "")
+                autoExecSave()
+            end)
+        end
+
+        local function setEnabled(v, fire)
+            state = v and true or false
+            local e = autoExecGet(def.cmd)
+            e.enabled = state
+            if argBox then
+                e.value = tostring(argBox.Text or ""):gsub("^%s+", ""):gsub("%s+$", "")
+            end
+            tween(track, {
+                BackgroundColor3 = state and Color3.fromRGB(245, 245, 245) or Color3.fromRGB(18, 18, 18),
+            }, 0.18)
+            tween(knob, {
+                Position = state and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9),
+                BackgroundColor3 = state and Color3.fromRGB(10, 10, 10) or Color3.fromRGB(140, 140, 140),
+            }, 0.18)
+            autoExecSave()
+            if fire and state then
+                task.defer(function() autoExecRunOne(def, false) end)
+            end
+        end
+
+        hit.MouseButton1Click:Connect(function()
+            setEnabled(not state, true)
+        end)
+
+        autoRowUpdaters[def.cmd] = function(en)
+            setEnabled(en, false)
+        end
+    end
+
+    for _, def in ipairs(autoExecDefs) do
+        makeAutoRow(def)
+    end
+
+    AutoExec:CreateSection("Actions")
+    AutoExec:CreateButton({
+        Name = "Run all enabled now",
+        Callback = function()
+            autoExecApplyAll(false)
+        end,
+    })
+    AutoExec:CreateButton({
+        Name = "Disable all",
+        Callback = function()
+            for _, def in ipairs(autoExecDefs) do
+                local upd = autoRowUpdaters[def.cmd]
+                if upd then
+                    upd(false)
+                else
+                    local e = autoExecGet(def.cmd)
+                    e.enabled = false
+                end
+            end
+            autoExecSave()
+            N0IR:Notify({ Title = "AutoExec", Content = "All disabled", Duration = 1.8 })
+        end,
+    })
+    AutoExec:CreateButton({
+        Name = "Save AutoExec now",
+        Callback = function()
+            autoExecSave()
+            N0IR:Notify({ Title = "AutoExec", Content = "Saved", Duration = 1.5 })
+        end,
+    })
+
+    -- apply after mount + on respawn
+    task.defer(function()
+        task.wait(0.6)
+        autoExecApplyAll(true)
+    end)
+    if not _G._N0IR_AutoExecCharConn then
+        _G._N0IR_AutoExecCharConn = LocalPlayer.CharacterAdded:Connect(function()
+            task.wait(0.8)
+            if type(_G._N0IR_AutoExecApply) == "function" then
+                pcall(_G._N0IR_AutoExecApply, true)
+            end
+        end)
+    end
+
     -- ---------- Settings tab ----------
     local Settings = Window:CreateTab({ Name = "Settings" })
     Settings:CreateSection("About")
@@ -4322,6 +4581,7 @@ function N0IR:MountUtilities(Window)
         VC = VC,
         Map = Map,
         Social = Social,
+        AutoExec = AutoExec,
         Settings = Settings,
         RunCommand = runCmd,
         SpawnTreehouse = spawnTreehouse,
