@@ -231,6 +231,7 @@ _G._N0IR_SetBackground = function(index)
             end
         end
     end
+    if _G._N0IR_SaveSettings then task.defer(_G._N0IR_SaveSettings) end
     return index
 end
 
@@ -289,30 +290,60 @@ local function attachWindowBackground(parent, radius)
 end
 
 -- ============================================================
--- KEYBIND PERSISTENCE  (N0IR/keybinds.json)
+-- SETTINGS PERSISTENCE  (N0IR/settings.json) — keybinds + flags + UI prefs
 -- ============================================================
-local KEYBINDS_PATH = "N0IR/keybinds.json"
-local function _n0irSaveKeybinds()
+local SETTINGS_PATH = "N0IR/settings.json"
+local KEYBINDS_PATH = "N0IR/keybinds.json" -- legacy (migrated on load)
+
+local function _n0irSaveSettings()
     pcall(function()
         if isfolder and not isfolder("N0IR") then makefolder("N0IR") end
         local HttpService = game:GetService("HttpService")
+        local flags = {}
+        for k, v in pairs(N0IR.Flags or {}) do
+            local tv = type(v)
+            if tv == "boolean" or tv == "number" or tv == "string" then
+                flags[k] = v
+            end
+        end
+        local brand = _G._N0IR_Brand or {}
         local data = {
             ToggleKey = (_G._N0IR_ToggleKey and _G._N0IR_ToggleKey.Name) or "M",
             CmdBarKey = (_G._N0IR_CmdBarKey and _G._N0IR_CmdBarKey.Name) or "Semicolon",
             CmdPrefix = tostring(_G._N0IR_CmdPrefix or ";"),
+            BgIndex = tonumber(brand.BgIndex) or 1,
+            BgTransparency = tonumber(brand.BgTransparency) or 0.42,
+            Flags = flags,
+            -- common globals
+            DragEnabled = _G._N0IRDragEnabled,
+            SmoothDrag = _G._N0IRSmoothDrag,
+            TabGridMode = _G._N0IRTabGridMode,
+            FriendLeftNotify = _G._N0IR_FriendLeftNotify,
         }
         if writefile then
-            writefile(KEYBINDS_PATH, HttpService:JSONEncode(data))
+            writefile(SETTINGS_PATH, HttpService:JSONEncode(data))
+            -- keep legacy file in sync
+            writefile(KEYBINDS_PATH, HttpService:JSONEncode({
+                ToggleKey = data.ToggleKey,
+                CmdBarKey = data.CmdBarKey,
+                CmdPrefix = data.CmdPrefix,
+            }))
         end
     end)
 end
-_G._N0IR_SaveKeybinds = _n0irSaveKeybinds
+_G._N0IR_SaveSettings = _n0irSaveSettings
+_G._N0IR_SaveKeybinds = _n0irSaveSettings -- alias
 
-local function _n0irLoadKeybinds()
+local function _n0irLoadSettings()
     pcall(function()
-        if not (isfile and isfile(KEYBINDS_PATH)) then return end
         local HttpService = game:GetService("HttpService")
-        local raw = readfile(KEYBINDS_PATH)
+        local raw
+        if isfile and isfile(SETTINGS_PATH) then
+            raw = readfile(SETTINGS_PATH)
+        elseif isfile and isfile(KEYBINDS_PATH) then
+            raw = readfile(KEYBINDS_PATH)
+        end
+        if not raw or raw == "" then return end
         local data = HttpService:JSONDecode(raw)
         if type(data) ~= "table" then return end
         if type(data.ToggleKey) == "string" and Enum.KeyCode[data.ToggleKey] then
@@ -324,9 +355,28 @@ local function _n0irLoadKeybinds()
         if type(data.CmdPrefix) == "string" and data.CmdPrefix ~= "" then
             _G._N0IR_CmdPrefix = data.CmdPrefix
         end
+        if data.BgIndex ~= nil then
+            _G._N0IR_Brand = _G._N0IR_Brand or {}
+            _G._N0IR_Brand.BgIndex = tonumber(data.BgIndex) or 1
+        end
+        if data.BgTransparency ~= nil then
+            _G._N0IR_Brand = _G._N0IR_Brand or {}
+            _G._N0IR_Brand.BgTransparency = tonumber(data.BgTransparency) or 0.42
+        end
+        if type(data.Flags) == "table" then
+            N0IR.Flags = N0IR.Flags or {}
+            for k, v in pairs(data.Flags) do
+                N0IR.Flags[k] = v
+            end
+        end
+        if data.DragEnabled ~= nil then _G._N0IRDragEnabled = data.DragEnabled end
+        if data.SmoothDrag ~= nil then _G._N0IRSmoothDrag = data.SmoothDrag end
+        if data.TabGridMode ~= nil then _G._N0IRTabGridMode = data.TabGridMode end
+        if data.FriendLeftNotify ~= nil then _G._N0IR_FriendLeftNotify = data.FriendLeftNotify end
     end)
 end
-_n0irLoadKeybinds()
+_G._N0IR_LoadSettings = _n0irLoadSettings
+_n0irLoadSettings()
 
 -- ============================================================
 -- LOADING SCREEN (fullscreen, half-transparent, NØIR)
@@ -1006,6 +1056,9 @@ function N0IR:CreateWindow(opts)
                 if fire ~= false and togOpts.Callback then
                     task.spawn(togOpts.Callback, state)
                 end
+                if fire ~= false and _G._N0IR_SaveSettings then
+                    task.defer(_G._N0IR_SaveSettings)
+                end
             end
 
             hit.MouseButton1Click:Connect(function() set(not state) end)
@@ -1081,6 +1134,7 @@ function N0IR:CreateWindow(opts)
                     value = math.floor(value / slOpts.Increment + 0.5) * slOpts.Increment
                 end
                 if flag then N0IR.Flags[flag] = value end
+                if _G._N0IR_SaveSettings then task.defer(_G._N0IR_SaveSettings) end
                 local pct = (value - minV) / math.max(maxV - minV, 1e-4)
                 fill.Size = UDim2.fromScale(pct, 1)
                 valLbl.Text = string.format(slOpts.Increment and slOpts.Increment < 1 and "%.2f" or "%.0f", value)
@@ -3091,44 +3145,52 @@ function N0IR:MountUtilities(Window)
     input.ClearTextOnFocus = false
     input.Parent = bar
 
-    local _cmdOpenIgnore = false
+    -- Open cmd bar on KEY RELEASE so the open-key never types into the box
+    local _cmdPendingOpen = false
+    local _cmdOpenKey = nil
     UserInputService.InputBegan:Connect(function(inp, gp)
         local key = _G._N0IR_CmdBarKey or cmdBarKey
+        if inp.UserInputType ~= Enum.UserInputType.Keyboard then return end
         if inp.KeyCode ~= key then return end
-        -- Always sink this key so it never types into the TextBox
+        -- close if already focused
         if UserInputService:GetFocusedTextBox() == input then
-            -- already open: close on second press
             input:ReleaseFocus()
+            _cmdPendingOpen = false
             return
         end
         if UserInputService:GetFocusedTextBox() then return end
-        _cmdOpenIgnore = true
+        _cmdPendingOpen = true
+        _cmdOpenKey = key
         input.Text = ""
-        tween(bar, { Position = UDim2.new(0.5, 0, 1, -18) }, 0.3)
-        task.defer(function()
-            input:CaptureFocus()
-            input.Text = ""
-            -- clear again next frames in case the open-key was inserted
-            for _ = 1, 3 do
-                task.wait()
-                if _cmdOpenIgnore then input.Text = "" end
-            end
-            _cmdOpenIgnore = false
-        end)
+        tween(bar, { Position = UDim2.new(0.5, 0, 1, -18) }, 0.25)
     end)
 
-    input:GetPropertyChangedSignal("Text"):Connect(function()
-        if _cmdOpenIgnore then
+    UserInputService.InputEnded:Connect(function(inp)
+        if not _cmdPendingOpen then return end
+        local key = _cmdOpenKey or _G._N0IR_CmdBarKey or cmdBarKey
+        if inp.KeyCode ~= key then return end
+        _cmdPendingOpen = false
+        input.Text = ""
+        input:CaptureFocus()
+        -- hard clear once more after focus (safety)
+        task.defer(function()
             input.Text = ""
-        end
+        end)
     end)
 
     input.FocusLost:Connect(function(enter)
         tween(bar, { Position = UDim2.new(0.5, 0, 1, 60) }, 0.3)
-        _cmdOpenIgnore = false
+        _cmdPendingOpen = false
         if enter and input.Text ~= "" then
             local txt = input.Text
-            runCmd(txt)
+            -- strip accidental open-key character at start if it slipped in
+            local key = _G._N0IR_CmdBarKey or cmdBarKey
+            local ch = ""
+            pcall(function() ch = UserInputService:GetStringForKeyCode(key) end)
+            if ch ~= "" and txt:sub(1, #ch) == ch then
+                txt = txt:sub(#ch + 1)
+            end
+            if txt ~= "" then runCmd(txt) end
         end
         input.Text = ""
     end)
@@ -3693,6 +3755,7 @@ function N0IR:MountUtilities(Window)
             _G[storeKey] = input.KeyCode
             labelObj:Set(pretty .. "  ·  " .. input.KeyCode.Name)
             if _G._N0IR_SaveKeybinds then _G._N0IR_SaveKeybinds() end
+            if _G._N0IR_SaveSettings then _G._N0IR_SaveSettings() end
             N0IR:Notify({ Title = "Keybind", Content = pretty .. " → " .. input.KeyCode.Name .. "  ·  saved", Duration = 2 })
         end)
     end
@@ -3743,6 +3806,13 @@ function N0IR:MountUtilities(Window)
         end,
     })
 
+    Settings:CreateButton({
+        Name = "Save settings now",
+        Callback = function()
+            if _G._N0IR_SaveSettings then _G._N0IR_SaveSettings() end
+            N0IR:Notify({ Title = "Settings", Content = "Saved to N0IR/settings.json", Duration = 2 })
+        end,
+    })
     Settings:CreateButton({
         Name = "Notify Test",
         Callback = function()
