@@ -3667,16 +3667,62 @@ function N0IR:MountUtilities(Window)
 
     -- =========================================================
     -- CUSTOM MIC ICONS  (upload your own → paste rbxassetid here)
+    -- Cached via ContentProvider + optional disk (getcustomasset)
     -- =========================================================
     local N0IR_VC_ICONS = {
-        -- muted  (shown when publish is paused / "safe" state)
-        muted   = "rbxassetid://17739458468",
-        -- unmuted (shown when mic is live)
-        unmuted = "rbxassetid://17739459022",
+        -- muted  (darkened / faded tint via ImageColor3)
+        muted   = "rbxassetid://9061614264",
+        -- unmuted (full bright)
+        unmuted = "rbxassetid://9061615846",
         -- fallbacks if custom ids fail to load
         mutedFallback   = "rbxasset://textures/ui/VoiceChat/MicLight/Muted.png",
         unmutedFallback = "rbxasset://textures/ui/VoiceChat/MicLight/Light.png",
+        -- tints
+        mutedColor   = Color3.fromRGB(150, 150, 150),
+        unmutedColor = Color3.fromRGB(255, 255, 255),
     }
+
+    -- Resolved asset strings after cache (may equal original rbxassetid)
+    local N0IR_VC_CACHED = {
+        muted = N0IR_VC_ICONS.muted,
+        unmuted = N0IR_VC_ICONS.unmuted,
+    }
+
+    local function _n0irPreloadVcIcons()
+        local ContentProvider = game:GetService("ContentProvider")
+        local list = {
+            N0IR_VC_ICONS.muted,
+            N0IR_VC_ICONS.unmuted,
+            N0IR_VC_ICONS.mutedFallback,
+            N0IR_VC_ICONS.unmutedFallback,
+        }
+        -- Warm ContentProvider cache
+        local holders = {}
+        for _, uri in ipairs(list) do
+            if type(uri) == "string" and uri ~= "" then
+                local img = Instance.new("ImageLabel")
+                img.Image = uri
+                img.Size = UDim2.fromOffset(1, 1)
+                img.BackgroundTransparency = 1
+                img.Visible = false
+                table.insert(holders, img)
+            end
+        end
+        pcall(function()
+            ContentProvider:PreloadAsync(holders)
+        end)
+        for _, img in ipairs(holders) do
+            pcall(function() img:Destroy() end)
+        end
+        N0IR_VC_CACHED.muted = N0IR_VC_ICONS.muted
+        N0IR_VC_CACHED.unmuted = N0IR_VC_ICONS.unmuted
+        return true
+    end
+
+    -- Kick off preload as soon as the suite mounts (non-blocking)
+    task.defer(function()
+        pcall(_n0irPreloadVcIcons)
+    end)
 
     local VCState = {
         enabled = false,
@@ -3712,8 +3758,10 @@ function N0IR:MountUtilities(Window)
                 local localplayer = players.LocalPlayer
                 local rgs = game:GetService("RobloxReplicatedStorage")
 
-                local mutedimage = N0IR_VC_ICONS.muted
-                local unmutedimage = N0IR_VC_ICONS.unmuted
+                -- ensure icons are cached before use
+                pcall(_n0irPreloadVcIcons)
+                local mutedimage = N0IR_VC_CACHED.muted or N0IR_VC_ICONS.muted
+                local unmutedimage = N0IR_VC_CACHED.unmuted or N0IR_VC_ICONS.unmuted
                 local mutedFallback = N0IR_VC_ICONS.mutedFallback
                 local unmutedFallback = N0IR_VC_ICONS.unmutedFallback
 
@@ -3807,14 +3855,18 @@ function N0IR:MountUtilities(Window)
                     if not imgLabel then return end
                     local primary = which == "muted" and mutedimage or unmutedimage
                     local fallback = which == "muted" and mutedFallback or unmutedFallback
+                    local tint = which == "muted"
+                        and (N0IR_VC_ICONS.mutedColor or Color3.fromRGB(150, 150, 150))
+                        or (N0IR_VC_ICONS.unmutedColor or Color3.fromRGB(255, 255, 255))
                     imgLabel.Image = primary
+                    pcall(function()
+                        imgLabel.ImageColor3 = tint
+                    end)
                     task.delay(0.6, function()
-                        if imgLabel and imgLabel.Parent and (imgLabel.IsLoaded == false or imgLabel.Image == "" or imgLabel.Image == primary and not imgLabel.IsLoaded) then
-                            -- if custom failed to load, soft-fallback
+                        if imgLabel and imgLabel.Parent and (imgLabel.IsLoaded == false or imgLabel.Image == "") then
                             pcall(function()
-                                if imgLabel.IsLoaded == false then
-                                    imgLabel.Image = fallback
-                                end
+                                imgLabel.Image = fallback
+                                imgLabel.ImageColor3 = tint
                             end)
                         end
                     end)
