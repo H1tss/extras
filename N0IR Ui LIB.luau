@@ -3662,7 +3662,7 @@ function N0IR:MountUtilities(Window)
     local VC = Window:CreateTab({ Name = "VC Bypass" })
     VC:CreateSection("NØIR Voice Chat Bypass")
     VC:CreateParagraph({
-        Content = "Native NØIR anti-VC protection. Unmute your mic when prompted, then the bypass hooks the topbar mute button with a Roblox-style green speaking fill indicator.",
+        Content = "Native NØIR anti-VC protection. Unmute your mic when prompted, then the bypass hooks the topbar mute button.",
     })
 
     local VCState = {
@@ -3782,52 +3782,8 @@ function N0IR:MountUtilities(Window)
                     end)
                 end
 
-                -- Roblox-style green fill: circle behind mic glyph, mask shrinks from bottom = fills up
-                local function buildfill(iconlabel)
-                    pcall(function()
-                        local old = iconlabel.Parent:FindFirstChild("VC_Fill")
-                        if old then old:Destroy() end
-                    end)
-
-                    local parent = iconlabel.Parent
-                    if not parent then return nil end
-
-                    local baseZ = iconlabel.ZIndex or 1
-
-                    local fill = Instance.new("Frame")
-                    fill.Name = "VC_Fill"
-                    fill.AnchorPoint = Vector2.new(0.5, 0.5)
-                    fill.Position = UDim2.fromScale(0.5, 0.5)
-                    fill.Size = UDim2.new(1, 6, 1, 6)
-                    fill.BackgroundColor3 = Color3.fromRGB(76, 217, 123)
-                    fill.BorderSizePixel = 0
-                    fill.ZIndex = baseZ + 1
-                    fill.Visible = false
-                    fill.Parent = parent
-
-                    local fc = Instance.new("UICorner")
-                    fc.CornerRadius = UDim.new(1, 0)
-                    fc.Parent = fill
-
-                    local mask = Instance.new("Frame")
-                    mask.Name = "Mask"
-                    mask.AnchorPoint = Vector2.new(0.5, 1)
-                    mask.Position = UDim2.fromScale(0.5, 1)
-                    mask.Size = UDim2.fromScale(1, 1)
-                    mask.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-                    mask.BorderSizePixel = 0
-                    mask.ZIndex = baseZ + 2
-                    mask.Parent = fill
-
-                    local mc = Instance.new("UICorner")
-                    mc.CornerRadius = UDim.new(1, 0)
-                    mc.Parent = mask
-
-                    return fill, mask
-                end
-
-                -- Centralized icon update function to prevent flickering
-                local function updateIcon(clonedicon, fill, mask, forcedMuted, forcedSpeaking)
+                -- Centralized icon update (muted / unmuted only — no speaking fill)
+                local function updateIcon(clonedicon, forcedMuted)
                     if stateLock then return end
                     stateLock = true
 
@@ -3836,41 +3792,9 @@ function N0IR:MountUtilities(Window)
                         local currentMuted = forcedMuted ~= nil and forcedMuted or actualMuted
 
                         if currentMuted then
-                            -- MUTED: show muted icon, hide fill completely
                             clonedicon.Image = mutedimage
-                            if fill then fill.Visible = false end
-                            if mask then mask.Size = UDim2.fromScale(1, 1) end
                         else
-                            -- UNMUTED: show real unmuted icon
                             clonedicon.Image = unmutedimage or mutedimage
-
-                            if forcedSpeaking ~= nil then
-                                if forcedSpeaking and fill and mask then
-                                    fill.Visible = true
-                                    local target = 0.35 + Random.new():NextNumber() * 0.65
-                                    local current = 1 - mask.Size.Y.Scale
-                                    local newlevel = current + (target - current) * 0.35
-                                    mask.Size = UDim2.new(1, 0, math.clamp(1 - newlevel, 0, 1), 0)
-                                else
-                                    if fill then fill.Visible = false end
-                                    if mask then mask.Size = UDim2.fromScale(1, 1) end
-                                end
-                            else
-                                -- Check speaking state normally
-                                local isSpeaking = false
-                                pcall(function() isSpeaking = voicechatinternal:IsSpeaking() end)
-
-                                if isSpeaking and fill and mask then
-                                    fill.Visible = true
-                                    local target = 0.35 + Random.new():NextNumber() * 0.65
-                                    local current = 1 - mask.Size.Y.Scale
-                                    local newlevel = current + (target - current) * 0.35
-                                    mask.Size = UDim2.new(1, 0, math.clamp(1 - newlevel, 0, 1), 0)
-                                else
-                                    if fill then fill.Visible = false end
-                                    if mask then mask.Size = UDim2.fromScale(1, 1) end
-                                end
-                            end
                         end
                     end)
 
@@ -3900,9 +3824,8 @@ function N0IR:MountUtilities(Window)
                             end
                             task.wait(0.1)
                         end
-                        -- Fallback: try to get a standard unmuted image if still not found
                         if not unmutedimage or unmutedimage == "" then
-                            unmutedimage = icon.Image -- Use whatever is there as fallback
+                            unmutedimage = icon.Image
                         end
                     else
                         task.wait(2)
@@ -3951,17 +3874,13 @@ function N0IR:MountUtilities(Window)
                         if originalicon and originalicon.Image ~= mutedimage and originalicon.Image ~= "" then
                             unmutedimage = originalicon.Image
                         else
-                            -- Try to find any non-muted image from the button
                             unmutedimage = clonedicon.Image ~= mutedimage and clonedicon.Image or mutedimage
                         end
                     end
 
-                    local fill, mask = buildfill(clonedicon)
-
-                    -- Initialize state
+                    -- Initialize muted
                     isMutedState = true
-                    updateIcon(clonedicon, fill, mask, true, false)
-
+                    updateIcon(clonedicon, true)
                     pcall(function() voicechatinternal:PublishPause(true) end)
 
                     local hitArea = clonedmutebutton:FindFirstChild("IconHitArea_toggle_mic_mute")
@@ -3970,34 +3889,27 @@ function N0IR:MountUtilities(Window)
 
                     if hitArea then
                         hitArea.Activated:Connect(function()
-                            if stateLock then return end -- Prevent rapid clicks causing issues
+                            if stateLock then return end
 
                             local newState = not voicechatinternal:IsPublishPaused()
                             pcall(function() voicechatinternal:PublishPause(newState) end)
 
                             isMutedState = newState
-                            updateIcon(clonedicon, fill, mask, newState, nil)
+                            updateIcon(clonedicon, newState)
                         end)
                     end
 
                     task.spawn(function()
-                        local rng = Random.new()
                         local lastKnownMuted = nil
-                        local lastKnownSpeaking = nil
 
                         while clonedicon and clonedicon.Parent do
                             task.wait(0.05)
 
                             local currentMuted = voicechatinternal:IsPublishPaused()
-                            local currentSpeaking = false
-                            pcall(function() currentSpeaking = voicechatinternal:IsSpeaking() end)
-
-                            -- Only update if state actually changed to reduce flickering
-                            if currentMuted ~= lastKnownMuted or (not currentMuted and currentSpeaking ~= lastKnownSpeaking) then
+                            if currentMuted ~= lastKnownMuted then
                                 lastKnownMuted = currentMuted
-                                lastKnownSpeaking = currentSpeaking
                                 isMutedState = currentMuted
-                                updateIcon(clonedicon, fill, mask, currentMuted, currentSpeaking)
+                                updateIcon(clonedicon, currentMuted)
                             end
                         end
                     end)
@@ -4009,8 +3921,8 @@ function N0IR:MountUtilities(Window)
                         end
                     end)
 
-                    notify("Protection", "Active (Green speaking fill)")
-                    print("Protection applied with green speaking fill indicator.")
+                    notify("Protection", "Active")
+                    print("Protection applied.")
                 end
 
                 run()
@@ -4044,7 +3956,7 @@ function N0IR:MountUtilities(Window)
     })
 
     VC:CreateParagraph({
-        Content = "Main bypass: unmute when prompted → protection hooks mute button with Roblox-style green speaking fill.\nSpeaking-fill alternate is planned and currently disabled.",
+        Content = "Main bypass: unmute when prompted → protection hooks mute button.\nSpeaking-fill alternate is planned and currently disabled.",
     })
 
     -- also expose for commands
