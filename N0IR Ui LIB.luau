@@ -3670,14 +3670,13 @@ function N0IR:MountUtilities(Window)
     -- Cached via ContentProvider + optional disk (getcustomasset)
     -- =========================================================
     local N0IR_VC_ICONS = {
-        -- Use stock MicLight art + ImageColor3 fade (reliable, looks correct)
-        muted   = "rbxasset://textures/ui/VoiceChat/MicLight/Muted.png",
-        unmuted = "rbxasset://textures/ui/VoiceChat/MicLight/Light.png",
+        -- muted  (shown when publish is paused / "safe" state)
+        muted   = "rbxassetid://17739458468",
+        -- unmuted (shown when mic is live)
+        unmuted = "rbxassetid://17739459022",
+        -- fallbacks if custom ids fail to load
         mutedFallback   = "rbxasset://textures/ui/VoiceChat/MicLight/Muted.png",
         unmutedFallback = "rbxasset://textures/ui/VoiceChat/MicLight/Light.png",
-        -- fade: muted = dim gray, unmuted = full white
-        mutedColor   = Color3.fromRGB(150, 150, 150),
-        unmutedColor = Color3.fromRGB(255, 255, 255),
     }
 
     -- Resolved asset strings after cache (may equal original rbxassetid)
@@ -3853,24 +3852,14 @@ function N0IR:MountUtilities(Window)
                     if not imgLabel then return end
                     local primary = which == "muted" and mutedimage or unmutedimage
                     local fallback = which == "muted" and mutedFallback or unmutedFallback
-                    local tint = which == "muted"
-                        and (N0IR_VC_ICONS.mutedColor or Color3.fromRGB(150, 150, 150))
-                        or (N0IR_VC_ICONS.unmutedColor or Color3.fromRGB(255, 255, 255))
                     imgLabel.Image = primary
                     pcall(function()
-                        imgLabel.ImageColor3 = tint
-                        -- soft fade tween so it doesn't hard-cut
-                        if TweenService then
-                            TweenService:Create(imgLabel, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                                ImageColor3 = tint,
-                            }):Play()
-                        end
+                        imgLabel.ImageColor3 = Color3.fromRGB(255, 255, 255)
                     end)
                     task.delay(0.6, function()
                         if imgLabel and imgLabel.Parent and (imgLabel.IsLoaded == false or imgLabel.Image == "") then
                             pcall(function()
                                 imgLabel.Image = fallback
-                                imgLabel.ImageColor3 = tint
                             end)
                         end
                     end)
