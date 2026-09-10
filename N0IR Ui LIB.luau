@@ -3687,271 +3687,320 @@ function N0IR:MountUtilities(Window)
         task.spawn(function()
             local ok, err = pcall(function()
                 local identifyexecutorname = (identifyexecutor and identifyexecutor()) or "Unknown"
-                local clonereference = cloneref or function(...) return ... end
-                local clonefunction = clonefunction or function(...) return ... end
-                local getconnectionsfunc = getconnections or function() return {} end
+local clonereference = cloneref or function(...) return ... end
+local clonefunction = clonefunction or function(...) return ... end
+local getconnectionsfunc = getconnections or function() return {} end
 
-                local voicechatservice = clonereference(game:GetService("VoiceChatService"))
-                local voicechatinternal = clonereference(game:GetService("VoiceChatInternal"))
-                local coregui = game:GetService("CoreGui")
-                local startergui = game:GetService("StarterGui")
-                local players = game:GetService("Players")
-                local localplayer = players.LocalPlayer
-                local rgs = game:GetService("RobloxReplicatedStorage")
+local voicechatservice = clonereference(game:GetService("VoiceChatService"))
+local voicechatinternal = clonereference(game:GetService("VoiceChatInternal"))
+local coregui = game:GetService("CoreGui")
+local startergui = game:GetService("StarterGui")
+local players = game:GetService("Players")
+local localplayer = players.LocalPlayer
+local rgs = game:GetService("RobloxReplicatedStorage")
 
-                local mutedimage = "rbxasset://textures/ui/VoiceChat/MicLight/Muted.png"
-                local unmutedimage
+local mutedimage = "rbxasset://textures/ui/VoiceChat/MicLight/Muted.png"
+local unmutedimage = nil
 
-                local hiddenfolder = Instance.new("Folder")
-                hiddenfolder.Name = "AVC_Hidden"
-                hiddenfolder.Parent = rgs
+local hiddenfolder = Instance.new("Folder")
+hiddenfolder.Name = "AVC_Hidden"
+hiddenfolder.Parent = rgs
 
-                local function notify(title, text)
-                    task.spawn(function()
-                        pcall(function()
-                            startergui:SetCore("SendNotification", {
-                                Title = title,
-                                Text = text,
-                                Duration = 5,
-                            })
-                        end)
-                    end)
-                    N0IR:Notify({ Title = title, Content = text, Duration = 3 })
-                    if VCState.statusLbl and VCState.statusLbl.Set then
-                        VCState.statusLbl:Set("Status  ·  " .. tostring(text))
+-- Track state to prevent race conditions
+local isMutedState = false
+local stateLock = false
+
+local function notify(title, text)
+    task.spawn(function()
+        pcall(function()
+            startergui:SetCore("SendNotification", {Title = title, Text = text, Duration = 5})
+        end)
+    end)
+end
+
+local function getMuteButton(timeout)
+    timeout = timeout or 10
+    local start = tick()
+    while tick() - start < timeout do
+        local topbarapp = coregui:FindFirstChild("TopBarApp")
+        if topbarapp then
+            local topbar = topbarapp:FindFirstChild("TopBarApp") or topbarapp
+            local unibarleft = topbar and topbar:FindFirstChild("UnibarLeftFrame")
+            if unibarleft then
+                local unibarmenu = unibarleft:FindFirstChild("UnibarMenu") or unibarleft:FindFirstChild("ChromeMenu")
+                if unibarmenu then
+                    local container = unibarmenu:FindFirstChild("2") and unibarmenu["2"]:FindFirstChild("3")
+                    if not container then
+                        container = unibarmenu:FindFirstChildWhichIsA("Frame", true)
+                    end
+                    if container then
+                        local btn = container:FindFirstChild("toggle_mic_mute", true)
+                        if btn then return btn, container end
                     end
                 end
+            end
+        end
+        task.wait(0.2)
+    end
+    return nil, nil
+end
 
-                local function getMuteButton(timeout)
-                    timeout = timeout or 10
-                    local startt = tick()
-                    while tick() - startt < timeout do
-                        local topbarapp = coregui:FindFirstChild("TopBarApp")
-                        if topbarapp then
-                            local topbar = topbarapp:FindFirstChild("TopBarApp") or topbarapp
-                            local unibarleft = topbar and topbar:FindFirstChild("UnibarLeftFrame")
-                            if unibarleft then
-                                local unibarmenu = unibarleft:FindFirstChild("UnibarMenu") or unibarleft:FindFirstChild("ChromeMenu")
-                                if unibarmenu then
-                                    local container = unibarmenu:FindFirstChild("2") and unibarmenu["2"]:FindFirstChild("3")
-                                    if not container then
-                                        container = unibarmenu:FindFirstChildWhichIsA("Frame", true)
-                                    end
-                                    if container then
-                                        local btn = container:FindFirstChild("toggle_mic_mute", true)
-                                        if btn then return btn, container end
-                                    end
-                                end
-                            end
-                        end
-                        task.wait(0.2)
-                    end
-                    return nil, nil
-                end
+local function geticonlabel(button)
+    if not button then return nil end
+    local success, result = pcall(function()
+        return button:WaitForChild("IntegrationIconFrame", 5):WaitForChild("IntegrationIcon", 5)["1"]
+    end)
+    return success and result or nil
+end
 
-                local function geticonlabel(button)
-                    if not button then return nil end
-                    local success, result = pcall(function()
-                        return button:WaitForChild("IntegrationIconFrame", 5):WaitForChild("IntegrationIcon", 5)["1"]
-                    end)
-                    return success and result or nil
-                end
+local function neutralize()
+    pcall(function()
+        local connections = getconnectionsfunc(voicechatinternal.StateChanged)
+        for i = 7, #connections do
+            if connections[i] then pcall(function() connections[i]:Disable() end) end
+        end
+    end)
+    pcall(function()
+        local connections = getconnectionsfunc(voicechatinternal.PublishPaused)
+        for i = 7, #connections do
+            if connections[i] then pcall(function() connections[i]:Disable() end) end
+        end
+    end)
+    pcall(function()
+        local connections = getconnectionsfunc(voicechatinternal.VoiceChatStateChanged)
+        for i = 7, #connections do
+            if connections[i] then pcall(function() connections[i]:Disable() end) end
+        end
+    end)
+end
 
-                local function neutralize()
-                    pcall(function()
-                        local connections = getconnectionsfunc(voicechatinternal.StateChanged)
-                        for i = 7, #connections do
-                            if connections[i] then pcall(function() connections[i]:Disable() end) end
-                        end
-                    end)
-                    pcall(function()
-                        local connections = getconnectionsfunc(voicechatinternal.PublishPaused)
-                        for i = 7, #connections do
-                            if connections[i] then pcall(function() connections[i]:Disable() end) end
-                        end
-                    end)
-                    pcall(function()
-                        local connections = getconnectionsfunc(voicechatinternal.VoiceChatStateChanged)
-                        for i = 7, #connections do
-                            if connections[i] then pcall(function() connections[i]:Disable() end) end
-                        end
-                    end)
-                end
+-- Roblox-style green fill: circle behind mic glyph, mask shrinks from bottom = fills up
+local function buildfill(iconlabel)
+    pcall(function()
+        local old = iconlabel.Parent:FindFirstChild("VC_Fill")
+        if old then old:Destroy() end
+    end)
 
-                -- Roblox-style green fill: circle behind mic glyph, mask shrinks from bottom = fills up
-                local function buildfill(iconlabel)
-                    pcall(function()
-                        local old = iconlabel.Parent:FindFirstChild("VC_Fill")
-                        if old then old:Destroy() end
-                    end)
+    local parent = iconlabel.Parent
+    if not parent then return nil end
 
-                    local parent = iconlabel.Parent
-                    if not parent then return nil end
+    local baseZ = iconlabel.ZIndex or 1
 
-                    local baseZ = iconlabel.ZIndex or 1
+    local fill = Instance.new("Frame")
+    fill.Name = "VC_Fill"
+    fill.AnchorPoint = Vector2.new(0.5, 0.5)
+    fill.Position = UDim2.fromScale(0.5, 0.5)
+    fill.Size = UDim2.new(1, 6, 1, 6)
+    fill.BackgroundColor3 = Color3.fromRGB(76, 217, 123)
+    fill.BorderSizePixel = 0
+    fill.ZIndex = baseZ + 1
+    fill.Visible = false
+    fill.Parent = parent
 
-                    local fill = Instance.new("Frame")
-                    fill.Name = "VC_Fill"
-                    fill.AnchorPoint = Vector2.new(0.5, 0.5)
-                    fill.Position = UDim2.fromScale(0.5, 0.5)
-                    fill.Size = UDim2.new(1, 6, 1, 6)
-                    fill.BackgroundColor3 = Color3.fromRGB(76, 217, 123)
-                    fill.BorderSizePixel = 0
-                    fill.ZIndex = baseZ + 1
-                    fill.Visible = false
-                    fill.Parent = parent
+    local fc = Instance.new("UICorner")
+    fc.CornerRadius = UDim.new(1, 0)
+    fc.Parent = fill
 
-                    local fc = Instance.new("UICorner")
-                    fc.CornerRadius = UDim.new(1, 0)
-                    fc.Parent = fill
+    local mask = Instance.new("Frame")
+    mask.Name = "Mask"
+    mask.AnchorPoint = Vector2.new(0.5, 1)
+    mask.Position = UDim2.fromScale(0.5, 1)
+    mask.Size = UDim2.fromScale(1, 1)
+    mask.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    mask.BorderSizePixel = 0
+    mask.ZIndex = baseZ + 2
+    mask.Parent = fill
 
-                    local mask = Instance.new("Frame")
-                    mask.Name = "Mask"
-                    mask.AnchorPoint = Vector2.new(0.5, 1)
-                    mask.Position = UDim2.fromScale(0.5, 1)
-                    mask.Size = UDim2.fromScale(1, 1)
-                    mask.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-                    mask.BorderSizePixel = 0
-                    mask.ZIndex = baseZ + 2
-                    mask.Parent = fill
+    local mc = Instance.new("UICorner")
+    mc.CornerRadius = UDim.new(1, 0)
+    mc.Parent = mask
 
-                    local mc = Instance.new("UICorner")
-                    mc.CornerRadius = UDim.new(1, 0)
-                    mc.Parent = mask
+    return fill, mask
+end
 
-                    return fill, mask
-                end
+-- Centralized icon update function to prevent flickering
+local function updateIcon(clonedicon, fill, mask, forcedMuted, forcedSpeaking)
+    if stateLock then return end
+    stateLock = true
 
-                local function run()
-                    notify("Protection", "Unmute your mic to continue")
+    pcall(function()
+        local actualMuted = voicechatinternal:IsPublishPaused()
+        local currentMuted = forcedMuted ~= nil and forcedMuted or actualMuted
 
-                    pcall(function() voicechatservice:joinVoice() end)
+        if currentMuted then
+            -- MUTED: show muted icon, hide fill completely
+            clonedicon.Image = mutedimage
+            if fill then fill.Visible = false end
+            if mask then mask.Size = UDim2.fromScale(1, 1) end
+        else
+            -- UNMUTED: show real unmuted icon
+            clonedicon.Image = unmutedimage or mutedimage
 
-                    local micmutebutton, unibarcontainer = getMuteButton(15)
-                    if not micmutebutton then
-                        notify("Error", "Mic button not found initially")
-                        VCState.enabled = false
-                        return
-                    end
-
-                    local icon = geticonlabel(micmutebutton)
-                    if icon then
-                        repeat task.wait(0.5) until icon.Image ~= mutedimage
-                        unmutedimage = icon.Image
-                    else
-                        task.wait(2)
-                    end
-
-                    notify("Protection", "Bypass starting...")
-
-                    pcall(function() voicechatservice:leaveVoice() end)
-                    task.wait(1.4)
-
-                    neutralize()
-                    task.wait(1.1)
-
-                    pcall(function() voicechatservice:joinVoice() end)
-                    task.wait(1.5)
-
-                    micmutebutton, unibarcontainer = getMuteButton(12)
-                    if not micmutebutton then
-                        task.wait(2)
-                        micmutebutton, unibarcontainer = getMuteButton(8)
-                    end
-
-                    if not micmutebutton or not unibarcontainer then
-                        notify("Error", "Failed to find mic button after rejoin")
-                        VCState.enabled = false
-                        return
-                    end
-
-                    local clonedmutebutton = micmutebutton:Clone()
-                    micmutebutton.Parent = hiddenfolder
-
-                    clonedmutebutton.Name = "toggle_mic_mute_protected"
-                    clonedmutebutton.Parent = unibarcontainer
-
-                    local clonedicon = geticonlabel(clonedmutebutton)
-                    local originalicon = geticonlabel(micmutebutton)
-
-                    if not clonedicon then
-                        notify("Error", "Failed to get icon label from clone")
-                        VCState.enabled = false
-                        return
-                    end
-
-                    if not unmutedimage or unmutedimage == "" then
-                        unmutedimage = (originalicon and originalicon.Image ~= mutedimage and originalicon.Image) or mutedimage
-                    end
-
-                    local fill, mask = buildfill(clonedicon)
-
-                    pcall(function() voicechatinternal:PublishPause(true) end)
-                    clonedicon.Image = mutedimage
+            if forcedSpeaking ~= nil then
+                if forcedSpeaking and fill and mask then
+                    fill.Visible = true
+                    local target = 0.35 + Random.new():NextNumber() * 0.65
+                    local current = 1 - mask.Size.Y.Scale
+                    local newlevel = current + (target - current) * 0.35
+                    mask.Size = UDim2.new(1, 0, math.clamp(1 - newlevel, 0, 1), 0)
+                else
                     if fill then fill.Visible = false end
-
-                    local hitArea = clonedmutebutton:FindFirstChild("IconHitArea_toggle_mic_mute")
-                        or clonedmutebutton:FindFirstChildWhichIsA("TextButton", true)
-                        or clonedmutebutton:FindFirstChildWhichIsA("ImageButton", true)
-
-                    if hitArea then
-                        hitArea.Activated:Connect(function()
-                            local newState = not voicechatinternal:IsPublishPaused()
-                            pcall(function() voicechatinternal:PublishPause(newState) end)
-
-                            if newState then
-                                -- MUTED: show muted icon, hide fill completely
-                                clonedicon.Image = mutedimage
-                                if fill then fill.Visible = false end
-                                if mask then mask.Size = UDim2.fromScale(1, 1) end
-                            else
-                                -- UNMUTED: show real unmuted icon
-                                clonedicon.Image = unmutedimage
-                            end
-                        end)
-                    end
-
-                    task.spawn(function()
-                        local rng = Random.new()
-                        while clonedicon and clonedicon.Parent do
-                            task.wait(0.05)
-
-                            local isMuted = voicechatinternal:IsPublishPaused()
-                            local isSpeaking = false
-                            pcall(function() isSpeaking = voicechatinternal:IsSpeaking() end)
-
-                            if isMuted then
-                                clonedicon.Image = mutedimage
-                                if fill then fill.Visible = false end
-                                if mask then mask.Size = UDim2.fromScale(1, 1) end
-                            else
-                                clonedicon.Image = unmutedimage
-
-                                if isSpeaking and fill and mask then
-                                    fill.Visible = true
-                                    local target = 0.35 + rng:NextNumber() * 0.65
-                                    local current = 1 - mask.Size.Y.Scale
-                                    local newlevel = current + (target - current) * 0.35
-                                    mask.Size = UDim2.new(1, 0, math.clamp(1 - newlevel, 0, 1), 0)
-                                else
-                                    if fill then fill.Visible = false end
-                                    if mask then mask.Size = UDim2.fromScale(1, 1) end
-                                end
-                            end
-                        end
-                    end)
-
-                    task.spawn(function()
-                        while true do
-                            task.wait(6)
-                            neutralize()
-                        end
-                    end)
-
-                    notify("Protection", "Active (Green speaking fill)")
-                    print("Protection applied with green speaking fill indicator.")
+                    if mask then mask.Size = UDim2.fromScale(1, 1) end
                 end
+            else
+                -- Check speaking state normally
+                local isSpeaking = false
+                pcall(function() isSpeaking = voicechatinternal:IsSpeaking() end)
 
+                if isSpeaking and fill and mask then
+                    fill.Visible = true
+                    local target = 0.35 + Random.new():NextNumber() * 0.65
+                    local current = 1 - mask.Size.Y.Scale
+                    local newlevel = current + (target - current) * 0.35
+                    mask.Size = UDim2.new(1, 0, math.clamp(1 - newlevel, 0, 1), 0)
+                else
+                    if fill then fill.Visible = false end
+                    if mask then mask.Size = UDim2.fromScale(1, 1) end
+                end
+            end
+        end
+    end)
+
+    stateLock = false
+end
+
+local function run()
+    notify("Protection", "Unmute your mic to continue")
+
+    pcall(function() voicechatservice:joinVoice() end)
+
+    local micmutebutton, unibarcontainer = getMuteButton(15)
+    if not micmutebutton then
+        notify("Error", "Mic button not found initially")
+        return
+    end
+
+    local icon = geticonlabel(micmutebutton)
+    if icon then
+        -- Wait for the unmuted icon image to be available
+        local startTime = tick()
+        while tick() - startTime < 5 do
+            if icon.Image ~= mutedimage and icon.Image ~= "" then
+                unmutedimage = icon.Image
+                break
+            end
+            task.wait(0.1)
+        end
+        -- Fallback: try to get a standard unmuted image if still not found
+        if not unmutedimage or unmutedimage == "" then
+            unmutedimage = icon.Image -- Use whatever is there as fallback
+        end
+    else
+        task.wait(2)
+    end
+
+    notify("Protection", "Bypass starting...")
+
+    pcall(function() voicechatservice:leaveVoice() end)
+    task.wait(1.4)
+
+    neutralize()
+    task.wait(1.1)
+
+    pcall(function() voicechatservice:joinVoice() end)
+    task.wait(1.5)
+
+    micmutebutton, unibarcontainer = getMuteButton(12)
+    if not micmutebutton then
+        task.wait(2)
+        micmutebutton, unibarcontainer = getMuteButton(8)
+    end
+
+    if not micmutebutton or not unibarcontainer then
+        notify("Error", "Failed to find mic button after rejoin")
+        return
+    end
+
+    local clonedmutebutton = micmutebutton:Clone()
+    micmutebutton.Parent = hiddenfolder
+
+    clonedmutebutton.Name = "toggle_mic_mute_protected"
+    clonedmutebutton.Parent = unibarcontainer
+
+    local clonedicon = geticonlabel(clonedmutebutton)
+    local originalicon = geticonlabel(micmutebutton)
+
+    if not clonedicon then
+        notify("Error", "Failed to get icon label from clone")
+        return
+    end
+
+    -- Ensure we have a valid unmuted image
+    if not unmutedimage or unmutedimage == "" then
+        if originalicon and originalicon.Image ~= mutedimage and originalicon.Image ~= "" then
+            unmutedimage = originalicon.Image
+        else
+            -- Try to find any non-muted image from the button
+            unmutedimage = clonedicon.Image ~= mutedimage and clonedicon.Image or mutedimage
+        end
+    end
+
+    local fill, mask = buildfill(clonedicon)
+
+    -- Initialize state
+    isMutedState = true
+    updateIcon(clonedicon, fill, mask, true, false)
+
+    pcall(function() voicechatinternal:PublishPause(true) end)
+
+    local hitArea = clonedmutebutton:FindFirstChild("IconHitArea_toggle_mic_mute")
+        or clonedmutebutton:FindFirstChildWhichIsA("TextButton", true)
+        or clonedmutebutton:FindFirstChildWhichIsA("ImageButton", true)
+
+    if hitArea then
+        hitArea.Activated:Connect(function()
+            if stateLock then return end -- Prevent rapid clicks causing issues
+
+            local newState = not voicechatinternal:IsPublishPaused()
+            pcall(function() voicechatinternal:PublishPause(newState) end)
+
+            isMutedState = newState
+            updateIcon(clonedicon, fill, mask, newState, nil)
+        end)
+    end
+
+    task.spawn(function()
+        local rng = Random.new()
+        local lastKnownMuted = nil
+        local lastKnownSpeaking = nil
+
+        while clonedicon and clonedicon.Parent do
+            task.wait(0.05)
+
+            local currentMuted = voicechatinternal:IsPublishPaused()
+            local currentSpeaking = false
+            pcall(function() currentSpeaking = voicechatinternal:IsSpeaking() end)
+
+            -- Only update if state actually changed to reduce flickering
+            if currentMuted ~= lastKnownMuted or (not currentMuted and currentSpeaking ~= lastKnownSpeaking) then
+                lastKnownMuted = currentMuted
+                lastKnownSpeaking = currentSpeaking
+                isMutedState = currentMuted
+                updateIcon(clonedicon, fill, mask, currentMuted, currentSpeaking)
+            end
+        end
+    end)
+
+    task.spawn(function()
+        while true do
+            task.wait(6)
+            neutralize()
+        end
+    end)
+
+    notify("Protection", "Active (Green speaking fill)")
+    print("Protection applied with green speaking fill indicator.")
+end
                 run()
             end)
             if not ok then
