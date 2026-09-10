@@ -3853,13 +3853,13 @@ function N0IR:MountUtilities(Window)
                     local primary = which == "muted" and mutedimage or unmutedimage
                     local fallback = which == "muted" and mutedFallback or unmutedFallback
                     imgLabel.Image = primary
-                    pcall(function()
-                        imgLabel.ImageColor3 = Color3.fromRGB(255, 255, 255)
-                    end)
                     task.delay(0.6, function()
-                        if imgLabel and imgLabel.Parent and (imgLabel.IsLoaded == false or imgLabel.Image == "") then
+                        if imgLabel and imgLabel.Parent and (imgLabel.IsLoaded == false or imgLabel.Image == "" or imgLabel.Image == primary and not imgLabel.IsLoaded) then
+                            -- if custom failed to load, soft-fallback
                             pcall(function()
-                                imgLabel.Image = fallback
+                                if imgLabel.IsLoaded == false then
+                                    imgLabel.Image = fallback
+                                end
                             end)
                         end
                     end)
