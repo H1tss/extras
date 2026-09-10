@@ -19148,7 +19148,6 @@ task.spawn(function()
             stepArm("R",  1, "RightUpperArm", "RightLowerArm", "RightHand")
             stepArm("L", -1, "LeftUpperArm",  "LeftLowerArm",  "LeftHand")
         end
-        end
     end
 
     local function start()
@@ -19338,5 +19337,4 @@ task.spawn(function()
         task.wait(0.7)
         rebuildPoleCache()
     end)
-end)
 end)
