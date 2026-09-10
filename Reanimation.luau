@@ -8088,6 +8088,10 @@ _G._N0IRPoleLength = _G._N0IRPoleLength or 150
 _G._N0IRPoleAnchors = _G._N0IRPoleAnchors or {
     RightArm = nil, LeftArm = nil, RightLeg = nil, LeftLeg = nil
 }
+_G._N0IRPoleSelectedLimb = _G._N0IRPoleSelectedLimb or "RightArm"
+_G._N0IRPolePlacementMode = false
+_G._N0IRPolePlaceBlend = _G._N0IRPolePlaceBlend or {}
+_G._N0IRPoleESPVisible = true
 
 local funHeader = Instance.new("TextLabel")
 funHeader.Parent = LimbsPanel
@@ -8469,16 +8473,139 @@ do
     poleStatus.Size = UDim2.new(1, -20, 0, 12)
     poleStatus.Font = Enum.Font.Gotham
     poleStatus.TextSize = 10
-    poleStatus.Text = "Select a limb, then Place"
+    poleStatus.Text = "Select a limb, then Place (world click)"
     poleStatus.TextColor3 = C.textDim or Color3.fromRGB(140,140,140)
     poleStatus.TextXAlignment = Enum.TextXAlignment.Left
     poleStatus.ZIndex = 33
 
     _G._N0IRPoleSelectedLimb = _G._N0IRPoleSelectedLimb or "RightArm"
+    _G._N0IRPolePlacementMode = false
 
     local limbKeys = {"RightArm", "LeftArm", "RightLeg", "LeftLeg"}
     local limbLabels = {RightArm="R Arm", LeftArm="L Arm", RightLeg="R Leg", LeftLeg="L Leg"}
+    local limbPartMap = {
+        RightArm = {"RightUpperArm", "RightLowerArm", "RightHand"},
+        LeftArm  = {"LeftUpperArm",  "LeftLowerArm",  "LeftHand"},
+        RightLeg = {"RightUpperLeg", "RightLowerLeg", "RightFoot"},
+        LeftLeg  = {"LeftUpperLeg",  "LeftLowerLeg",  "LeftFoot"},
+    }
     local limbBtns = {}
+
+    local poleEspFolder = nil
+    local function destroyPoleEsp()
+        if poleEspFolder then
+            pcall(function() poleEspFolder:Destroy() end)
+            poleEspFolder = nil
+        end
+    end
+
+    local function getPoleClone()
+        if ReanimateAPI and ReanimateAPI.get_clone then
+            local c = ReanimateAPI.get_clone(plr)
+            if c then return c end
+        end
+        return plr.Character
+    end
+
+    local function refreshPoleEsp()
+        destroyPoleEsp()
+        if not _G._N0IRPoleESPVisible then return end
+        local key = _G._N0IRPoleSelectedLimb
+        local names = limbPartMap[key]
+        if not names then return end
+        local clone = getPoleClone()
+        if not clone then return end
+
+        local folder = Instance.new("Folder")
+        folder.Name = "N0IRPoleESP"
+        folder.Parent = workspace
+        poleEspFolder = folder
+
+        for _, partName in ipairs(names) do
+            local src = clone:FindFirstChild(partName, true)
+            if src and src:IsA("BasePart") then
+                local ghost = Instance.new("Part")
+                ghost.Name = "ESP_" .. partName
+                ghost.Size = src.Size
+                ghost.CFrame = src.CFrame
+                ghost.Anchored = true
+                ghost.CanCollide = false
+                ghost.CanQuery = false
+                ghost.CanTouch = false
+                ghost.Material = Enum.Material.Neon
+                ghost.Color = Color3.fromRGB(245, 245, 255)
+                ghost.Transparency = 0.45
+                ghost.CastShadow = false
+                ghost.Parent = folder
+                local box = Instance.new("SelectionBox")
+                box.Adornee = ghost
+                box.Color3 = Color3.fromRGB(255, 255, 255)
+                box.LineThickness = 0.03
+                box.Transparency = 0.35
+                box.Parent = ghost
+            end
+        end
+    end
+
+    local function updatePoleEspCFrames()
+        if not poleEspFolder or not poleEspFolder.Parent then return end
+        local key = _G._N0IRPoleSelectedLimb
+        local names = limbPartMap[key]
+        if not names then return end
+        local clone = getPoleClone()
+        if not clone then return end
+
+        local aimPos = nil
+        if _G._N0IRPolePlacementMode then
+            local mouse = plr:GetMouse()
+            if mouse and mouse.Hit then
+                aimPos = mouse.Hit.Position + Vector3.new(0, 0.35, 0)
+            end
+        end
+
+        local rootPart = clone:FindFirstChild(names[1], true)
+        local rootCF = rootPart and rootPart:IsA("BasePart") and rootPart.CFrame or nil
+
+        for i, partName in ipairs(names) do
+            local ghost = poleEspFolder:FindFirstChild("ESP_" .. partName)
+            local src = clone:FindFirstChild(partName, true)
+            if ghost and ghost:IsA("BasePart") and src and src:IsA("BasePart") then
+                if aimPos and rootCF then
+                    local t = (i - 1) / math.max(#names - 1, 1)
+                    local targetPos = rootCF.Position:Lerp(aimPos, t)
+                    local look = (aimPos - rootCF.Position)
+                    if look.Magnitude > 0.05 then
+                        ghost.CFrame = CFrame.lookAt(targetPos, aimPos) * CFrame.Angles(math.rad(90), 0, 0)
+                    else
+                        ghost.CFrame = src.CFrame
+                    end
+                    ghost.Size = src.Size
+                    ghost.Transparency = 0.35
+                else
+                    ghost.CFrame = src.CFrame
+                    ghost.Size = src.Size
+                    ghost.Transparency = 0.5
+                end
+            end
+        end
+    end
+
+    local espConn = RunService.RenderStepped:Connect(function()
+        if not poleFrame or not poleFrame.Parent then
+            destroyPoleEsp()
+            return
+        end
+        if _G._N0IRPoleSelectedLimb then
+            if not poleEspFolder or not poleEspFolder.Parent then
+                refreshPoleEsp()
+            else
+                updatePoleEspCFrames()
+            end
+        end
+    end)
+    if _G._N0IRReanimGlobalConns then
+        table.insert(_G._N0IRReanimGlobalConns, espConn)
+    end
 
     local function updateLimbBtns()
         for key, btn in pairs(limbBtns) do
@@ -8491,13 +8618,17 @@ do
             end
         end
         local a = _G._N0IRPoleAnchors[_G._N0IRPoleSelectedLimb]
-        if a then
-            poleStatus.Text = limbLabels[_G._N0IRPoleSelectedLimb] .. " placed"
+        if _G._N0IRPolePlacementMode then
+            poleStatus.Text = "Click WORLD to place " .. limbLabels[_G._N0IRPoleSelectedLimb]
+            poleStatus.TextColor3 = Color3.fromRGB(120, 220, 140)
+        elseif a then
+            poleStatus.Text = limbLabels[_G._N0IRPoleSelectedLimb] .. " locked in world"
             poleStatus.TextColor3 = C.accent or Color3.fromRGB(180,180,180)
         else
-            poleStatus.Text = "Selected: " .. limbLabels[_G._N0IRPoleSelectedLimb] .. " (not placed)"
+            poleStatus.Text = "Selected: " .. limbLabels[_G._N0IRPoleSelectedLimb] .. " — Place, then click world"
             poleStatus.TextColor3 = C.textDim or Color3.fromRGB(140,140,140)
         end
+        refreshPoleEsp()
     end
 
     for i, key in ipairs(limbKeys) do
@@ -8516,13 +8647,14 @@ do
         do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,5); c.Parent = btn end
         btn.MouseButton1Click:Connect(function()
             _G._N0IRPoleSelectedLimb = key
+            _G._N0IRPolePlacementMode = false
             updateLimbBtns()
+            if Notify then Notify("Pole limb: " .. limbLabels[key] .. " (ESP)", 1.2) end
         end)
         limbBtns[key] = btn
     end
     updateLimbBtns()
 
-    -- Place button
     local placeBtn = Instance.new("TextButton")
     placeBtn.Parent = poleFrame
     placeBtn.Size = UDim2.new(0.48, -6, 0, 26)
@@ -8537,16 +8669,60 @@ do
     placeBtn.ZIndex = 34
     do local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,5); c.Parent = placeBtn end
     placeBtn.MouseButton1Click:Connect(function()
-        local mouse = plr:GetMouse()
-        local hit = mouse.Hit
-        if hit then
-            local key = _G._N0IRPoleSelectedLimb
-            _G._N0IRPoleAnchors[key] = hit.Position + Vector3.new(0, 0.4, 0)
-            _G._N0IRPolesEnabled = true
-            updateLimbBtns()
-            if Notify then Notify("Pole placed: " .. limbLabels[key], 1.5) end
-        end
+        _G._N0IRPolePlacementMode = true
+        updateLimbBtns()
+        if Notify then Notify("Click in the world to lock " .. limbLabels[_G._N0IRPoleSelectedLimb], 2) end
     end)
+
+    local placeInputConn = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if not _G._N0IRPolePlacementMode then return end
+        if input.UserInputType ~= Enum.UserInputType.MouseButton1
+            and input.UserInputType ~= Enum.UserInputType.Touch then
+            return
+        end
+        local pos = input.Position
+        local guis = plr.PlayerGui:GetGuiObjectsAtPosition(pos.X, pos.Y)
+        for _, g in ipairs(guis) do
+            if g:IsA("GuiObject") and g.Visible then
+                local p = g
+                while p do
+                    if p.Name == "ReanimN0IRMenu" or p.Name == "FortniteWheelUI" then
+                        return
+                    end
+                    p = p.Parent
+                end
+            end
+        end
+
+        local camera = workspace.CurrentCamera
+        if not camera then return end
+        local unitRay = camera:ViewportPointToRay(pos.X, pos.Y)
+        local params = RaycastParams.new()
+        params.FilterType = Enum.RaycastFilterType.Exclude
+        local filter = {}
+        pcall(function()
+            local clone = getPoleClone()
+            if clone then table.insert(filter, clone) end
+            if plr.Character then table.insert(filter, plr.Character) end
+            if poleEspFolder then table.insert(filter, poleEspFolder) end
+        end)
+        params.FilterDescendantsInstances = filter
+        local result = workspace:Raycast(unitRay.Origin, unitRay.Direction * 2000, params)
+        local hitPos = result and result.Position or (unitRay.Origin + unitRay.Direction * 40)
+        hitPos = hitPos + Vector3.new(0, 0.4, 0)
+
+        local key = _G._N0IRPoleSelectedLimb
+        _G._N0IRPoleAnchors[key] = hitPos
+        _G._N0IRPolesEnabled = true
+        _G._N0IRPolePlacementMode = false
+        _G._N0IRPolePlaceBlend = _G._N0IRPolePlaceBlend or {}
+        _G._N0IRPolePlaceBlend[key] = { t0 = os.clock(), dur = 0.28 }
+        updateLimbBtns()
+        if Notify then Notify("Pole locked: " .. limbLabels[key], 1.5) end
+    end)
+    if _G._N0IRReanimGlobalConns then
+        table.insert(_G._N0IRReanimGlobalConns, placeInputConn)
+    end
 
     -- Clear button
     local clearBtn = Instance.new("TextButton")
@@ -8565,6 +8741,13 @@ do
     clearBtn.MouseButton1Click:Connect(function()
         local key = _G._N0IRPoleSelectedLimb
         _G._N0IRPoleAnchors[key] = nil
+        _G._N0IRPolePlacementMode = false
+        if _G._N0IRPolePlaceBlend then _G._N0IRPolePlaceBlend[key] = nil end
+        local any = false
+        for _, v in pairs(_G._N0IRPoleAnchors) do
+            if v then any = true break end
+        end
+        if not any then _G._N0IRPolesEnabled = false end
         updateLimbBtns()
         if Notify then Notify("Pole cleared: " .. limbLabels[key], 1.5) end
     end)
@@ -8586,6 +8769,8 @@ do
     clearAllBtn.MouseButton1Click:Connect(function()
         _G._N0IRPoleAnchors = {RightArm=nil, LeftArm=nil, RightLeg=nil, LeftLeg=nil}
         _G._N0IRPolesEnabled = false
+        _G._N0IRPolePlacementMode = false
+        _G._N0IRPolePlaceBlend = {}
         updateLimbBtns()
         if Notify then Notify("All poles cleared", 1.5) end
     end)
@@ -8768,7 +8953,7 @@ buildToggle(LimbsTabPanel, "Headbang", "Aggressive headbang loop. Party mode.", 
     if Notify then Notify("Headbang: " .. (state and "ON" or "OFF"), 1.4) end
 end)
 
-buildToggle(LimbsTabPanel, "Floppy Arms", "Double-pendulum limp arms — gravity hang + motion lag.", 55, _G._N0IRFloppyArmsEnabled, function(state)
+buildToggle(LimbsTabPanel, "Floppy Arms", "Limp 3-link arms — soft gravity hang, sprint/jump lag, wrist flop.", 55, _G._N0IRFloppyArmsEnabled, function(state)
     _G._N0IRFloppyArmsEnabled = state
     if state then
         _G._N0IRHandsUpEnabled = false
@@ -18690,11 +18875,13 @@ task.spawn(function()
     _G._N0IRExtraLimbs = _Extra
     -- Reset floppy sim whenever the module reloads so state never carries stale angles
     _Extra.floppy = {
-        -- angles (rad) and angular velocities for upper / lower / hand per side
-        R = { u=0, l=0, h=0, vu=0, vl=0, vh=0, uz=0, vuz=0 },
-        L = { u=0, l=0, h=0, vu=0, vl=0, vh=0, uz=0, vuz=0 },
+        -- 3-link: upper (pitch/yaw/roll), elbow, wrist (+ wrist roll)
+        R = { u=0, uy=0, uz=0, l=0, h=0, hz=0, vu=0, vuy=0, vuz=0, vl=0, vh=0, vhz=0 },
+        L = { u=0, uy=0, uz=0, l=0, h=0, hz=0, vu=0, vuy=0, vuz=0, vl=0, vh=0, vhz=0 },
         prevVel = Vector3.zero,
+        prevAngVel = Vector3.zero,
         smoothAcc = Vector3.zero,
+        smoothAngAcc = Vector3.zero,
     }
 
     local function rebuildCache()
@@ -18823,24 +19010,30 @@ task.spawn(function()
             end
         end
 
-        -- Floppy Arms: double-pendulum limp chain (gravity + body inertia)
-        -- Looks like dead arms hanging from the shoulders, lagging behind motion.
+        -- Floppy Arms: improved 3-link limp chain (gravity + linear/angular lag)
+        -- Soft springs, strong motion lag, elbow/wrist secondary, natural hang.
         if _G._N0IRFloppyArmsEnabled then
             local fl = _Extra.floppy
-            if not fl or not fl.R then
+            if not fl or not fl.R or fl.R.uy == nil then
                 fl = {
-                    R = { u=0, l=0, h=0, vu=0, vl=0, vh=0, uz=0, vuz=0 },
-                    L = { u=0, l=0, h=0, vu=0, vl=0, vh=0, uz=0, vuz=0 },
+                    R = { u=0, uy=0, uz=0, l=0, h=0, hz=0,
+                          vu=0, vuy=0, vuz=0, vl=0, vh=0, vhz=0 },
+                    L = { u=0, uy=0, uz=0, l=0, h=0, hz=0,
+                          vu=0, vuy=0, vuz=0, vl=0, vh=0, vhz=0 },
                     prevVel = Vector3.zero,
+                    prevAngVel = Vector3.zero,
                     smoothAcc = Vector3.zero,
+                    smoothAngAcc = Vector3.zero,
                 }
                 _Extra.floppy = fl
             end
 
-            local dtC = math.clamp(dt or 0.016, 0.001, 0.04)
+            local dtC = math.clamp(dt or 0.016, 0.001, 0.033)
+            local intensity = tonumber(_G._N0IRFloppyIntensity) or 1.0
+            if intensity < 0.25 then intensity = 0.25 elseif intensity > 2.5 then intensity = 2.5 end
 
-            -- Character motion (fictitious forces on the hanging limbs)
             local bodyVel = Vector3.zero
+            local bodyAngVel = Vector3.zero
             local hrpCF = nil
             pcall(function()
                 local clone = ReanimateAPI and ReanimateAPI.get_clone and ReanimateAPI.get_clone(plr)
@@ -18848,19 +19041,27 @@ task.spawn(function()
                     or (plr.Character and plr.Character:FindFirstChild("HumanoidRootPart"))
                 if hrp then
                     bodyVel = hrp.AssemblyLinearVelocity
+                    bodyAngVel = hrp.AssemblyAngularVelocity
                     hrpCF = hrp.CFrame
                 end
             end)
 
             local rawAcc = (bodyVel - (fl.prevVel or Vector3.zero)) / dtC
+            local rawAngAcc = (bodyAngVel - (fl.prevAngVel or Vector3.zero)) / dtC
             fl.prevVel = bodyVel
-            -- smooth acceleration so single-frame spikes don't twitch
-            fl.smoothAcc = (fl.smoothAcc or Vector3.zero):Lerp(rawAcc, 0.35)
+            fl.prevAngVel = bodyAngVel
+            fl.smoothAcc = (fl.smoothAcc or Vector3.zero):Lerp(rawAcc, 0.42)
+            fl.smoothAngAcc = (fl.smoothAngAcc or Vector3.zero):Lerp(rawAngAcc, 0.35)
             local acc = fl.smoothAcc
+            local angAcc = fl.smoothAngAcc
 
-            -- world gravity + opposite of body accel (arms lag behind the body)
-            local gWorld = Vector3.new(0, -1, 0) -- unit down
-            local forceWorld = gWorld * 55 - acc * 0.55
+            local gWorld = Vector3.new(0, -1, 0)
+            local forceWorld = gWorld * (48 * intensity) - acc * (0.85 * intensity)
+            if hrpCF then
+                local rApprox = 0.45
+                forceWorld = forceWorld - hrpCF.RightVector:Cross(bodyAngVel) * (rApprox * 2.2 * intensity)
+                forceWorld = forceWorld - angAcc:Cross(hrpCF.RightVector) * (0.15 * intensity)
+            end
 
             local function parentWorldCF(constraint)
                 if not constraint then return nil end
@@ -18872,9 +19073,24 @@ task.spawn(function()
                 return nil
             end
 
-            -- Integrate one arm as a 2-link pendulum + floppy hand
-            -- u = upper pitch from "straight down" rest, l = elbow bend, h = wrist
-            -- uz = upper roll/outward swing
+            local function clampAng(pos, vel, lim)
+                if pos > lim then
+                    pos = lim
+                    if vel > 0 then vel = -vel * 0.28 end
+                elseif pos < -lim then
+                    pos = -lim
+                    if vel < 0 then vel = -vel * 0.28 end
+                end
+                return pos, vel
+            end
+
+            local function integrate(pos, vel, rest, k, d, torque, lim)
+                local a = -k * (pos - rest) - d * vel + torque
+                vel = vel + a * dtC
+                pos = pos + vel * dtC
+                return clampAng(pos, vel, lim)
+            end
+
             local function stepArm(side, sign, upperName, lowerName, handName)
                 local s = fl[side]
                 local upper = _Extra.cache[upperName]
@@ -18885,83 +19101,53 @@ task.spawn(function()
                 local pCF = parentWorldCF(upper)
                 if not pCF then return end
 
-                -- force in the shoulder's local space
                 local localF = pCF.Rotation:Inverse() * forceWorld
-                -- bone extends along -Y in typical R15 constraint space:
-                -- localF.Z drives forward/back swing (pitch), localF.X drives in/out (roll)
-                local torqueU  = localF.Z * 1.15          -- pitch torque on upper
-                local torqueUz = localF.X * sign * 0.85   -- outward/inward
+                local torqueU  = localF.Z * 1.35
+                local torqueUz = localF.X * sign * 1.05
+                local torqueUy = localF.X * 0.25 + localF.Z * sign * 0.18
 
-                -- light continuous lag from horizontal velocity (wind-drag feel)
                 if hrpCF then
                     local localV = hrpCF.Rotation:Inverse() * bodyVel
-                    torqueU  = torqueU  - localV.Z * 0.08
-                    torqueUz = torqueUz - localV.X * sign * 0.06
+                    local localW = hrpCF.Rotation:Inverse() * bodyAngVel
+                    torqueU  = torqueU  - localV.Z * 0.11 - localW.X * 0.35
+                    torqueUz = torqueUz - localV.X * sign * 0.09 - localW.Z * sign * 0.28
+                    torqueUy = torqueUy - localW.Y * 0.45 - localV.X * 0.04
                 end
 
-                -- --- Upper arm (shoulder) ---
-                -- target hang: almost straight down with slight outward rest
-                local restU  = 0.15
-                local restUz = sign * 0.22
-                -- very soft spring so gravity/inertia dominate
-                local kU, dU = 6.5, 3.8
-                local au = -kU * (s.u - restU) - dU * s.vu + torqueU
-                s.vu = s.vu + au * dtC
-                s.u  = s.u  + s.vu * dtC
-                local auz = -kU * (s.uz - restUz) - dU * s.vuz + torqueUz
-                s.vuz = s.vuz + auz * dtC
-                s.uz  = s.uz  + s.vuz * dtC
+                local restU  = 0.12
+                local restUz = sign * 0.28
+                local restUy = sign * 0.06
+                local kU, dU = 4.2, 4.6
+                s.u,  s.vu  = integrate(s.u,  s.vu,  restU,  kU, dU, torqueU,  math.rad(105))
+                s.uz, s.vuz = integrate(s.uz, s.vuz, restUz, kU, dU, torqueUz, math.rad(85))
+                s.uy, s.vuy = integrate(s.uy, s.vuy, restUy, 3.5, 4.0, torqueUy, math.rad(55))
 
-                -- --- Lower arm (elbow) ---
-                -- hangs from upper; inherits upper angular velocity (chain)
-                local kL, dL = 5.0, 3.2
-                local restL = 0.25 -- slight natural bend
-                -- elbow feels upper acceleration + extra gravity pull
-                local torqueL = torqueU * 0.65 + (-s.vu) * 4.5 + localF.Z * 0.55
-                local al = -kL * (s.l - restL) - dL * s.vl + torqueL
-                s.vl = s.vl + al * dtC
-                s.l  = s.l  + s.vl * dtC
+                local restL = 0.35
+                local kL, dL = 3.4, 3.8
+                local torqueL = torqueU * 0.55 + (-s.vu) * 6.2 + localF.Z * 0.7
+                torqueL = torqueL + (-s.vuz) * sign * 1.4
+                s.l, s.vl = integrate(s.l, s.vl, restL, kL, dL, torqueL, math.rad(155))
 
-                -- --- Hand (wrist) ---
-                local kH, dH = 4.0, 2.6
-                local torqueH = (-s.vl) * 5.5 + localF.Z * 0.35
-                local ah = -kH * s.h - dH * s.vh + torqueH
-                s.vh = s.vh + ah * dtC
-                s.h  = s.h  + s.vh * dtC
+                local kH, dH = 2.8, 3.0
+                local torqueH  = (-s.vl) * 7.0 + localF.Z * 0.45 + (-s.vu) * 1.2
+                local torqueHz = (-s.vuz) * 2.2 + localF.X * sign * 0.3
+                s.h,  s.vh  = integrate(s.h,  s.vh,  0.1, kH, dH, torqueH,  math.rad(100))
+                s.hz, s.vhz = integrate(s.hz, s.vhz, 0,   2.4, 2.8, torqueHz, math.rad(70))
 
-                -- soft limits (still allow big swings)
-                local function clampAng(pos, vel, lim)
-                    if pos > lim then
-                        pos = lim
-                        if vel > 0 then vel = -vel * 0.2 end
-                    elseif pos < -lim then
-                        pos = -lim
-                        if vel < 0 then vel = -vel * 0.2 end
-                    end
-                    return pos, vel
-                end
-                s.u,  s.vu  = clampAng(s.u,  s.vu,  math.rad(95))
-                s.uz, s.vuz = clampAng(s.uz, s.vuz, math.rad(70))
-                s.l,  s.vl  = clampAng(s.l,  s.vl,  math.rad(140))
-                s.h,  s.vh  = clampAng(s.h,  s.vh,  math.rad(90))
-
-                -- Apply transforms. Absolute (not bind-relative) so arms fully override
-                -- idle/anim poses and read as pure limp hang.
-                -- Convention: +X pitches the limb forward/down in R15 anim constraints.
                 if upper then
-                    upper.Transform = CFrame.Angles(s.u + math.rad(70), 0, s.uz)
+                    upper.Transform = CFrame.Angles(s.u + math.rad(72), s.uy, s.uz)
                 end
                 if lower then
-                    -- elbow folds further in the same pitch axis
-                    lower.Transform = CFrame.Angles(s.l, 0, 0)
+                    lower.Transform = CFrame.Angles(s.l, s.uy * 0.15, s.uz * 0.08)
                 end
                 if hand then
-                    hand.Transform = CFrame.Angles(s.h, 0, s.h * 0.35 * sign)
+                    hand.Transform = CFrame.Angles(s.h, 0, s.hz + s.h * 0.2 * sign)
                 end
             end
 
             stepArm("R",  1, "RightUpperArm", "RightLowerArm", "RightHand")
             stepArm("L", -1, "LeftUpperArm",  "LeftLowerArm",  "LeftHand")
+        end
         end
     end
 
@@ -18997,7 +19183,9 @@ task.spawn(function()
 end)
 
 -- ============================================================
--- FIXED POLES RUNTIME (button-only, no keybinds)
+-- FIXED POLES RUNTIME
+-- World-locked limbs: hard override after anims, smooth ease-in on place.
+-- Placement is world-click only (see UI); selected limb shows white ESP.
 -- ============================================================
 task.spawn(function()
     local function getClone()
@@ -19032,13 +19220,17 @@ task.spawn(function()
         poleCacheAt = os.clock()
     end
 
-    -- Hoisted out of PreSimulation (was reallocating closures every physics step)
-    local function worldUpCF(pos)
-        return CFrame.fromMatrix(pos, Vector3.new(1, 0, 0), Vector3.new(0, -1, 0), Vector3.new(0, 0, -1))
+    local function worldPoleCF(pos)
+        return CFrame.fromMatrix(
+            pos,
+            Vector3.new(1, 0, 0),
+            Vector3.new(0, -1, 0),
+            Vector3.new(0, 0, -1)
+        )
     end
 
     local function setPart1World(constraint, targetCF)
-        if not constraint then return end
+        if not constraint or not constraint.Parent then return end
         if constraint:IsA("Motor6D") and constraint.Part0 then
             local part0CF = constraint.Part0.CFrame
             local c0, c1 = constraint.C0, constraint.C1
@@ -19054,16 +19246,61 @@ task.spawn(function()
         end
     end
 
+    local function getPart1World(constraint)
+        if not constraint then return nil end
+        if constraint:IsA("Motor6D") and constraint.Part0 and constraint.Part1 then
+            return constraint.Part0.CFrame * constraint.C0 * constraint.Transform * constraint.C1:Inverse()
+        end
+        local att0 = constraint.Attachment0
+        local att1 = constraint.Attachment1
+        if att0 and att1 then
+            return att0.WorldCFrame * constraint.Transform * att1.CFrame:Inverse()
+        elseif att0 then
+            return att0.WorldCFrame * constraint.Transform
+        end
+        return nil
+    end
+
+    local function blendAlpha(key)
+        local blends = _G._N0IRPolePlaceBlend
+        local b = blends and blends[key]
+        if not b or not b.t0 then return 1 end
+        local dur = b.dur or 0.28
+        local t = (os.clock() - b.t0) / dur
+        if t >= 1 then
+            blends[key] = nil
+            return 1
+        end
+        t = math.clamp(t, 0, 1)
+        return t * t * (3 - 2 * t)
+    end
+
     local function doPole(upperName, lowerName, endName, anchorKey, length)
         local anchors = _G._N0IRPoleAnchors
         local anchorPos = anchors and anchors[anchorKey]
         if not anchorPos then return end
         local upper = poleCache[upperName]
         if not upper then return end
-        setPart1World(upper, worldUpCF(anchorPos))
+
+        local targetCF = worldPoleCF(anchorPos)
+        local a = blendAlpha(anchorKey)
+        if a < 1 then
+            local cur = getPart1World(upper)
+            if cur then
+                targetCF = cur:Lerp(targetCF, a)
+            end
+        end
+        setPart1World(upper, targetCF)
+
+        local stretch = math.clamp((length or 150) * 0.01, 0.1, 20)
         local lower = poleCache[lowerName]
         if lower then
-            lower.Transform = CFrame.new(0, -(length * 0.01), 0)
+            local goal = CFrame.new(0, -stretch, 0)
+            if a < 1 then
+                lower.Transform = lower.Transform:Lerp(goal, a)
+            else
+                lower.Transform = goal
+            end
         end
         local endP = poleCache[endName]
         if endP then
@@ -19071,7 +19308,7 @@ task.spawn(function()
         end
     end
 
-    local poleConn = RunService.PreSimulation:Connect(LPH_NO_VIRTUALIZE(function()
+    local function applyAllPoles()
         if not _G._N0IRPolesEnabled or not State.isReanimated then return end
         if not next(poleCache) or (os.clock() - poleCacheAt) > 1.5 then
             rebuildPoleCache()
@@ -19082,10 +19319,24 @@ task.spawn(function()
         doPole("LeftUpperArm", "LeftLowerArm", "LeftHand", "LeftArm", length)
         doPole("RightUpperLeg", "RightLowerLeg", "RightFoot", "RightLeg", length)
         doPole("LeftUpperLeg", "LeftLowerLeg", "LeftFoot", "LeftLeg", length)
+    end
+
+    local poleConn = RunService.PreSimulation:Connect(LPH_NO_VIRTUALIZE(function()
+        applyAllPoles()
     end))
+
+    local poleRenderConn = RunService.RenderStepped:Connect(LPH_NO_VIRTUALIZE(function()
+        applyAllPoles()
+    end))
+
+    if _G._N0IRReanimGlobalConns then
+        table.insert(_G._N0IRReanimGlobalConns, poleConn)
+        table.insert(_G._N0IRReanimGlobalConns, poleRenderConn)
+    end
 
     plr.CharacterAdded:Connect(function()
         task.wait(0.7)
         rebuildPoleCache()
     end)
+end)
 end)
