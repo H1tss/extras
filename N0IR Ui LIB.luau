@@ -3662,7 +3662,7 @@ function N0IR:MountUtilities(Window)
     local VC = Window:CreateTab({ Name = "VC Bypass" })
     VC:CreateSection("NØIR Voice Chat Bypass")
     VC:CreateParagraph({
-        Content = "Native NØIR anti-VC protection. Unmute your mic when prompted, then the bypass hooks the topbar mute button with a white base + green speaking fill indicator.",
+        Content = "Native NØIR anti-VC protection. Unmute your mic when prompted, then the bypass hooks the topbar mute button with a Roblox-style green speaking fill indicator.",
     })
 
     local VCState = {
@@ -3690,6 +3690,7 @@ function N0IR:MountUtilities(Window)
                 local clonereference = cloneref or function(...) return ... end
                 local clonefunction = clonefunction or function(...) return ... end
                 local getconnectionsfunc = getconnections or function() return {} end
+
                 local voicechatservice = clonereference(game:GetService("VoiceChatService"))
                 local voicechatinternal = clonereference(game:GetService("VoiceChatInternal"))
                 local coregui = game:GetService("CoreGui")
@@ -3697,8 +3698,10 @@ function N0IR:MountUtilities(Window)
                 local players = game:GetService("Players")
                 local localplayer = players.LocalPlayer
                 local rgs = game:GetService("RobloxReplicatedStorage")
+
                 local mutedimage = "rbxasset://textures/ui/VoiceChat/MicLight/Muted.png"
                 local unmutedimage
+
                 local hiddenfolder = Instance.new("Folder")
                 hiddenfolder.Name = "AVC_Hidden"
                 hiddenfolder.Parent = rgs
@@ -3709,7 +3712,7 @@ function N0IR:MountUtilities(Window)
                             startergui:SetCore("SendNotification", {
                                 Title = title,
                                 Text = text,
-                                Duration = 5
+                                Duration = 5,
                             })
                         end)
                     end)
@@ -3775,69 +3778,62 @@ function N0IR:MountUtilities(Window)
                     end)
                 end
 
-                -- White base + green fill that rises from the bottom when speaking
+                -- Roblox-style green fill: circle behind mic glyph, mask shrinks from bottom = fills up
                 local function buildfill(iconlabel)
                     pcall(function()
                         local old = iconlabel.Parent:FindFirstChild("VC_Fill")
                         if old then old:Destroy() end
-                        local oldg = iconlabel.Parent:FindFirstChild("VC_Glyph")
-                        if oldg then oldg:Destroy() end
                     end)
+
                     local parent = iconlabel.Parent
                     if not parent then return nil end
+
                     local baseZ = iconlabel.ZIndex or 1
-                    -- White circle (base when unmuted)
+
                     local fill = Instance.new("Frame")
                     fill.Name = "VC_Fill"
                     fill.AnchorPoint = Vector2.new(0.5, 0.5)
                     fill.Position = UDim2.fromScale(0.5, 0.5)
-                    fill.Size = UDim2.new(1, -4, 1, -4)
-                    fill.BackgroundColor3 = Color3.fromRGB(255, 255, 255) -- pure white
+                    fill.Size = UDim2.new(1, 6, 1, 6)
+                    fill.BackgroundColor3 = Color3.fromRGB(76, 217, 123)
                     fill.BorderSizePixel = 0
                     fill.ZIndex = baseZ + 1
                     fill.Visible = false
-                    fill.ClipsDescendants = true
                     fill.Parent = parent
+
                     local fc = Instance.new("UICorner")
                     fc.CornerRadius = UDim.new(1, 0)
                     fc.Parent = fill
-                    -- Green bar that grows from the bottom
-                    local bar = Instance.new("Frame")
-                    bar.Name = "Bar"
-                    bar.AnchorPoint = Vector2.new(0.5, 1)
-                    bar.Position = UDim2.fromScale(0.5, 1)
-                    bar.Size = UDim2.fromScale(1, 0) -- starts empty
-                    bar.BackgroundColor3 = Color3.fromRGB(76, 217, 123)
-                    bar.BorderSizePixel = 0
-                    bar.ZIndex = baseZ + 2
-                    bar.Parent = fill
-                    local bc = Instance.new("UICorner")
-                    bc.CornerRadius = UDim.new(1, 0)
-                    bc.Parent = bar
-                    -- Mic glyph on top
-                    local glyph = Instance.new("ImageLabel")
-                    glyph.Name = "VC_Glyph"
-                    glyph.AnchorPoint = iconlabel.AnchorPoint
-                    glyph.Position = iconlabel.Position
-                    glyph.Size = iconlabel.Size
-                    glyph.BackgroundTransparency = 1
-                    glyph.Image = iconlabel.Image
-                    glyph.ScaleType = iconlabel.ScaleType or Enum.ScaleType.Fit
-                    glyph.ZIndex = baseZ + 3
-                    glyph.Visible = false
-                    glyph.Parent = parent
-                    return fill, bar, glyph
+
+                    local mask = Instance.new("Frame")
+                    mask.Name = "Mask"
+                    mask.AnchorPoint = Vector2.new(0.5, 1)
+                    mask.Position = UDim2.fromScale(0.5, 1)
+                    mask.Size = UDim2.fromScale(1, 1)
+                    mask.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+                    mask.BorderSizePixel = 0
+                    mask.ZIndex = baseZ + 2
+                    mask.Parent = fill
+
+                    local mc = Instance.new("UICorner")
+                    mc.CornerRadius = UDim.new(1, 0)
+                    mc.Parent = mask
+
+                    return fill, mask
                 end
 
                 local function run()
                     notify("Protection", "Unmute your mic to continue")
+
                     pcall(function() voicechatservice:joinVoice() end)
+
                     local micmutebutton, unibarcontainer = getMuteButton(15)
                     if not micmutebutton then
                         notify("Error", "Mic button not found initially")
                         VCState.enabled = false
                         return
                     end
+
                     local icon = geticonlabel(micmutebutton)
                     if icon then
                         repeat task.wait(0.5) until icon.Image ~= mutedimage
@@ -3845,112 +3841,115 @@ function N0IR:MountUtilities(Window)
                     else
                         task.wait(2)
                     end
+
                     notify("Protection", "Bypass starting...")
+
                     pcall(function() voicechatservice:leaveVoice() end)
                     task.wait(1.4)
+
                     neutralize()
                     task.wait(1.1)
+
                     pcall(function() voicechatservice:joinVoice() end)
                     task.wait(1.5)
+
                     micmutebutton, unibarcontainer = getMuteButton(12)
                     if not micmutebutton then
                         task.wait(2)
                         micmutebutton, unibarcontainer = getMuteButton(8)
                     end
+
                     if not micmutebutton or not unibarcontainer then
                         notify("Error", "Failed to find mic button after rejoin")
                         VCState.enabled = false
                         return
                     end
+
                     local clonedmutebutton = micmutebutton:Clone()
                     micmutebutton.Parent = hiddenfolder
+
                     clonedmutebutton.Name = "toggle_mic_mute_protected"
                     clonedmutebutton.Parent = unibarcontainer
+
                     local clonedicon = geticonlabel(clonedmutebutton)
                     local originalicon = geticonlabel(micmutebutton)
+
                     if not clonedicon then
                         notify("Error", "Failed to get icon label from clone")
                         VCState.enabled = false
                         return
                     end
+
                     if not unmutedimage or unmutedimage == "" then
                         unmutedimage = (originalicon and originalicon.Image ~= mutedimage and originalicon.Image) or mutedimage
                     end
-                    local fill, bar, glyph = buildfill(clonedicon)
-                    -- Start muted
+
+                    local fill, mask = buildfill(clonedicon)
+
                     pcall(function() voicechatinternal:PublishPause(true) end)
                     clonedicon.Image = mutedimage
                     if fill then fill.Visible = false end
-                    if glyph then glyph.Visible = false end
-                    if bar then bar.Size = UDim2.fromScale(1, 0) end
+
                     local hitArea = clonedmutebutton:FindFirstChild("IconHitArea_toggle_mic_mute")
                         or clonedmutebutton:FindFirstChildWhichIsA("TextButton", true)
                         or clonedmutebutton:FindFirstChildWhichIsA("ImageButton", true)
+
                     if hitArea then
                         hitArea.Activated:Connect(function()
                             local newState = not voicechatinternal:IsPublishPaused()
                             pcall(function() voicechatinternal:PublishPause(newState) end)
+
                             if newState then
-                                -- MUTED
+                                -- MUTED: show muted icon, hide fill completely
                                 clonedicon.Image = mutedimage
                                 if fill then fill.Visible = false end
-                                if glyph then glyph.Visible = false end
-                                if bar then bar.Size = UDim2.fromScale(1, 0) end
+                                if mask then mask.Size = UDim2.fromScale(1, 1) end
                             else
-                                -- UNMUTED → show white base
+                                -- UNMUTED: show real unmuted icon
                                 clonedicon.Image = unmutedimage
-                                if glyph then
-                                    glyph.Image = unmutedimage
-                                    glyph.Visible = true
-                                end
-                                if fill then fill.Visible = true end
                             end
                         end)
                     end
-                    -- Smooth speaking indicator
+
                     task.spawn(function()
-                        local target = 0
-                        local current = 0
-                        local smooth = 0.18
+                        local rng = Random.new()
                         while clonedicon and clonedicon.Parent do
-                            task.wait(0.033)
+                            task.wait(0.05)
+
                             local isMuted = voicechatinternal:IsPublishPaused()
                             local isSpeaking = false
-                            pcall(function()
-                                isSpeaking = voicechatinternal:IsSpeaking()
-                            end)
+                            pcall(function() isSpeaking = voicechatinternal:IsSpeaking() end)
+
                             if isMuted then
                                 clonedicon.Image = mutedimage
                                 if fill then fill.Visible = false end
-                                if glyph then glyph.Visible = false end
-                                target = 0
+                                if mask then mask.Size = UDim2.fromScale(1, 1) end
                             else
                                 clonedicon.Image = unmutedimage
-                                if glyph then
-                                    glyph.Image = unmutedimage
-                                    glyph.Visible = true
-                                end
-                                if fill then fill.Visible = true end
-                                if isSpeaking then
-                                    target = math.clamp(0.25 + math.random() * 0.7, 0.25, 0.95)
+
+                                if isSpeaking and fill and mask then
+                                    fill.Visible = true
+                                    local target = 0.35 + rng:NextNumber() * 0.65
+                                    local current = 1 - mask.Size.Y.Scale
+                                    local newlevel = current + (target - current) * 0.35
+                                    mask.Size = UDim2.new(1, 0, math.clamp(1 - newlevel, 0, 1), 0)
                                 else
-                                    target = 0 -- stays pure white when not speaking
+                                    if fill then fill.Visible = false end
+                                    if mask then mask.Size = UDim2.fromScale(1, 1) end
                                 end
-                            end
-                            current = current + (target - current) * smooth
-                            if bar then
-                                bar.Size = UDim2.fromScale(1, math.clamp(current, 0, 1))
                             end
                         end
                     end)
+
                     task.spawn(function()
                         while true do
                             task.wait(6)
                             neutralize()
                         end
                     end)
-                    notify("Protection", "Active (White + Green speaking fill)")
-                    print("Protection applied with white base + green speaking fill.")
+
+                    notify("Protection", "Active (Green speaking fill)")
+                    print("Protection applied with green speaking fill indicator.")
                 end
 
                 run()
@@ -3984,7 +3983,7 @@ function N0IR:MountUtilities(Window)
     })
 
     VC:CreateParagraph({
-        Content = "Main bypass: unmute when prompted → protection hooks mute button with white base + green speaking indicator.\nSpeaking-fill alternate is planned and currently disabled.",
+        Content = "Main bypass: unmute when prompted → protection hooks mute button with Roblox-style green speaking fill.\nSpeaking-fill alternate is planned and currently disabled.",
     })
 
     -- also expose for commands
