@@ -3662,8 +3662,21 @@ function N0IR:MountUtilities(Window)
     local VC = Window:CreateTab({ Name = "VC Bypass" })
     VC:CreateSection("NØIR Voice Chat Bypass")
     VC:CreateParagraph({
-        Content = "Native NØIR anti-VC protection. Unmute your mic when prompted, then the bypass hooks the topbar mute button.",
+        Content = "Native NØIR anti-VC protection. Unmute your mic when prompted, then the bypass hooks the topbar mute button with darkened custom mic icons.",
     })
+
+    -- =========================================================
+    -- CUSTOM MIC ICONS  (upload your own → paste rbxassetid here)
+    -- =========================================================
+    local N0IR_VC_ICONS = {
+        -- muted  (shown when publish is paused / "safe" state)
+        muted   = "rbxassetid://17739458468",
+        -- unmuted (shown when mic is live)
+        unmuted = "rbxassetid://17739459022",
+        -- fallbacks if custom ids fail to load
+        mutedFallback   = "rbxasset://textures/ui/VoiceChat/MicLight/Muted.png",
+        unmutedFallback = "rbxasset://textures/ui/VoiceChat/MicLight/Light.png",
+    }
 
     local VCState = {
         enabled = false,
@@ -3699,8 +3712,10 @@ function N0IR:MountUtilities(Window)
                 local localplayer = players.LocalPlayer
                 local rgs = game:GetService("RobloxReplicatedStorage")
 
-                local mutedimage = "rbxasset://textures/ui/VoiceChat/MicLight/Muted.png"
-                local unmutedimage = nil
+                local mutedimage = N0IR_VC_ICONS.muted
+                local unmutedimage = N0IR_VC_ICONS.unmuted
+                local mutedFallback = N0IR_VC_ICONS.mutedFallback
+                local unmutedFallback = N0IR_VC_ICONS.unmutedFallback
 
                 local hiddenfolder = Instance.new("Folder")
                 hiddenfolder.Name = "AVC_Hidden"
@@ -3758,7 +3773,13 @@ function N0IR:MountUtilities(Window)
                     local success, result = pcall(function()
                         return button:WaitForChild("IntegrationIconFrame", 5):WaitForChild("IntegrationIcon", 5)["1"]
                     end)
-                    return success and result or nil
+                    if success and result then return result end
+                    -- soft fallback: any ImageLabel under the button
+                    local any
+                    pcall(function()
+                        any = button:FindFirstChildWhichIsA("ImageLabel", true)
+                    end)
+                    return any
                 end
 
                 local function neutralize()
@@ -3782,7 +3803,24 @@ function N0IR:MountUtilities(Window)
                     end)
                 end
 
-                -- Centralized icon update (muted / unmuted only — no speaking fill)
+                local function applyIcon(imgLabel, which)
+                    if not imgLabel then return end
+                    local primary = which == "muted" and mutedimage or unmutedimage
+                    local fallback = which == "muted" and mutedFallback or unmutedFallback
+                    imgLabel.Image = primary
+                    task.delay(0.6, function()
+                        if imgLabel and imgLabel.Parent and (imgLabel.IsLoaded == false or imgLabel.Image == "" or imgLabel.Image == primary and not imgLabel.IsLoaded) then
+                            -- if custom failed to load, soft-fallback
+                            pcall(function()
+                                if imgLabel.IsLoaded == false then
+                                    imgLabel.Image = fallback
+                                end
+                            end)
+                        end
+                    end)
+                end
+
+                -- Centralized icon update (darkened custom muted / unmuted)
                 local function updateIcon(clonedicon, forcedMuted)
                     if stateLock then return end
                     stateLock = true
@@ -3792,9 +3830,9 @@ function N0IR:MountUtilities(Window)
                         local currentMuted = forcedMuted ~= nil and forcedMuted or actualMuted
 
                         if currentMuted then
-                            clonedicon.Image = mutedimage
+                            applyIcon(clonedicon, "muted")
                         else
-                            clonedicon.Image = unmutedimage or mutedimage
+                            applyIcon(clonedicon, "unmuted")
                         end
                     end)
 
@@ -3813,22 +3851,19 @@ function N0IR:MountUtilities(Window)
                         return
                     end
 
+                    -- Optional: capture stock unmuted if custom fails later
                     local icon = geticonlabel(micmutebutton)
                     if icon then
-                        -- Wait for the unmuted icon image to be available
                         local startTime = tick()
-                        while tick() - startTime < 5 do
-                            if icon.Image ~= mutedimage and icon.Image ~= "" then
-                                unmutedimage = icon.Image
+                        while tick() - startTime < 3 do
+                            if icon.Image ~= mutedFallback and icon.Image ~= mutedimage and icon.Image ~= "" then
+                                -- keep stock as extra fallback only; custom icons preferred
                                 break
                             end
                             task.wait(0.1)
                         end
-                        if not unmutedimage or unmutedimage == "" then
-                            unmutedimage = icon.Image
-                        end
                     else
-                        task.wait(2)
+                        task.wait(1)
                     end
 
                     notify("Protection", "Bypass starting...")
@@ -3861,7 +3896,6 @@ function N0IR:MountUtilities(Window)
                     clonedmutebutton.Parent = unibarcontainer
 
                     local clonedicon = geticonlabel(clonedmutebutton)
-                    local originalicon = geticonlabel(micmutebutton)
 
                     if not clonedicon then
                         notify("Error", "Failed to get icon label from clone")
@@ -3869,16 +3903,7 @@ function N0IR:MountUtilities(Window)
                         return
                     end
 
-                    -- Ensure we have a valid unmuted image
-                    if not unmutedimage or unmutedimage == "" then
-                        if originalicon and originalicon.Image ~= mutedimage and originalicon.Image ~= "" then
-                            unmutedimage = originalicon.Image
-                        else
-                            unmutedimage = clonedicon.Image ~= mutedimage and clonedicon.Image or mutedimage
-                        end
-                    end
-
-                    -- Initialize muted
+                    -- Initialize muted with darkened custom icon
                     isMutedState = true
                     updateIcon(clonedicon, true)
                     pcall(function() voicechatinternal:PublishPause(true) end)
@@ -3921,8 +3946,8 @@ function N0IR:MountUtilities(Window)
                         end
                     end)
 
-                    notify("Protection", "Active")
-                    print("Protection applied.")
+                    notify("Protection", "Active · darkened icons")
+                    print("Protection applied with darkened custom mic icons.")
                 end
 
                 run()
@@ -3956,7 +3981,7 @@ function N0IR:MountUtilities(Window)
     })
 
     VC:CreateParagraph({
-        Content = "Main bypass: unmute when prompted → protection hooks mute button.\nSpeaking-fill alternate is planned and currently disabled.",
+        Content = "Icons: muted " .. N0IR_VC_ICONS.muted .. "  ·  unmuted " .. N0IR_VC_ICONS.unmuted .. "\nSwap the ids at the top of this module (N0IR_VC_ICONS) for your own uploads.\nSpeaking-fill alternate is planned and currently disabled.",
     })
 
     -- also expose for commands
