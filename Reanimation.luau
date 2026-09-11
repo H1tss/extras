@@ -397,8 +397,6 @@ do
 end
 
 
-
-
 -- ============================================================
 -- SHADERS & LIGHTING MODULE (From Pastebin k8ifajfk)
 -- ============================================================
@@ -1951,6 +1949,33 @@ do
             player.Character = fake_char
             n0ir.clones[player] = fake_char
 
+
+    -- Exact-name hide check used by partMap sync. Never hide HRP. Accessories only when Head is hidden.
+    local _BODY_PART_NAMES = {
+        Head = true, UpperTorso = true, LowerTorso = true, Torso = true,
+        LeftUpperArm = true, LeftLowerArm = true, LeftHand = true,
+        RightUpperArm = true, RightLowerArm = true, RightHand = true,
+        LeftUpperLeg = true, LeftLowerLeg = true, LeftFoot = true,
+        RightUpperLeg = true, RightLowerLeg = true, RightFoot = true,
+        ["Left Arm"] = true, ["Right Arm"] = true, ["Left Leg"] = true, ["Right Leg"] = true,
+        HumanoidRootPart = true,
+    }
+    local function _shouldHidePart(pName, rP)
+        if pName == "HumanoidRootPart" then return false end
+        -- Full hide overrides everything but does NOT wipe the dropdown table
+        if _G._N0IRHideRealBodyFull then
+            return true
+        end
+        local hid = _G._N0IRHiddenParts
+        if not hid or not next(hid) then return false end
+        if hid[pName] == true then return true end
+        -- Accessories / extra handles: only when Head is explicitly hidden via dropdown
+        if hid["Head"] == true and rP and rP.Parent and rP.Parent:IsA("Accessory") and not _BODY_PART_NAMES[pName] then
+            return true
+        end
+        return false
+    end
+
             local partMap = {}
             for _, name in ipairs(partNames) do
                 local rP = real_char:FindFirstChild(name)
@@ -2059,7 +2084,12 @@ do
                     local fP = entry.fake
                     if rP and fP and rP.Parent and fP.Parent then
                         rP.CanCollide = false
-                        rP.CFrame = fP.CFrame
+                        if _shouldHidePart(entry.name, rP) then
+                            -- world-Y offset only this part (no local-space tilt drag)
+                            rP.CFrame = CFrame.new(fP.Position + Vector3.new(0, -500, 0)) * (fP.CFrame - fP.Position)
+                        else
+                            rP.CFrame = fP.CFrame
+                        end
                     end
                 end
             end))
@@ -2083,7 +2113,11 @@ do
                     if rP and fP and rP.Parent and fP.Parent then
                         rP.Anchored = false
                         rP.CanCollide = false
-                        rP.CFrame = fP.CFrame
+                        if _shouldHidePart(pName, rP) then
+                            rP.CFrame = CFrame.new(fP.Position + Vector3.new(0, -500, 0)) * (fP.CFrame - fP.Position)
+                        else
+                            rP.CFrame = fP.CFrame
+                        end
                         local pVel = fP.AssemblyLinearVelocity or fHrpVel
                         local pAngVel = fP.AssemblyAngularVelocity or fHrpAngVel
                         local smoothVel = (pVel.Magnitude > 0.05) and pVel or Vector3.new(0, -0.01, 0)
@@ -2101,7 +2135,11 @@ do
                     local rP = entry.real
                     local fP = entry.fake
                     if rP and fP and rP.Parent and fP.Parent then
-                        rP.CFrame = fP.CFrame
+                        if _shouldHidePart(entry.name, rP) then
+                            rP.CFrame = CFrame.new(fP.Position + Vector3.new(0, -500, 0)) * (fP.CFrame - fP.Position)
+                        else
+                            rP.CFrame = fP.CFrame
+                        end
                     end
                 end
             end))
@@ -3031,7 +3069,6 @@ local function _N0IRFindConstraintOnClone(clone, partName)
     end
     return nil
 end
-
 
 
 local CONFIG = {
@@ -5724,6 +5761,12 @@ local function doReanimToggle()
             ReanimateAPI.reanimate(false)
             State.isReanimated = false
             State.selectedAnim = nil
+            -- Hide-parts cleanup: stop voiding live character after unreanim
+            pcall(function()
+                if type(_G._N0IRClearHidePartsOnUnreanim) == "function" then
+                    _G._N0IRClearHidePartsOnUnreanim()
+                end
+            end)
             _activating = false
             UpdateToggleBtn()
             Notify("Reanimation disabled")
@@ -7784,7 +7827,6 @@ local function buildToggleWithKey(parent, title, subText, layoutOrder, defaultSt
 end
 
 
-
 local function applyLegHipHeight(clone, legScale, enabled)
     local hums = {}
     if clone then
@@ -8663,12 +8705,18 @@ do
 
     local function commitPoleAt(hitPos)
         local key = _G._N0IRPoleSelectedLimb
-        _G._N0IRPoleAnchors[key] = hitPos
+        if typeof(hitPos) == "CFrame" then
+            hitPos = hitPos.Position
+        elseif typeof(hitPos) ~= "Vector3" then
+            hitPos = Vector3.new(hitPos.X or 0, hitPos.Y or 0, hitPos.Z or 0)
+        end
+        _G._N0IRPoleAnchors[key] = Vector3.new(hitPos.X, hitPos.Y, hitPos.Z)
         _G._N0IRPolesEnabled = true
         _G._N0IRPolePlacementMode = false
+        if _G._N0IRPolePlaceBlend then _G._N0IRPolePlaceBlend[key] = nil end
         destroyAllPoleUi()
         updateLimbBtns()
-        if Notify then Notify("Pole locked: " .. limbLabels[key], 1.5) end
+        if Notify then Notify("Pole locked (limb only): " .. limbLabels[key], 1.5) end
     end
 
     local function beginPlacement()
@@ -8797,11 +8845,19 @@ do
         _G._N0IRPoleAnchors[key] = nil
         _G._N0IRPolePlacementMode = false
         if _G._N0IRPolePlaceBlend then _G._N0IRPolePlaceBlend[key] = nil end
+        if type(_G._N0IRPoleRestoreLimb) == "function" then
+            pcall(_G._N0IRPoleRestoreLimb, key)
+        end
         local any = false
         for _, v in pairs(_G._N0IRPoleAnchors) do
             if v then any = true break end
         end
-        if not any then _G._N0IRPolesEnabled = false end
+        if not any then
+            _G._N0IRPolesEnabled = false
+            if type(_G._N0IRPoleRestoreAll) == "function" then
+                pcall(_G._N0IRPoleRestoreAll)
+            end
+        end
         destroyAllPoleUi()
         updateLimbBtns()
         if Notify then Notify("Pole cleared: " .. limbLabels[key], 1.5) end
@@ -8826,6 +8882,9 @@ do
         _G._N0IRPolesEnabled = false
         _G._N0IRPolePlacementMode = false
         _G._N0IRPolePlaceBlend = {}
+        if type(_G._N0IRPoleRestoreAll) == "function" then
+            pcall(_G._N0IRPoleRestoreAll)
+        end
         destroyAllPoleUi()
         updateLimbBtns()
         if Notify then Notify("All poles cleared", 1.5) end
@@ -8948,6 +9007,204 @@ funTog(LimbsTabPanel, "Twitch", "Random micro-twitches on head and arms.", 39, "
 funTog(LimbsTabPanel, "Helicopter Arms", "Arms spin like a helicopter. Pure chaos.", 40, "_N0IRHeliArmsEnabled", "Heli Arms")
 funTog(LimbsTabPanel, "Lean Back", "Torso leans backward.", 41, "_N0IRLeanBackEnabled", "Lean Back")
 funTog(LimbsTabPanel, "Shrug Hold", "Both shoulders held in a shrug.", 42, "_N0IRShrugEnabled", "Shrug")
+
+-- extra limb poses + qol flags
+_G._N0IRShoulderShrugEnabled = _G._N0IRShoulderShrugEnabled or false
+_G._N0IRArmFoldEnabled = _G._N0IRArmFoldEnabled or false
+_G._N0IRElbowLockEnabled = _G._N0IRElbowLockEnabled or false
+_G._N0IRElbowLockBent = _G._N0IRElbowLockBent or false
+_G._N0IRWristFlickEnabled = _G._N0IRWristFlickEnabled or false
+_G._N0IRFingerCurlEnabled = _G._N0IRFingerCurlEnabled or false
+_G._N0IRLegSpreadEnabled = _G._N0IRLegSpreadEnabled or false
+_G._N0IRKneeLockEnabled = _G._N0IRKneeLockEnabled or false
+_G._N0IRKneeLockBent = _G._N0IRKneeLockBent or false
+_G._N0IRFootPointEnabled = _G._N0IRFootPointEnabled or false
+_G._N0IRHipSwayEnabled = _G._N0IRHipSwayEnabled or false
+_G._N0IRSpineTwistEnabled = _G._N0IRSpineTwistEnabled or false
+_G._N0IRChestPuffEnabled = _G._N0IRChestPuffEnabled or false
+_G._N0IRSlouchEnabled = _G._N0IRSlouchEnabled or false
+_G._N0IRArmDragEnabled = _G._N0IRArmDragEnabled or false
+_G._N0IROneArmPointEnabled = _G._N0IROneArmPointEnabled or false
+_G._N0IRArmsReachUpEnabled = _G._N0IRArmsReachUpEnabled or false
+_G._N0IRLegKickLoopEnabled = _G._N0IRLegKickLoopEnabled or false
+_G._N0IRTorsoBounceEnabled = _G._N0IRTorsoBounceEnabled or false
+_G._N0IRNeckCraneForwardEnabled = _G._N0IRNeckCraneForwardEnabled or false
+_G._N0IRAutoReanimOnSpawn = _G._N0IRAutoReanimOnSpawn or false
+_G._N0IRHideRealBodyFull = _G._N0IRHideRealBodyFull or false
+_G._N0IRNetlessBoostEnabled = _G._N0IRNetlessBoostEnabled or false
+_G._N0IRLimbCollisionEnabled = _G._N0IRLimbCollisionEnabled or false
+
+buildToggle(LimbsTabPanel, "Shoulder Shrug Pulse", "Shoulders raise and drop on a soft loop.", 43, _G._N0IRShoulderShrugEnabled, function(state)
+    _G._N0IRShoulderShrugEnabled = state
+    if Notify then Notify("Shoulder Shrug Pulse: " .. (state and "ON" or "OFF"), 1.5) end
+end)
+
+buildToggle(LimbsTabPanel, "Arm Fold", "Tighter crossed arms over the chest.", 43.1, _G._N0IRArmFoldEnabled, function(state)
+    _G._N0IRArmFoldEnabled = state
+    if state then
+        _G._N0IRCrossArmsEnabled = false
+        _G._N0IRHandsUpEnabled = false
+        _G._N0IRHeliArmsEnabled = false
+    end
+    if Notify then Notify("Arm Fold: " .. (state and "ON" or "OFF"), 1.5) end
+end)
+
+buildToggle(LimbsTabPanel, "Elbow Lock Straight", "Force both elbows fully straight.", 43.2, _G._N0IRElbowLockEnabled, function(state)
+    _G._N0IRElbowLockEnabled = state
+    if state then _G._N0IRElbowLockBent = false end
+    if Notify then Notify("Elbow Lock Straight: " .. (state and "ON" or "OFF"), 1.5) end
+end)
+
+buildToggle(LimbsTabPanel, "Elbow Lock Bent", "Force both elbows fully bent.", 43.3, _G._N0IRElbowLockBent, function(state)
+    _G._N0IRElbowLockBent = state
+    if state then _G._N0IRElbowLockEnabled = false end
+    if Notify then Notify("Elbow Lock Bent: " .. (state and "ON" or "OFF"), 1.5) end
+end)
+
+buildToggle(LimbsTabPanel, "Wrist Flick", "Rhythmic wrist snaps while standing still.", 43.4, _G._N0IRWristFlickEnabled, function(state)
+    _G._N0IRWristFlickEnabled = state
+    if Notify then Notify("Wrist Flick: " .. (state and "ON" or "OFF"), 1.5) end
+end)
+
+buildToggle(LimbsTabPanel, "Finger Curl", "Curl hands inward like a soft fist.", 43.5, _G._N0IRFingerCurlEnabled, function(state)
+    _G._N0IRFingerCurlEnabled = state
+    if Notify then Notify("Finger Curl: " .. (state and "ON" or "OFF"), 1.5) end
+end)
+
+buildToggle(LimbsTabPanel, "Leg Spread", "Hips open outward into a wide stance.", 43.6, _G._N0IRLegSpreadEnabled, function(state)
+    _G._N0IRLegSpreadEnabled = state
+    if Notify then Notify("Leg Spread: " .. (state and "ON" or "OFF"), 1.5) end
+end)
+
+buildToggle(LimbsTabPanel, "Knee Lock Straight", "Lock both knees fully straight.", 43.7, _G._N0IRKneeLockEnabled, function(state)
+    _G._N0IRKneeLockEnabled = state
+    if state then _G._N0IRKneeLockBent = false end
+    if Notify then Notify("Knee Lock Straight: " .. (state and "ON" or "OFF"), 1.5) end
+end)
+
+buildToggle(LimbsTabPanel, "Knee Lock Bent", "Lock both knees bent.", 43.8, _G._N0IRKneeLockBent, function(state)
+    _G._N0IRKneeLockBent = state
+    if state then _G._N0IRKneeLockEnabled = false end
+    if Notify then Notify("Knee Lock Bent: " .. (state and "ON" or "OFF"), 1.5) end
+end)
+
+buildToggle(LimbsTabPanel, "Foot Point", "Point both feet downward.", 43.9, _G._N0IRFootPointEnabled, function(state)
+    _G._N0IRFootPointEnabled = state
+    if Notify then Notify("Foot Point: " .. (state and "ON" or "OFF"), 1.5) end
+end)
+
+buildToggle(LimbsTabPanel, "Hip Sway", "Soft left-right hip sway while idle.", 44, _G._N0IRHipSwayEnabled, function(state)
+    _G._N0IRHipSwayEnabled = state
+    if Notify then Notify("Hip Sway: " .. (state and "ON" or "OFF"), 1.5) end
+end)
+
+buildToggle(LimbsTabPanel, "Spine Twist", "Upper torso twists opposite the hips.", 44.1, _G._N0IRSpineTwistEnabled, function(state)
+    _G._N0IRSpineTwistEnabled = state
+    if Notify then Notify("Spine Twist: " .. (state and "ON" or "OFF"), 1.5) end
+end)
+
+buildToggle(LimbsTabPanel, "Chest Puff", "Chest pushed forward and slightly up.", 44.2, _G._N0IRChestPuffEnabled, function(state)
+    _G._N0IRChestPuffEnabled = state
+    if Notify then Notify("Chest Puff: " .. (state and "ON" or "OFF"), 1.5) end
+end)
+
+buildToggle(LimbsTabPanel, "Slouch Mode", "Forward lean with rounded shoulders.", 44.3, _G._N0IRSlouchEnabled, function(state)
+    _G._N0IRSlouchEnabled = state
+    if state then _G._N0IRLeanBackEnabled = false end
+    if Notify then Notify("Slouch Mode: " .. (state and "ON" or "OFF"), 1.5) end
+end)
+
+buildToggle(LimbsTabPanel, "Arm Drag", "Arms hang heavy and drag while moving.", 44.4, _G._N0IRArmDragEnabled, function(state)
+    _G._N0IRArmDragEnabled = state
+    if state then
+        _G._N0IRHandsUpEnabled = false
+        _G._N0IRHeliArmsEnabled = false
+        _G._N0IRTPoseEnabled = false
+    end
+    if Notify then Notify("Arm Drag: " .. (state and "ON" or "OFF"), 1.5) end
+end)
+
+buildToggle(LimbsTabPanel, "One Arm Point Player", "Right arm points at the nearest other player.", 44.5, _G._N0IROneArmPointEnabled, function(state)
+    _G._N0IROneArmPointEnabled = state
+    if Notify then Notify("One Arm Point Player: " .. (state and "ON" or "OFF"), 1.5) end
+end)
+
+buildToggle(LimbsTabPanel, "Arms Reach Up", "Both arms stretch straight overhead.", 44.6, _G._N0IRArmsReachUpEnabled, function(state)
+    _G._N0IRArmsReachUpEnabled = state
+    if state then
+        _G._N0IRHandsUpEnabled = false
+        _G._N0IRHeliArmsEnabled = false
+        _G._N0IRTPoseEnabled = false
+    end
+    if Notify then Notify("Arms Reach Up: " .. (state and "ON" or "OFF"), 1.5) end
+end)
+
+buildToggle(LimbsTabPanel, "Leg Kick Loop", "Alternating forward kicks while idle.", 44.7, _G._N0IRLegKickLoopEnabled, function(state)
+    _G._N0IRLegKickLoopEnabled = state
+    if Notify then Notify("Leg Kick Loop: " .. (state and "ON" or "OFF"), 1.5) end
+end)
+
+buildToggle(LimbsTabPanel, "Torso Bounce", "Soft vertical bounce on the torso while still.", 44.8, _G._N0IRTorsoBounceEnabled, function(state)
+    _G._N0IRTorsoBounceEnabled = state
+    if Notify then Notify("Torso Bounce: " .. (state and "ON" or "OFF"), 1.5) end
+end)
+
+buildToggle(LimbsTabPanel, "Neck Crane Forward", "Head and neck stretch forward.", 44.9, _G._N0IRNeckCraneForwardEnabled, function(state)
+    _G._N0IRNeckCraneForwardEnabled = state
+    if Notify then Notify("Neck Crane Forward: " .. (state and "ON" or "OFF"), 1.5) end
+end)
+
+buildToggle(LimbsTabPanel, "Auto Reanim On Spawn", "Reanimates automatically after you respawn.", 45, _G._N0IRAutoReanimOnSpawn, function(state)
+    _G._N0IRAutoReanimOnSpawn = state
+    if Notify then Notify("Auto Reanim On Spawn: " .. (state and "ON" or "OFF"), 1.5) end
+end)
+
+buildToggle(LimbsTabPanel, "Hide Real Body Full", "Hide entire real body incl. accessories. Dropdown selection is kept and reapplied when this is turned off.", 45.1, _G._N0IRHideRealBodyFull, function(state)
+    _G._N0IRHideRealBodyFull = state
+    -- Never mutate _G._N0IRHiddenParts here.
+    -- Dropdown is the source of truth; _shouldHidePart applies full-hide on top
+    -- while the flag is on, then falls back to dropdown selection when off.
+    if type(_G._N0IRRefreshHidePartsLabel) == "function" then
+        pcall(_G._N0IRRefreshHidePartsLabel)
+    end
+    if Notify then Notify("Hide Real Body Full: " .. (state and "ON" or "OFF"), 1.5) end
+end)
+
+buildToggle(LimbsTabPanel, "Netless Velocity Boost", "Stronger downward netless velocity when laggy.", 45.2, _G._N0IRNetlessBoostEnabled, function(state)
+    _G._N0IRNetlessBoostEnabled = state
+    if Notify then Notify("Netless Velocity Boost: " .. (state and "ON" or "OFF"), 1.5) end
+end)
+
+buildToggle(LimbsTabPanel, "Limb Collision", "Turn CanCollide on for clone arms, legs and torso.", 45.3, _G._N0IRLimbCollisionEnabled, function(state)
+    _G._N0IRLimbCollisionEnabled = state
+    if Notify then Notify("Limb Collision: " .. (state and "ON" or "OFF"), 1.5) end
+end)
+
+buildToggle(LimbsTabPanel, "Reset All Limb Effects", "Turns off every limb / fun pose toggle at once.", 45.4, false, function(state)
+    -- always acts as a one-shot clear when flipped on
+    local flags = {
+        "_N0IRShoulderShrugEnabled","_N0IRArmFoldEnabled","_N0IRElbowLockEnabled","_N0IRElbowLockBent",
+        "_N0IRWristFlickEnabled","_N0IRFingerCurlEnabled","_N0IRLegSpreadEnabled","_N0IRKneeLockEnabled",
+        "_N0IRKneeLockBent","_N0IRFootPointEnabled","_N0IRHipSwayEnabled","_N0IRSpineTwistEnabled",
+        "_N0IRChestPuffEnabled","_N0IRSlouchEnabled","_N0IRArmDragEnabled","_N0IROneArmPointEnabled",
+        "_N0IRArmsReachUpEnabled","_N0IRLegKickLoopEnabled","_N0IRTorsoBounceEnabled","_N0IRNeckCraneForwardEnabled",
+        "_N0IRStareEnabled","_N0IRIdleWobbleEnabled","_N0IRIdleGlitchEnabled","_N0IRSpinHeadEnabled",
+        "_N0IRTPoseEnabled","_N0IRLookBehindEnabled","_N0IRHeadTiltEnabled","_N0IRNodLoopEnabled",
+        "_N0IRCraneNeckEnabled","_N0IRHandsUpEnabled","_N0IRCrossArmsEnabled","_N0IRTorsoFaceNearest",
+        "_N0IRDrunkSwayEnabled","_N0IRTwitchEnabled","_N0IRHeliArmsEnabled","_N0IRLeanBackEnabled",
+        "_N0IRShrugEnabled","_N0IRGunAimEnabled","_N0IRWaveArmEnabled","_N0IRHeadbangEnabled",
+        "_N0IRFloppyArmsEnabled","_N0IRReachMouseEnabled","_N0IRDualArmPointerEnabled",
+        "_N0IRLeftArmPointerEnabled","_N0IRRightArmPointerEnabled","_N0IRLeftArmStretching","_N0IRRightArmStretching",
+        "_N0IRLegStretcherEnabled","_N0IRTorsoStretcherEnabled","_N0IRHeadTrackerEnabled",
+        "_N0IRPolesEnabled","_N0IRArmSliderEnabled"
+    }
+    for _, f in ipairs(flags) do
+        _G[f] = false
+    end
+    _G._N0IRLeftArmPointerNeedsReset = true
+    _G._N0IRRightArmPointerNeedsReset = true
+    if Notify then Notify("Reset All Limb Effects: cleared", 1.8) end
+end)
 
 -- Extra limb tools (new)
 _G._N0IRDualArmPointerEnabled = _G._N0IRDualArmPointerEnabled or false
@@ -10337,7 +10594,6 @@ if State.isReanimated then startLimbsSystem() end
 end
 
 
-
 -- Central Reset Function: Turns off all toggles & resets all sliders to default
 function _G._N0IRResetTogglesAndSliders()
     -- 1. Stretching Tab
@@ -10522,86 +10778,6 @@ do
         end
     )
 
-    -- Background wallpaper (shared _G._N0IR_Brand pack)
-    do
-        local bgHeader = Instance.new("TextLabel")
-        bgHeader.Parent = SettingsPanel
-        bgHeader.BackgroundTransparency = 1
-        bgHeader.Size = UDim2.new(1, 0, 0, 18)
-        bgHeader.LayoutOrder = -6
-        bgHeader.Font = Enum.Font.GothamBold
-        bgHeader.TextSize = 11
-        bgHeader.Text = "Background"
-        bgHeader.TextColor3 = C.text
-        bgHeader.TextXAlignment = Enum.TextXAlignment.Left
-        bgHeader.ZIndex = 33
-
-        local list = (_G._N0IR_Brand and _G._N0IR_Brand.Backgrounds) or {}
-        local function bgName(i)
-            if not i or i <= 0 then return "None" end
-            local e = list[i]
-            return (e and e.Name) or ("BG " .. tostring(i))
-        end
-        local status = Instance.new("TextLabel")
-        status.Parent = SettingsPanel
-        status.BackgroundTransparency = 1
-        status.Size = UDim2.new(1, 0, 0, 16)
-        status.LayoutOrder = -5
-        status.Font = Enum.Font.Code
-        status.TextSize = 10
-        status.Text = "Active  ·  " .. bgName(_G._N0IR_Brand and _G._N0IR_Brand.BgIndex)
-        status.TextColor3 = C.text3
-        status.TextXAlignment = Enum.TextXAlignment.Left
-        status.ZIndex = 33
-
-        local function mkBtn(text, order, fn)
-            local b = Instance.new("TextButton")
-            b.Parent = SettingsPanel
-            b.Size = UDim2.new(1, 0, 0, 28)
-            b.LayoutOrder = order
-            b.BackgroundColor3 = C.bg2
-            b.BorderSizePixel = 0
-            b.Font = Enum.Font.GothamMedium
-            b.Text = text
-            b.TextSize = 11
-            b.TextColor3 = C.text
-            b.AutoButtonColor = false
-            b.ZIndex = 33
-            Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
-            b.MouseButton1Click:Connect(function()
-                local i = fn()
-                status.Text = "Active  ·  " .. bgName(i)
-                if Notify then Notify("Background", bgName(i), 1.4) end
-            end)
-            return b
-        end
-
-        mkBtn("Next background", -4, function()
-            if _G._N0IR_NextBackground then return _G._N0IR_NextBackground() end
-            return 0
-        end)
-        mkBtn("Previous background", -3, function()
-            local cfg = _G._N0IR_Brand or {}
-            local list2 = cfg.Backgrounds or {}
-            local i = tonumber(cfg.BgIndex) or 0
-            i = i - 1
-            if i < 0 then i = #list2 end
-            if _G._N0IR_SetBackground then return _G._N0IR_SetBackground(i) end
-            return i
-        end)
-        mkBtn("No background", -2, function()
-            if _G._N0IR_SetBackground then return _G._N0IR_SetBackground(0) end
-            return 0
-        end)
-
-        -- one button per wallpaper
-        for i, e in ipairs(list) do
-            mkBtn("Set · " .. (e.Name or ("BG " .. i)), -1 + i, function()
-                if _G._N0IR_SetBackground then return _G._N0IR_SetBackground(i) end
-                return i
-            end)
-        end
-    end
 end
 
 -- ANIMATION MAKER — Moon Animator style (FK only, N0IR theme)
@@ -12541,6 +12717,329 @@ local revFrame = Instance.new("Frame", SettingsPanel)
 revFrame.Size = UDim2.new(1,0,0,90)
 revFrame.BackgroundColor3 = C.bg1; revFrame.BackgroundTransparency = 0.4; revFrame.BorderSizePixel = 0
 revFrame.LayoutOrder = 3
+
+-- ============================================================
+-- 4. HIDE BODY PARTS — categorized multi-select dropdown
+-- Parks selected real-body parts ~500 studs underground
+-- ============================================================
+do
+    _G._N0IRHiddenParts = _G._N0IRHiddenParts or {}
+
+    local HIDE_OFFSET = Vector3.new(0, -500, 0)
+    local PART_CATEGORIES = {
+        {
+            name = "Core",
+            parts = { "Head", "UpperTorso", "LowerTorso", "Torso" },
+        },
+        {
+            name = "Arms",
+            parts = {
+                "LeftUpperArm", "LeftLowerArm", "LeftHand", "Left Arm",
+                "RightUpperArm", "RightLowerArm", "RightHand", "Right Arm",
+            },
+        },
+        {
+            name = "Legs",
+            parts = {
+                "LeftUpperLeg", "LeftLowerLeg", "LeftFoot", "Left Leg",
+                "RightUpperLeg", "RightLowerLeg", "RightFoot", "Right Leg",
+            },
+        },
+    }
+
+    local hideFrame = Instance.new("Frame", SettingsPanel)
+    hideFrame.Name = "HidePartsFrame"
+    hideFrame.Size = UDim2.new(1, 0, 0, 78)
+    hideFrame.BackgroundColor3 = C.bg1
+    hideFrame.BackgroundTransparency = 0.4
+    hideFrame.BorderSizePixel = 0
+    hideFrame.LayoutOrder = -100  -- top of Settings
+    hideFrame.ClipsDescendants = false
+    do
+        local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 7); c.Parent = hideFrame
+        local s = Instance.new("UIStroke"); s.Color = C.border; s.Transparency = 0.7; s.Thickness = 1; s.Parent = hideFrame
+    end
+
+    local hideLbl = Instance.new("TextLabel", hideFrame)
+    hideLbl.BackgroundTransparency = 1
+    hideLbl.Position = UDim2.new(0, 10, 0, 6)
+    hideLbl.Size = UDim2.new(1, -20, 0, 16)
+    hideLbl.Font = Enum.Font.GothamBold
+    hideLbl.Text = "Hide Body Parts"
+    hideLbl.TextColor3 = C.text
+    hideLbl.TextSize = 11
+    hideLbl.TextXAlignment = Enum.TextXAlignment.Left
+    hideLbl.ZIndex = 33
+
+    local hideSub = Instance.new("TextLabel", hideFrame)
+    hideSub.BackgroundTransparency = 1
+    hideSub.Position = UDim2.new(0, 10, 0, 24)
+    hideSub.Size = UDim2.new(1, -20, 0, 18)
+    hideSub.Font = Enum.Font.Gotham
+    hideSub.Text = "Park selected parts ~500 studs underground (real body)"
+    hideSub.TextColor3 = C.text3
+    hideSub.TextSize = 9
+    hideSub.TextXAlignment = Enum.TextXAlignment.Left
+    hideSub.TextWrapped = true
+    hideSub.ZIndex = 33
+
+    local function countHidden()
+        local n = 0
+        for _, v in pairs(_G._N0IRHiddenParts) do
+            if v then n = n + 1 end
+        end
+        return n
+    end
+
+    local ddBtn = Instance.new("TextButton", hideFrame)
+    ddBtn.Name = "HidePartsDropdownBtn"
+    ddBtn.Size = UDim2.new(1, -20, 0, 26)
+    ddBtn.Position = UDim2.new(0, 10, 0, 46)
+    ddBtn.BackgroundColor3 = C.bg2
+    ddBtn.BackgroundTransparency = 0.15
+    ddBtn.BorderSizePixel = 0
+    ddBtn.Font = Enum.Font.GothamBold
+    ddBtn.TextSize = 10
+    ddBtn.TextColor3 = C.text3
+    ddBtn.Text = "Select parts to hide…"
+    ddBtn.TextXAlignment = Enum.TextXAlignment.Left
+    ddBtn.AutoButtonColor = false
+    ddBtn.ZIndex = 34
+    do
+        local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 5); c.Parent = ddBtn
+        local s = Instance.new("UIStroke"); s.Color = C.border; s.Transparency = 0.65; s.Thickness = 1; s.Parent = ddBtn
+        local pad = Instance.new("UIPadding"); pad.Parent = ddBtn
+        pad.PaddingLeft = UDim.new(0, 10)
+        pad.PaddingRight = UDim.new(0, 28)
+    end
+
+    local chevron = Instance.new("TextLabel", ddBtn)
+    chevron.BackgroundTransparency = 1
+    chevron.Size = UDim2.new(0, 20, 1, 0)
+    chevron.Position = UDim2.new(1, -22, 0, 0)
+    chevron.Font = Enum.Font.GothamBold
+    chevron.Text = "▼"
+    chevron.TextSize = 10
+    chevron.TextColor3 = C.text3
+    chevron.ZIndex = 35
+
+    local function refreshDdLabel()
+        local n = countHidden()
+        if n == 0 then
+            ddBtn.Text = "Select parts to hide…"
+            ddBtn.TextColor3 = C.text3
+        else
+            ddBtn.Text = string.format("%d part%s hidden  ·  click to edit", n, n == 1 and "" or "s")
+            ddBtn.TextColor3 = C.accent
+        end
+    end
+    _G._N0IRRefreshHidePartsLabel = refreshDdLabel
+    refreshDdLabel()
+
+    local ddOpen = false
+    local ddPanel = Instance.new("Frame", hideFrame)
+    ddPanel.Name = "HidePartsDropdown"
+    ddPanel.Size = UDim2.new(1, -20, 0, 0)
+    ddPanel.Position = UDim2.new(0, 10, 0, 74)
+    ddPanel.BackgroundColor3 = C.bg0
+    ddPanel.BackgroundTransparency = 0.02
+    ddPanel.BorderSizePixel = 0
+    ddPanel.Visible = false
+    ddPanel.ZIndex = 80
+    ddPanel.ClipsDescendants = true
+    do
+        local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 8); c.Parent = ddPanel
+        local s = Instance.new("UIStroke"); s.Color = C.border; s.Transparency = 0.45; s.Thickness = 1.2; s.Parent = ddPanel
+    end
+
+    local ddScroll = Instance.new("ScrollingFrame", ddPanel)
+    ddScroll.Name = "List"
+    ddScroll.Size = UDim2.new(1, -8, 1, -40)
+    ddScroll.Position = UDim2.new(0, 4, 0, 4)
+    ddScroll.BackgroundTransparency = 1
+    ddScroll.BorderSizePixel = 0
+    ddScroll.ScrollBarThickness = 3
+    ddScroll.ScrollBarImageColor3 = C.accent
+    ddScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    ddScroll.ZIndex = 81
+    local ddLayout = Instance.new("UIListLayout", ddScroll)
+    ddLayout.Padding = UDim.new(0, 4)
+    ddLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    ddLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        ddScroll.CanvasSize = UDim2.new(0, 0, 0, ddLayout.AbsoluteContentSize.Y + 8)
+    end)
+
+    local footer = Instance.new("Frame", ddPanel)
+    footer.Size = UDim2.new(1, -8, 0, 28)
+    footer.Position = UDim2.new(0, 4, 1, -32)
+    footer.BackgroundTransparency = 1
+    footer.ZIndex = 81
+
+    local function makeSmallBtn(parent, text, xScale, onClick)
+        local b = Instance.new("TextButton", parent)
+        b.Size = UDim2.new(0.32, -4, 1, 0)
+        b.Position = UDim2.new(xScale, 2, 0, 0)
+        b.BackgroundColor3 = C.bg2
+        b.BackgroundTransparency = 0.2
+        b.BorderSizePixel = 0
+        b.Font = Enum.Font.GothamBold
+        b.TextSize = 9
+        b.Text = text
+        b.TextColor3 = C.text2
+        b.ZIndex = 82
+        b.AutoButtonColor = false
+        do
+            local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 5); c.Parent = b
+        end
+        b.MouseButton1Click:Connect(onClick)
+        return b
+    end
+
+    local partButtons = {}
+
+    local function setPartHidden(partName, hidden)
+        if partName == "HumanoidRootPart" then
+            if Notify then Notify("Hide Parts", "Cannot hide HumanoidRootPart", 1.6) end
+            return
+        end
+        -- Always update the dropdown selection table (source of truth).
+        -- Full-hide is a separate overlay flag and must not clear this.
+        _G._N0IRHiddenParts[partName] = hidden and true or nil
+        -- Break joints on the real part so voiding it cannot drag the rest of the body
+        pcall(function()
+            local real = nil
+            if ReanimateAPI and ReanimateAPI.get_real_character then
+                real = ReanimateAPI.get_real_character(plr)
+            end
+            if not real then return end
+            local part = real:FindFirstChild(partName)
+            if not part then return end
+            for _, d in ipairs(real:GetDescendants()) do
+                if d:IsA("Motor6D") and (d.Part0 == part or d.Part1 == part) then
+                    d.Enabled = false
+                elseif (d:IsA("Weld") or d:IsA("WeldConstraint")) and (d.Part0 == part or d.Part1 == part) then
+                    d.Enabled = false
+                end
+            end
+        end)
+        local btn = partButtons[partName]
+        if btn then
+            if hidden then
+                btn.BackgroundColor3 = Color3.fromRGB(180, 60, 70)
+                btn.BackgroundTransparency = 0.15
+                btn.TextColor3 = Color3.fromRGB(255, 230, 230)
+            else
+                btn.BackgroundColor3 = C.bg2
+                btn.BackgroundTransparency = 0.25
+                btn.TextColor3 = C.text2
+            end
+        end
+        refreshDdLabel()
+    end
+
+    local function rebuildList()
+        for _, child in ipairs(ddScroll:GetChildren()) do
+            if not child:IsA("UIListLayout") then
+                child:Destroy()
+            end
+        end
+        partButtons = {}
+        local order = 0
+        for _, cat in ipairs(PART_CATEGORIES) do
+            order = order + 1
+            local catLbl = Instance.new("TextLabel", ddScroll)
+            catLbl.BackgroundTransparency = 1
+            catLbl.Size = UDim2.new(1, -4, 0, 16)
+            catLbl.Font = Enum.Font.GothamBold
+            catLbl.TextSize = 10
+            catLbl.Text = "  " .. cat.name
+            catLbl.TextColor3 = C.text
+            catLbl.TextXAlignment = Enum.TextXAlignment.Left
+            catLbl.LayoutOrder = order
+            catLbl.ZIndex = 82
+
+            for _, partName in ipairs(cat.parts) do
+                order = order + 1
+                local row = Instance.new("TextButton", ddScroll)
+                row.Name = "Part_" .. partName
+                row.Size = UDim2.new(1, -4, 0, 24)
+                row.BackgroundColor3 = C.bg2
+                row.BackgroundTransparency = 0.25
+                row.BorderSizePixel = 0
+                row.Font = Enum.Font.Gotham
+                row.TextSize = 10
+                row.Text = "  " .. partName
+                row.TextColor3 = C.text2
+                row.TextXAlignment = Enum.TextXAlignment.Left
+                row.AutoButtonColor = false
+                row.LayoutOrder = order
+                row.ZIndex = 82
+                do
+                    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 5); c.Parent = row
+                end
+                partButtons[partName] = row
+                if _G._N0IRHiddenParts[partName] then
+                    row.BackgroundColor3 = Color3.fromRGB(180, 60, 70)
+                    row.BackgroundTransparency = 0.15
+                    row.TextColor3 = Color3.fromRGB(255, 230, 230)
+                end
+                row.MouseButton1Click:Connect(function()
+                    local now = not _G._N0IRHiddenParts[partName]
+                    setPartHidden(partName, now)
+                    if Notify then
+                        Notify("Hide Parts", partName .. (now and " hidden" or " restored"), 1.4)
+                    end
+                end)
+            end
+        end
+    end
+
+    makeSmallBtn(footer, "Hide All", 0, function()
+        for _, cat in ipairs(PART_CATEGORIES) do
+            for _, p in ipairs(cat.parts) do
+                setPartHidden(p, true)
+            end
+        end
+        if Notify then Notify("Hide Parts", "All parts hidden", 1.6) end
+    end)
+    makeSmallBtn(footer, "Show All", 0.34, function()
+        for _, cat in ipairs(PART_CATEGORIES) do
+            for _, p in ipairs(cat.parts) do
+                setPartHidden(p, false)
+            end
+        end
+        if Notify then Notify("Hide Parts", "All parts restored", 1.6) end
+    end)
+    makeSmallBtn(footer, "Close", 0.68, function()
+        ddOpen = false
+        ddPanel.Visible = false
+        hideFrame.Size = UDim2.new(1, 0, 0, 78)
+        chevron.Text = "▼"
+    end)
+
+    ddBtn.MouseButton1Click:Connect(function()
+        ddOpen = not ddOpen
+        if ddOpen then
+            rebuildList()
+            ddPanel.Visible = true
+            ddPanel.Size = UDim2.new(1, -20, 0, 260)
+            hideFrame.Size = UDim2.new(1, 0, 0, 78 + 268)
+            chevron.Text = "▲"
+        else
+            ddPanel.Visible = false
+            ddPanel.Size = UDim2.new(1, -20, 0, 0)
+            hideFrame.Size = UDim2.new(1, 0, 0, 78)
+            chevron.Text = "▼"
+        end
+    end)
+
+    -- Hide is applied inside reanim partMap sync (Stepped/Heartbeat/RenderStepped).
+    -- No separate loop — that fought the sync and caused float/fling.
+    _G._N0IRClearHidePartsOnUnreanim = function()
+        -- partMap loops stop on unreanim; character restore handles limbs
+    end
+end
+
 do
     local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0,7); c.Parent = revFrame
     local s = Instance.new("UIStroke"); s.Color = C.border; s.Transparency = 0.7; s.Thickness = 1; s.Parent = revFrame
@@ -18040,7 +18539,6 @@ plr.PlayerGui.DescendantAdded:Connect(function(desc)
 end)
 
 
-
 -- ============================================
 -- STANDALONE ARM/LEG/TORSO + HEAD + FUN TRACKING
 -- Isolated task.spawn — avoids 200 local-register limit
@@ -19239,10 +19737,25 @@ end)
 
 -- ============================================================
 -- FIXED POLES RUNTIME
--- World-locked limbs: hard override after anims, smooth ease-in on place.
--- Placement is world-click only (see UI); selected limb shows white ESP.
+-- Limb is detached from the body (joint disabled) then CFramed to a
+-- fixed world point. Body/HRP is never written — poles cannot drag you.
 -- ============================================================
 task.spawn(function()
+    local ZERO = Vector3.zero
+
+    -- anchorKey -> list of constraints we disabled (to restore on clear)
+    local disabledByKey = {}
+    -- name -> {constraint, part}
+    local poleCache = {}
+    local poleCacheAt = 0
+
+    local LIMB_CHAINS = {
+        RightArm = { "RightUpperArm", "RightLowerArm", "RightHand", "Right Arm" },
+        LeftArm  = { "LeftUpperArm",  "LeftLowerArm",  "LeftHand",  "Left Arm" },
+        RightLeg = { "RightUpperLeg", "RightLowerLeg", "RightFoot", "Right Leg" },
+        LeftLeg  = { "LeftUpperLeg",  "LeftLowerLeg",  "LeftFoot",  "Left Leg" },
+    }
+
     local function getClone()
         if ReanimateAPI and ReanimateAPI.get_clone then
             return ReanimateAPI.get_clone(plr)
@@ -19250,147 +19763,637 @@ task.spawn(function()
         return plr.Character
     end
 
-    local function getConstraintCache(clone)
-        local cache = {}
-        if not clone then return cache end
+    local function rebuildPoleCache()
+        local clone = getClone()
+        poleCache = {}
+        poleCacheAt = os.clock()
+        if not clone then return end
         for _, d in ipairs(clone:GetDescendants()) do
-            local name = nil
+            local name, part = nil, nil
             if d:IsA("AnimationConstraint") then
                 local att = d.Attachment1
-                if att and att.Parent then name = att.Parent.Name end
+                if att and att.Parent and att.Parent:IsA("BasePart") then
+                    name, part = att.Parent.Name, att.Parent
+                end
             elseif d:IsA("Motor6D") and d.Part1 then
-                name = d.Part1.Name
+                name, part = d.Part1.Name, d.Part1
             end
-            if name and not cache[name] then
-                cache[name] = d
+            if name and not poleCache[name] then
+                poleCache[name] = { constraint = d, part = part }
             end
         end
-        return cache
-    end
-
-    local poleCache = {}
-    local poleCacheAt = 0
-    local function rebuildPoleCache()
-        poleCache = getConstraintCache(getClone()) or {}
-        poleCacheAt = os.clock()
-    end
-
-    local function worldPoleCF(pos)
-        return CFrame.fromMatrix(
-            pos,
-            Vector3.new(1, 0, 0),
-            Vector3.new(0, -1, 0),
-            Vector3.new(0, 0, -1)
-        )
-    end
-
-    local function setPart1World(constraint, targetCF)
-        if not constraint or not constraint.Parent then return end
-        if constraint:IsA("Motor6D") and constraint.Part0 then
-            local part0CF = constraint.Part0.CFrame
-            local c0, c1 = constraint.C0, constraint.C1
-            constraint.Transform = c0:Inverse() * part0CF:Inverse() * targetCF * c1
-        else
-            local att0 = constraint.Attachment0
-            local att1 = constraint.Attachment1
-            if att0 and att1 then
-                constraint.Transform = att0.WorldCFrame:Inverse() * targetCF * att1.CFrame
-            elseif att0 then
-                constraint.Transform = att0.WorldCFrame:Inverse() * targetCF
+        for _, names in pairs(LIMB_CHAINS) do
+            for _, n in ipairs(names) do
+                if not poleCache[n] then
+                    local p = clone:FindFirstChild(n)
+                    if p and p:IsA("BasePart") then
+                        poleCache[n] = { constraint = nil, part = p }
+                    end
+                end
             end
         end
     end
 
-    local function getPart1World(constraint)
-        if not constraint then return nil end
-        if constraint:IsA("Motor6D") and constraint.Part0 and constraint.Part1 then
-            return constraint.Part0.CFrame * constraint.C0 * constraint.Transform * constraint.C1:Inverse()
-        end
-        local att0 = constraint.Attachment0
-        local att1 = constraint.Attachment1
-        if att0 and att1 then
-            return att0.WorldCFrame * constraint.Transform * att1.CFrame:Inverse()
-        elseif att0 then
-            return att0.WorldCFrame * constraint.Transform
+    local function asWorldVec(v)
+        if typeof(v) == "Vector3" then return v end
+        if typeof(v) == "CFrame" then return v.Position end
+        if type(v) == "table" then
+            return Vector3.new(tonumber(v.X) or v[1] or 0, tonumber(v.Y) or v[2] or 0, tonumber(v.Z) or v[3] or 0)
         end
         return nil
     end
 
-    local function blendAlpha(key)
-        local blends = _G._N0IRPolePlaceBlend
-        local b = blends and blends[key]
-        if not b or not b.t0 then return 1 end
-        local dur = b.dur or 0.28
-        local t = (os.clock() - b.t0) / dur
-        if t >= 1 then
-            blends[key] = nil
-            return 1
-        end
-        t = math.clamp(t, 0, 1)
-        return t * t * (3 - 2 * t)
+    local function poleCF(pos)
+        return CFrame.fromMatrix(pos, Vector3.new(1,0,0), Vector3.new(0,-1,0), Vector3.new(0,0,-1))
     end
 
-    local function doPole(upperName, lowerName, endName, anchorKey, length)
+    local function pinPart(part, cf)
+        if not part or not part.Parent then return end
+        pcall(function()
+            part.Anchored = false
+            part.CanCollide = false
+            part.Massless = true
+            part.AssemblyLinearVelocity = ZERO
+            part.AssemblyAngularVelocity = ZERO
+            part.CFrame = cf
+            part.AssemblyLinearVelocity = ZERO
+            part.AssemblyAngularVelocity = ZERO
+        end)
+    end
+
+    -- Detach limb chain from torso so pinning cannot pull HRP/torso
+    local function detachChain(anchorKey)
+        if disabledByKey[anchorKey] then return end -- already detached
+        local names = LIMB_CHAINS[anchorKey]
+        if not names then return end
+        if not next(poleCache) then rebuildPoleCache() end
+        local disabled = {}
+        for _, n in ipairs(names) do
+            local e = poleCache[n]
+            local c = e and e.constraint
+            if c and c.Parent then
+                pcall(function()
+                    if c:IsA("Motor6D") then
+                        if c.Enabled then
+                            c.Enabled = false
+                            table.insert(disabled, c)
+                        end
+                    elseif c:IsA("AnimationConstraint") then
+                        -- AnimationConstraint has no Enabled on all versions — zero + keep
+                        -- Also try disable if present
+                        if c.Enabled ~= nil and c.Enabled then
+                            c.Enabled = false
+                            table.insert(disabled, c)
+                        end
+                    end
+                end)
+            end
+            -- Also disable any Motor6D/Weld on the part that links to torso
+            local part = e and e.part
+            if part then
+                pcall(function()
+                    for _, d in ipairs(part:GetChildren()) do
+                        if d:IsA("Motor6D") or d:IsA("Weld") or d:IsA("WeldConstraint") then
+                            if d.Enabled then
+                                d.Enabled = false
+                                table.insert(disabled, d)
+                            end
+                        end
+                    end
+                    -- joints often live under character root
+                    local clone = getClone()
+                    if clone then
+                        for _, d in ipairs(clone:GetDescendants()) do
+                            if d:IsA("Motor6D") and (d.Part0 == part or d.Part1 == part) then
+                                if d.Enabled then
+                                    d.Enabled = false
+                                    table.insert(disabled, d)
+                                end
+                            elseif (d:IsA("Weld") or d:IsA("WeldConstraint")) and (d.Part0 == part or d.Part1 == part) then
+                                if d.Enabled then
+                                    d.Enabled = false
+                                    table.insert(disabled, d)
+                                end
+                            end
+                        end
+                    end
+                end)
+            end
+        end
+        disabledByKey[anchorKey] = disabled
+    end
+
+    local function restoreChain(anchorKey)
+        local disabled = disabledByKey[anchorKey]
+        if not disabled then return end
+        for _, c in ipairs(disabled) do
+            pcall(function()
+                if c and c.Parent then
+                    c.Enabled = true
+                end
+            end)
+        end
+        disabledByKey[anchorKey] = nil
+    end
+
+    local function restoreAllChains()
+        for key in pairs(LIMB_CHAINS) do
+            restoreChain(key)
+        end
+    end
+
+    _G._N0IRPoleRestoreLimb = function(key)
+        restoreChain(key)
+    end
+    _G._N0IRPoleRestoreAll = function()
+        restoreAllChains()
+    end
+
+    local function doPoleHard(upperName, lowerName, endName, anchorKey)
         local anchors = _G._N0IRPoleAnchors
-        local anchorPos = anchors and anchors[anchorKey]
-        if not anchorPos then return end
-        local upper = poleCache[upperName]
-        if not upper then return end
-
-        local targetCF = worldPoleCF(anchorPos)
-        local a = blendAlpha(anchorKey)
-        if a < 1 then
-            local cur = getPart1World(upper)
-            if cur then
-                targetCF = cur:Lerp(targetCF, a)
-            end
+        if not anchors then return end
+        local anchorPos = asWorldVec(anchors[anchorKey])
+        if not anchorPos then
+            -- not placed — ensure joints restored
+            restoreChain(anchorKey)
+            return
         end
-        setPart1World(upper, targetCF)
+        anchors[anchorKey] = anchorPos
 
-        local stretch = math.clamp((length or 150) * 0.01, 0.1, 20)
-        local lower = poleCache[lowerName]
-        if lower then
-            local goal = CFrame.new(0, -stretch, 0)
-            if a < 1 then
-                lower.Transform = lower.Transform:Lerp(goal, a)
-            else
-                lower.Transform = goal
-            end
-        end
-        local endP = poleCache[endName]
-        if endP then
-            endP.Transform = CFrame.new()
+        -- Detach so body is not dragged
+        detachChain(anchorKey)
+
+        local length = tonumber(_G._N0IRPoleLength) or 150
+        if length < 10 then length = 10 elseif length > 1000 then length = 1000 end
+        local stretch = math.clamp(length * 0.01, 0.15, 40)
+
+        local upperCF = poleCF(anchorPos)
+        local lowerCF = upperCF * CFrame.new(0, -stretch, 0)
+        local endCF = upperCF * CFrame.new(0, -(stretch + 0.55), 0)
+
+        local up = poleCache[upperName]
+        local lo = poleCache[lowerName]
+        local en = poleCache[endName]
+
+        if up and up.part then pinPart(up.part, upperCF) end
+        if lo and lo.part then pinPart(lo.part, lowerCF) end
+        if en and en.part then pinPart(en.part, endCF) end
+
+        -- R6 single-part limbs
+        if upperName == "Right Arm" or upperName == "Left Arm" or upperName == "Right Leg" or upperName == "Left Leg" then
+            local e = poleCache[upperName]
+            if e and e.part then pinPart(e.part, upperCF) end
         end
     end
 
     local function applyAllPoles()
-        if not _G._N0IRPolesEnabled or not State.isReanimated then return end
-        if not next(poleCache) or (os.clock() - poleCacheAt) > 1.5 then
+        if not _G._N0IRPolesEnabled then
+            restoreAllChains()
+            return
+        end
+        if State and State.isReanimated == false then
+            restoreAllChains()
+            return
+        end
+        local anchors = _G._N0IRPoleAnchors
+        if not anchors then return end
+
+        if not next(poleCache) or (os.clock() - poleCacheAt) > 0.75 then
             rebuildPoleCache()
         end
-        local length = tonumber(_G._N0IRPoleLength) or 150
-        if length < 10 then length = 10 elseif length > 1000 then length = 1000 end
-        doPole("RightUpperArm", "RightLowerArm", "RightHand", "RightArm", length)
-        doPole("LeftUpperArm", "LeftLowerArm", "LeftHand", "LeftArm", length)
-        doPole("RightUpperLeg", "RightLowerLeg", "RightFoot", "RightLeg", length)
-        doPole("LeftUpperLeg", "LeftLowerLeg", "LeftFoot", "LeftLeg", length)
+
+        -- Only touch limbs that actually have anchors
+        if anchors.RightArm then
+            doPoleHard("RightUpperArm", "RightLowerArm", "RightHand", "RightArm")
+            doPoleHard("Right Arm", "Right Arm", "Right Arm", "RightArm")
+        else
+            restoreChain("RightArm")
+        end
+        if anchors.LeftArm then
+            doPoleHard("LeftUpperArm", "LeftLowerArm", "LeftHand", "LeftArm")
+            doPoleHard("Left Arm", "Left Arm", "Left Arm", "LeftArm")
+        else
+            restoreChain("LeftArm")
+        end
+        if anchors.RightLeg then
+            doPoleHard("RightUpperLeg", "RightLowerLeg", "RightFoot", "RightLeg")
+            doPoleHard("Right Leg", "Right Leg", "Right Leg", "RightLeg")
+        else
+            restoreChain("RightLeg")
+        end
+        if anchors.LeftLeg then
+            doPoleHard("LeftUpperLeg", "LeftLowerLeg", "LeftFoot", "LeftLeg")
+            doPoleHard("Left Leg", "Left Leg", "Left Leg", "LeftLeg")
+        else
+            restoreChain("LeftLeg")
+        end
     end
 
-    local poleConn = RunService.PreSimulation:Connect(LPH_NO_VIRTUALIZE(function()
+    pcall(function() RunService:UnbindFromRenderStep("N0IR_FixedPoles") end)
+    pcall(function() RunService:UnbindFromRenderStep("N0IR_FixedPoles_Post") end)
+
+    local c1 = RunService.PreSimulation:Connect(LPH_NO_VIRTUALIZE(function()
         applyAllPoles()
     end))
-
-    local poleRenderConn = RunService.RenderStepped:Connect(LPH_NO_VIRTUALIZE(function()
+    local c2 = RunService.Heartbeat:Connect(LPH_NO_VIRTUALIZE(function()
+        applyAllPoles()
+    end))
+    RunService:BindToRenderStep("N0IR_FixedPoles", Enum.RenderPriority.Last.Value + 10, LPH_NO_VIRTUALIZE(function()
+        applyAllPoles()
+    end))
+    RunService:BindToRenderStep("N0IR_FixedPoles_Post", Enum.RenderPriority.Last.Value + 50, LPH_NO_VIRTUALIZE(function()
         applyAllPoles()
     end))
 
     if _G._N0IRReanimGlobalConns then
-        table.insert(_G._N0IRReanimGlobalConns, poleConn)
-        table.insert(_G._N0IRReanimGlobalConns, poleRenderConn)
+        table.insert(_G._N0IRReanimGlobalConns, c1)
+        table.insert(_G._N0IRReanimGlobalConns, c2)
     end
 
     plr.CharacterAdded:Connect(function()
+        disabledByKey = {}
         task.wait(0.7)
         rebuildPoleCache()
+    end)
+
+    task.defer(function()
+        task.wait(0.3)
+        rebuildPoleCache()
+    end)
+end)
+
+
+-- extra limb poses + qol runtime
+task.spawn(function()
+    local _XL = _G._N0IRExtraPoses or { conn = nil, cache = nil, binds = nil, t = 0 }
+    _G._N0IRExtraPoses = _XL
+
+    local function getClone()
+        if ReanimateAPI and ReanimateAPI.get_clone then
+            return ReanimateAPI.get_clone(plr)
+        end
+        return plr.Character
+    end
+
+    local function rebuild()
+        local clone = getClone()
+        if not clone then
+            _XL.cache = nil
+            _XL.binds = nil
+            return
+        end
+        _XL.cache = {}
+        _XL.binds = {}
+        local want = {
+            Head = true, UpperTorso = true, LowerTorso = true, Torso = true, Waist = true,
+            RightUpperArm = true, RightLowerArm = true, RightHand = true,
+            LeftUpperArm = true, LeftLowerArm = true, LeftHand = true,
+            RightUpperLeg = true, RightLowerLeg = true, RightFoot = true,
+            LeftUpperLeg = true, LeftLowerLeg = true, LeftFoot = true,
+        }
+        for _, d in ipairs(clone:GetDescendants()) do
+            local name = nil
+            if d:IsA("AnimationConstraint") then
+                local att = d.Attachment1
+                if att and att.Parent and want[att.Parent.Name] then
+                    name = att.Parent.Name
+                end
+            elseif d:IsA("Motor6D") and d.Part1 and want[d.Part1.Name] then
+                name = d.Part1.Name
+            end
+            if name and not _XL.cache[name] then
+                _XL.cache[name] = d
+                _XL.binds[name] = d.Transform
+            end
+        end
+    end
+
+    local function parentWorld(constraint)
+        if not constraint then return nil end
+        if constraint:IsA("Motor6D") and constraint.Part0 then
+            return constraint.Part0.CFrame * constraint.C0
+        end
+        local att0 = constraint.Attachment0
+        if att0 and att0.Parent then
+            return att0.WorldCFrame
+        end
+        return nil
+    end
+
+    local function nearestOtherHRP()
+        local myRoot = nil
+        local clone = getClone()
+        if clone then
+            myRoot = clone:FindFirstChild("HumanoidRootPart")
+        end
+        if not myRoot and plr.Character then
+            myRoot = plr.Character:FindFirstChild("HumanoidRootPart")
+        end
+        if not myRoot then return nil end
+        local best, bestDist = nil, math.huge
+        for _, other in ipairs(Players:GetPlayers()) do
+            if other ~= plr and other.Character then
+                local hrp = other.Character:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    local d = (hrp.Position - myRoot.Position).Magnitude
+                    if d < bestDist then
+                        bestDist = d
+                        best = hrp
+                    end
+                end
+            end
+        end
+        return best
+    end
+
+    local function aimUpperAt(upperName, lowerName, handName, worldPos, elbowDeg)
+        local upper = _XL.cache and _XL.cache[upperName]
+        if not upper or not worldPos then return end
+        local worldCF = parentWorld(upper)
+        if not worldCF then return end
+        local aimDir = (worldPos - worldCF.Position)
+        if aimDir.Magnitude < 0.05 then return end
+        aimDir = aimDir.Unit
+        local bind = (_XL.binds and _XL.binds[upperName]) or upper.Transform
+        local childBoneDir = Vector3.new(0, -1, 0)
+        local bindBoneDir = (bind.Rotation * childBoneDir).Unit
+        local localAim = worldCF.Rotation:Inverse() * aimDir
+        local rotAxis = bindBoneDir:Cross(localAim)
+        local result = bind
+        if rotAxis.Magnitude > 0.001 then
+            local angle = math.acos(math.clamp(bindBoneDir:Dot(localAim), -1, 1))
+            result = CFrame.fromAxisAngle(rotAxis.Unit, angle) * bind
+        elseif bindBoneDir:Dot(localAim) < 0 then
+            local perp = bindBoneDir:Cross(Vector3.new(0, 1, 0))
+            if perp.Magnitude < 0.001 then perp = bindBoneDir:Cross(Vector3.new(1, 0, 0)) end
+            result = CFrame.fromAxisAngle(perp.Unit, math.pi) * bind
+        end
+        upper.Transform = result
+        local lower = _XL.cache and _XL.cache[lowerName]
+        local hand = _XL.cache and _XL.cache[handName]
+        if lower then lower.Transform = CFrame.Angles(math.rad(elbowDeg or -20), 0, 0) end
+        if hand then hand.Transform = CFrame.new() end
+    end
+
+    local function anyExtraPose()
+        return _G._N0IRShoulderShrugEnabled or _G._N0IRArmFoldEnabled or _G._N0IRElbowLockEnabled
+            or _G._N0IRElbowLockBent or _G._N0IRWristFlickEnabled or _G._N0IRFingerCurlEnabled
+            or _G._N0IRLegSpreadEnabled or _G._N0IRKneeLockEnabled or _G._N0IRKneeLockBent
+            or _G._N0IRFootPointEnabled or _G._N0IRHipSwayEnabled or _G._N0IRSpineTwistEnabled
+            or _G._N0IRChestPuffEnabled or _G._N0IRSlouchEnabled or _G._N0IRArmDragEnabled
+            or _G._N0IROneArmPointEnabled or _G._N0IRArmsReachUpEnabled or _G._N0IRLegKickLoopEnabled
+            or _G._N0IRTorsoBounceEnabled or _G._N0IRNeckCraneForwardEnabled
+            or _G._N0IRLimbCollisionEnabled
+            or _G._N0IRNetlessBoostEnabled
+    end
+
+    local function tickPoses(dt)
+        if not State.isReanimated then return end
+        if not anyExtraPose() then return end
+        if not _XL.cache then rebuild() end
+        if not _XL.cache then return end
+        for _, c in pairs(_XL.cache) do
+            if not c.Parent then
+                rebuild()
+                break
+            end
+        end
+        if not _XL.cache then return end
+
+        _XL.t = (_XL.t or 0) + (dt or 0.016)
+        local t = _XL.t
+        local rU = _XL.cache.RightUpperArm
+        local lU = _XL.cache.LeftUpperArm
+        local rL = _XL.cache.RightLowerArm
+        local lL = _XL.cache.LeftLowerArm
+        local rH = _XL.cache.RightHand
+        local lH = _XL.cache.LeftHand
+        local rUL = _XL.cache.RightUpperLeg
+        local lUL = _XL.cache.LeftUpperLeg
+        local rLL = _XL.cache.RightLowerLeg
+        local lLL = _XL.cache.LeftLowerLeg
+        local rF = _XL.cache.RightFoot
+        local lF = _XL.cache.LeftFoot
+        local head = _XL.cache.Head
+        local waist = _XL.cache.Waist or _XL.cache.UpperTorso or _XL.cache.Torso or _XL.cache.LowerTorso
+        local upperT = _XL.cache.UpperTorso or _XL.cache.Torso
+        local lowerT = _XL.cache.LowerTorso or _XL.cache.Torso
+
+        -- arm fold tighter than normal cross
+        if _G._N0IRArmFoldEnabled then
+            if rU then rU.Transform = CFrame.Angles(math.rad(-85), math.rad(-55), math.rad(70)) end
+            if lU then lU.Transform = CFrame.Angles(math.rad(-85), math.rad(55), math.rad(-70)) end
+            if rL then rL.Transform = CFrame.Angles(math.rad(-95), 0, math.rad(25)) end
+            if lL then lL.Transform = CFrame.Angles(math.rad(-95), 0, math.rad(-25)) end
+            if rH then rH.Transform = CFrame.Angles(0, math.rad(20), 0) end
+            if lH then lH.Transform = CFrame.Angles(0, math.rad(-20), 0) end
+        end
+
+        -- arms reach straight up
+        if _G._N0IRArmsReachUpEnabled then
+            if rU then rU.Transform = CFrame.Angles(math.rad(-175), math.rad(-5), math.rad(8)) end
+            if lU then lU.Transform = CFrame.Angles(math.rad(-175), math.rad(5), math.rad(-8)) end
+            if rL then rL.Transform = CFrame.new() end
+            if lL then lL.Transform = CFrame.new() end
+            if rH then rH.Transform = CFrame.new() end
+            if lH then lH.Transform = CFrame.new() end
+        end
+
+        -- shoulder shrug pulse
+        if _G._N0IRShoulderShrugEnabled and not _G._N0IRArmFoldEnabled and not _G._N0IRArmsReachUpEnabled then
+            local pulse = (math.sin(t * 3.2) * 0.5 + 0.5)
+            local raise = math.rad(25 + pulse * 35)
+            if rU then rU.Transform = CFrame.Angles(math.rad(-20), 0, raise) end
+            if lU then lU.Transform = CFrame.Angles(math.rad(-20), 0, -raise) end
+            if rL then rL.Transform = CFrame.Angles(math.rad(-30), 0, 0) end
+            if lL then lL.Transform = CFrame.Angles(math.rad(-30), 0, 0) end
+        end
+
+        -- arm drag (heavy hang)
+        if _G._N0IRArmDragEnabled and not _G._N0IRArmFoldEnabled and not _G._N0IRArmsReachUpEnabled then
+            local hang = math.rad(15)
+            if rU then rU.Transform = CFrame.Angles(math.rad(55), 0, math.rad(12) + hang) end
+            if lU then lU.Transform = CFrame.Angles(math.rad(55), 0, math.rad(-12) - hang) end
+            if rL then rL.Transform = CFrame.Angles(math.rad(25), 0, 0) end
+            if lL then lL.Transform = CFrame.Angles(math.rad(25), 0, 0) end
+            if rH then rH.Transform = CFrame.Angles(math.rad(20), 0, 0) end
+            if lH then lH.Transform = CFrame.Angles(math.rad(20), 0, 0) end
+        end
+
+        -- elbow lock
+        if _G._N0IRElbowLockEnabled then
+            if rL then rL.Transform = CFrame.new() end
+            if lL then lL.Transform = CFrame.new() end
+        elseif _G._N0IRElbowLockBent then
+            if rL then rL.Transform = CFrame.Angles(math.rad(-140), 0, 0) end
+            if lL then lL.Transform = CFrame.Angles(math.rad(-140), 0, 0) end
+        end
+
+        -- wrist flick
+        if _G._N0IRWristFlickEnabled then
+            local flick = math.sin(t * 9) * math.rad(40)
+            if rH then rH.Transform = CFrame.Angles(0, 0, flick) end
+            if lH then lH.Transform = CFrame.Angles(0, 0, -flick) end
+        end
+
+        -- finger curl approx via hand pitch
+        if _G._N0IRFingerCurlEnabled then
+            if rH then rH.Transform = (rH.Transform or CFrame.new()) * CFrame.Angles(math.rad(55), 0, math.rad(10)) end
+            if lH then lH.Transform = (lH.Transform or CFrame.new()) * CFrame.Angles(math.rad(55), 0, math.rad(-10)) end
+        end
+
+        -- one arm point at nearest player
+        if _G._N0IROneArmPointEnabled then
+            local target = nearestOtherHRP()
+            if target then
+                aimUpperAt("RightUpperArm", "RightLowerArm", "RightHand", target.Position + Vector3.new(0, 1.2, 0), -15)
+            end
+        end
+
+        -- leg spread
+        if _G._N0IRLegSpreadEnabled then
+            if rUL then rUL.Transform = CFrame.Angles(0, 0, math.rad(28)) end
+            if lUL then lUL.Transform = CFrame.Angles(0, 0, math.rad(-28)) end
+        end
+
+        -- knee lock
+        if _G._N0IRKneeLockEnabled then
+            if rLL then rLL.Transform = CFrame.new() end
+            if lLL then lLL.Transform = CFrame.new() end
+        elseif _G._N0IRKneeLockBent then
+            if rLL then rLL.Transform = CFrame.Angles(math.rad(95), 0, 0) end
+            if lLL then lLL.Transform = CFrame.Angles(math.rad(95), 0, 0) end
+        end
+
+        -- foot point
+        if _G._N0IRFootPointEnabled then
+            if rF then rF.Transform = CFrame.Angles(math.rad(-55), 0, 0) end
+            if lF then lF.Transform = CFrame.Angles(math.rad(-55), 0, 0) end
+        end
+
+        -- leg kick loop while mostly still
+        if _G._N0IRLegKickLoopEnabled then
+            local phase = t * 3.4
+            local rKick = math.max(0, math.sin(phase)) * math.rad(70)
+            local lKick = math.max(0, math.sin(phase + math.pi)) * math.rad(70)
+            if rUL then rUL.Transform = CFrame.Angles(-rKick, 0, 0) end
+            if lUL then lUL.Transform = CFrame.Angles(-lKick, 0, 0) end
+            if rLL then rLL.Transform = CFrame.Angles(rKick * 0.55, 0, 0) end
+            if lLL then lLL.Transform = CFrame.Angles(lKick * 0.55, 0, 0) end
+        end
+
+        -- hip sway
+        if _G._N0IRHipSwayEnabled and lowerT then
+            local sway = math.sin(t * 1.7) * math.rad(12)
+            lowerT.Transform = (lowerT.Transform or CFrame.new()) * CFrame.Angles(0, 0, sway)
+        end
+
+        -- spine twist
+        if _G._N0IRSpineTwistEnabled and upperT then
+            local twist = math.sin(t * 1.15) * math.rad(22)
+            upperT.Transform = (upperT.Transform or CFrame.new()) * CFrame.Angles(0, twist, 0)
+            if lowerT then
+                lowerT.Transform = (lowerT.Transform or CFrame.new()) * CFrame.Angles(0, -twist * 0.55, 0)
+            end
+        end
+
+        -- chest puff
+        if _G._N0IRChestPuffEnabled and upperT then
+            upperT.Transform = CFrame.new(0, 0.12, -0.18) * (upperT.Transform or CFrame.new()) * CFrame.Angles(math.rad(-8), 0, 0)
+        end
+
+        -- slouch
+        if _G._N0IRSlouchEnabled and waist then
+            waist.Transform = CFrame.Angles(math.rad(28), 0, 0) * (waist.Transform or CFrame.new())
+            if rU and not _G._N0IRArmFoldEnabled and not _G._N0IRArmsReachUpEnabled then
+                rU.Transform = CFrame.Angles(math.rad(25), 0, math.rad(18)) * (rU.Transform or CFrame.new())
+            end
+            if lU and not _G._N0IRArmFoldEnabled and not _G._N0IRArmsReachUpEnabled then
+                lU.Transform = CFrame.Angles(math.rad(25), 0, math.rad(-18)) * (lU.Transform or CFrame.new())
+            end
+            if head then
+                head.Transform = CFrame.Angles(math.rad(12), 0, 0) * (head.Transform or CFrame.new())
+            end
+        end
+
+        -- torso bounce
+        if _G._N0IRTorsoBounceEnabled and waist then
+            local bob = math.sin(t * 4.2) * 0.08
+            waist.Transform = CFrame.new(0, bob, 0) * (waist.Transform or CFrame.new())
+        end
+
+        -- neck crane forward
+        if _G._N0IRNeckCraneForwardEnabled and head then
+            head.Transform = CFrame.new(0, 0.15, -0.55) * (head.Transform or CFrame.new()) * CFrame.Angles(math.rad(-18), 0, 0)
+        end
+
+
+        -- limb collision on clone
+        if _G._N0IRLimbCollisionEnabled then
+            local clone = getClone()
+            if clone then
+                for _, p in ipairs(clone:GetDescendants()) do
+                    if p:IsA("BasePart") then
+                        local n = p.Name
+                        if n == "UpperTorso" or n == "LowerTorso" or n == "Torso" or n == "Head"
+                            or n:find("Arm") or n:find("Hand") or n:find("Leg") or n:find("Foot") then
+                            p.CanCollide = true
+                        end
+                    end
+                end
+            end
+        end
+
+        -- netless velocity boost on real body when reanimated
+        if _G._N0IRNetlessBoostEnabled and ReanimateAPI and ReanimateAPI.get_real_character then
+            local real = ReanimateAPI.get_real_character(plr)
+            if real then
+                for _, p in ipairs(real:GetDescendants()) do
+                    if p:IsA("BasePart") then
+                        local v = p.AssemblyLinearVelocity
+                        if v.Magnitude < 2 then
+                            p.AssemblyLinearVelocity = Vector3.new(v.X, -45, v.Z)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    local function start()
+        if _XL.conn then _XL.conn:Disconnect(); _XL.conn = nil end
+        rebuild()
+        _XL.conn = RunService.PreSimulation:Connect(LPH_NO_VIRTUALIZE(function(dt)
+            tickPoses(dt)
+        end))
+    end
+
+    local function stop()
+        if _XL.conn then _XL.conn:Disconnect(); _XL.conn = nil end
+    end
+
+    local prev = _G._N0IRDoReanimToggle
+    _G._N0IRDoReanimToggle = function()
+        local was = State.isReanimated
+        if type(prev) == "function" then prev() end
+        if State.isReanimated and not was then
+            start()
+        elseif not State.isReanimated and was then
+            stop()
+        end
+    end
+
+    if State.isReanimated then start() end
+
+    -- auto reanim after respawn
+    plr.CharacterAdded:Connect(function()
+        task.wait(0.8)
+        rebuild()
+        if _G._N0IRAutoReanimOnSpawn and not State.isReanimated then
+            if type(_G._N0IRDoReanimToggle) == "function" then
+                pcall(_G._N0IRDoReanimToggle)
+            end
+        end
+        if State.isReanimated then start() end
     end)
 end)
