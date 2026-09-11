@@ -3667,17 +3667,14 @@ function N0IR:MountUtilities(Window)
 
     -- Only the muted asset is hard-coded (it exists on all clients).
     -- Unmuted is detected from the live topbar icon after the user unmutes.
-    -- Fade is done via a controlled overlay ImageLabel (CoreGui resets ImageColor3 on stock icons).
+    -- Visual: overlay ImageLabel + diagonal UIGradient (dark BL → bright TR).
     local MUTED_IMAGE = "rbxasset://textures/ui/VoiceChat/MicLight/Muted.png"
-    -- Optional custom uploads (leave nil to use stock + overlay fade):
-    -- local CUSTOM_MUTED   = "rbxassetid://YOUR_MUTED_ID"
-    -- local CUSTOM_UNMUTED = "rbxassetid://YOUR_UNMUTED_ID"
-    local CUSTOM_MUTED   = nil
+    local CUSTOM_MUTED   = nil  -- optional "rbxassetid://..."
     local CUSTOM_UNMUTED = nil
-    local MUTED_TINT   = Color3.fromRGB(220, 220, 220)
-    local UNMUTED_TINT = Color3.fromRGB(255, 255, 255)
-    local MUTED_FADE   = 0.42   -- higher = more washed out
-    local UNMUTED_FADE = 0.32
+    -- Gradient corners: darker bottom-left, brighter top-right
+    local GRAD_DARK   = Color3.fromRGB(55, 55, 55)
+    local GRAD_BRIGHT = Color3.fromRGB(255, 255, 255)
+    local GRAD_ROTATION = 45  -- BL → TR diagonal
 
     local VCState = {
         enabled = false,
@@ -3809,13 +3806,38 @@ function N0IR:MountUtilities(Window)
                 end
 
                 -- Stock CoreGui icons often ignore / reset ImageColor3.
-                -- Hide the stock label and drive a child overlay we fully control.
+                -- Hide the stock label and drive a child overlay + diagonal UIGradient.
                 local fadeOverlay = nil
                 local currentMutedVisual = true
+
+                local function ensureDiagonalGradient(ov)
+                    if not ov then return end
+                    local g = ov:FindFirstChild("N0IR_MicGrad")
+                    if not g then
+                        g = Instance.new("UIGradient")
+                        g.Name = "N0IR_MicGrad"
+                        g.Parent = ov
+                    end
+                    -- 0 = bottom-left side of the diagonal, 1 = top-right
+                    g.Rotation = GRAD_ROTATION
+                    g.Color = ColorSequence.new({
+                        ColorSequenceKeypoint.new(0, GRAD_DARK),
+                        ColorSequenceKeypoint.new(0.45, Color3.fromRGB(140, 140, 140)),
+                        ColorSequenceKeypoint.new(1, GRAD_BRIGHT),
+                    })
+                    -- slight transparency ramp so the dark corner reads softer
+                    g.Transparency = NumberSequence.new({
+                        NumberSequenceKeypoint.new(0, 0.35),
+                        NumberSequenceKeypoint.new(0.5, 0.12),
+                        NumberSequenceKeypoint.new(1, 0.02),
+                    })
+                    return g
+                end
 
                 local function ensureFadeOverlay(stockIcon)
                     if not stockIcon then return nil end
                     if fadeOverlay and fadeOverlay.Parent == stockIcon then
+                        ensureDiagonalGradient(fadeOverlay)
                         return fadeOverlay
                     end
                     pcall(function()
@@ -3824,6 +3846,7 @@ function N0IR:MountUtilities(Window)
                     local existing = stockIcon:FindFirstChild("N0IR_MicFade")
                     if existing then
                         fadeOverlay = existing
+                        ensureDiagonalGradient(fadeOverlay)
                         return fadeOverlay
                     end
                     local ov = Instance.new("ImageLabel")
@@ -3835,9 +3858,10 @@ function N0IR:MountUtilities(Window)
                     ov.ScaleType = Enum.ScaleType.Fit
                     ov.ZIndex = (stockIcon.ZIndex or 1) + 2
                     ov.Image = mutedimage
-                    ov.ImageColor3 = MUTED_TINT
-                    ov.ImageTransparency = MUTED_FADE
+                    ov.ImageColor3 = Color3.fromRGB(255, 255, 255)
+                    ov.ImageTransparency = 0
                     ov.Parent = stockIcon
+                    ensureDiagonalGradient(ov)
                     fadeOverlay = ov
                     return ov
                 end
@@ -3851,16 +3875,13 @@ function N0IR:MountUtilities(Window)
                         stockIcon.ImageTransparency = 1
                     end)
                     if muted then
-                        local src = CUSTOM_MUTED or mutedimage
-                        ov.Image = src
-                        ov.ImageColor3 = MUTED_TINT
-                        ov.ImageTransparency = MUTED_FADE
+                        ov.Image = CUSTOM_MUTED or mutedimage
                     else
-                        local src = CUSTOM_UNMUTED or unmutedimage or mutedimage
-                        ov.Image = src
-                        ov.ImageColor3 = UNMUTED_TINT
-                        ov.ImageTransparency = UNMUTED_FADE
+                        ov.Image = CUSTOM_UNMUTED or unmutedimage or mutedimage
                     end
+                    ov.ImageColor3 = Color3.fromRGB(255, 255, 255)
+                    ov.ImageTransparency = 0
+                    ensureDiagonalGradient(ov)
                 end
 
                 local function run()
@@ -4017,7 +4038,7 @@ function N0IR:MountUtilities(Window)
     })
 
     VC:CreateParagraph({
-        Content = "Muted: stock MicLight/Muted.png via faded overlay.\nUnmuted: captured live from the topbar after you unmute.\nFade uses a child ImageLabel (CoreGui resets tint on stock icons). Optional CUSTOM_MUTED / CUSTOM_UNMUTED rbxassetids at the top of this module.",
+        Content = "Muted / unmuted icons use a diagonal gradient overlay: darker bottom-left → brighter top-right (UIGradient).\nUnmuted art is captured live after you unmute. No custom asset ids required.",
     })
 
     -- also expose for commands
