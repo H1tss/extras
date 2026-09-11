@@ -3667,9 +3667,17 @@ function N0IR:MountUtilities(Window)
 
     -- Only the muted asset is hard-coded (it exists on all clients).
     -- Unmuted is detected from the live topbar icon after the user unmutes.
+    -- Fade is done via a controlled overlay ImageLabel (CoreGui resets ImageColor3 on stock icons).
     local MUTED_IMAGE = "rbxasset://textures/ui/VoiceChat/MicLight/Muted.png"
-    local MUTED_TINT   = Color3.fromRGB(210, 210, 210)  -- light gray fade
-    local UNMUTED_TINT = Color3.fromRGB(245, 245, 245)  -- near-white, soft
+    -- Optional custom uploads (leave nil to use stock + overlay fade):
+    -- local CUSTOM_MUTED   = "rbxassetid://YOUR_MUTED_ID"
+    -- local CUSTOM_UNMUTED = "rbxassetid://YOUR_UNMUTED_ID"
+    local CUSTOM_MUTED   = nil
+    local CUSTOM_UNMUTED = nil
+    local MUTED_TINT   = Color3.fromRGB(220, 220, 220)
+    local UNMUTED_TINT = Color3.fromRGB(255, 255, 255)
+    local MUTED_FADE   = 0.42   -- higher = more washed out
+    local UNMUTED_FADE = 0.32
 
     local VCState = {
         enabled = false,
@@ -3800,23 +3808,58 @@ function N0IR:MountUtilities(Window)
                     end)
                 end
 
-                -- Apply muted / unmuted with soft darkened tint
-                local function applyIcon(imgLabel, muted)
-                    if not imgLabel then return end
+                -- Stock CoreGui icons often ignore / reset ImageColor3.
+                -- Hide the stock label and drive a child overlay we fully control.
+                local fadeOverlay = nil
+                local currentMutedVisual = true
+
+                local function ensureFadeOverlay(stockIcon)
+                    if not stockIcon then return nil end
+                    if fadeOverlay and fadeOverlay.Parent == stockIcon then
+                        return fadeOverlay
+                    end
+                    pcall(function()
+                        stockIcon.ImageTransparency = 1 -- hide original art
+                    end)
+                    local existing = stockIcon:FindFirstChild("N0IR_MicFade")
+                    if existing then
+                        fadeOverlay = existing
+                        return fadeOverlay
+                    end
+                    local ov = Instance.new("ImageLabel")
+                    ov.Name = "N0IR_MicFade"
+                    ov.BackgroundTransparency = 1
+                    ov.Size = UDim2.fromScale(1, 1)
+                    ov.Position = UDim2.fromScale(0, 0)
+                    ov.AnchorPoint = Vector2.new(0, 0)
+                    ov.ScaleType = Enum.ScaleType.Fit
+                    ov.ZIndex = (stockIcon.ZIndex or 1) + 2
+                    ov.Image = mutedimage
+                    ov.ImageColor3 = MUTED_TINT
+                    ov.ImageTransparency = MUTED_FADE
+                    ov.Parent = stockIcon
+                    fadeOverlay = ov
+                    return ov
+                end
+
+                local function applyIcon(stockIcon, muted)
+                    if not stockIcon then return end
+                    currentMutedVisual = muted and true or false
+                    local ov = ensureFadeOverlay(stockIcon)
+                    if not ov then return end
+                    pcall(function()
+                        stockIcon.ImageTransparency = 1
+                    end)
                     if muted then
-                        imgLabel.Image = mutedimage
-                        pcall(function()
-                            imgLabel.ImageColor3 = MUTED_TINT
-                            imgLabel.ImageTransparency = 0.28  -- visible fade
-                        end)
+                        local src = CUSTOM_MUTED or mutedimage
+                        ov.Image = src
+                        ov.ImageColor3 = MUTED_TINT
+                        ov.ImageTransparency = MUTED_FADE
                     else
-                        if unmutedimage and unmutedimage ~= "" then
-                            imgLabel.Image = unmutedimage
-                        end
-                        pcall(function()
-                            imgLabel.ImageColor3 = UNMUTED_TINT
-                            imgLabel.ImageTransparency = 0.18  -- soft fade, not harsh
-                        end)
+                        local src = CUSTOM_UNMUTED or unmutedimage or mutedimage
+                        ov.Image = src
+                        ov.ImageColor3 = UNMUTED_TINT
+                        ov.ImageTransparency = UNMUTED_FADE
                     end
                 end
 
@@ -3915,15 +3958,18 @@ function N0IR:MountUtilities(Window)
                         end)
                     end
 
-                    -- Keep icon in sync if state changes externally
+                    -- Keep icon + fade overlay in sync (re-apply often so CoreGui can't wipe it)
                     task.spawn(function()
                         local lastKnown = nil
                         while clonedicon and clonedicon.Parent do
-                            task.wait(0.08)
+                            task.wait(0.05)
                             local current = getcurrentmutestate()
                             if current ~= lastKnown then
                                 lastKnown = current
                                 applyIcon(clonedicon, current)
+                            else
+                                -- re-stamp fade in case engine reset transparency/color
+                                applyIcon(clonedicon, currentMutedVisual)
                             end
                         end
                     end)
@@ -3971,7 +4017,7 @@ function N0IR:MountUtilities(Window)
     })
 
     VC:CreateParagraph({
-        Content = "Muted icon: stock MicLight/Muted.png (darkened).\nUnmuted icon: captured live from the topbar after you unmute — no hard-coded Light.png (that path is unreliable).\nBoth tints are faded for a cleaner look.",
+        Content = "Muted: stock MicLight/Muted.png via faded overlay.\nUnmuted: captured live from the topbar after you unmute.\nFade uses a child ImageLabel (CoreGui resets tint on stock icons). Optional CUSTOM_MUTED / CUSTOM_UNMUTED rbxassetids at the top of this module.",
     })
 
     -- also expose for commands
