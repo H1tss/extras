@@ -3683,129 +3683,147 @@ function N0IR:MountUtilities(Window)
             return
         end
         VCState.enabled = true
+        vcStatus("starting — unmute your mic when ready")
 
         task.spawn(function()
             local ok, err = pcall(function()
-                local identifyexecutorname = (identifyexecutor and identifyexecutor()) or "Unknown"
-local clonereference = cloneref or function(...) return ... end
-local clonefunction = clonefunction or function(...) return ... end
+                local clonereference = cloneref or function(...) return ... end
+                local clonefunction = clonefunction or function(...) return ... end
 
-local voicechatservice = clonereference(game:GetService("VoiceChatService"))
-local voicechatinternal = clonereference(game:GetService("VoiceChatInternal"))
-local coregui = game:GetService("CoreGui")
-local startergui = game:GetService("StarterGui")
-local players = game:GetService("Players")
-local localplayer = players.LocalPlayer
-local getconnectionsfunc = clonefunction(getconnections)
+                local voicechatservice = clonereference(game:GetService("VoiceChatService"))
+                local voicechatinternal = clonereference(game:GetService("VoiceChatInternal"))
+                local coregui = game:GetService("CoreGui")
+                local getconnectionsfunc = clonefunction(getconnections)
 
-local mutedimage = "rbxasset://textures/ui/VoiceChat/MicLight/Muted.png"
-local hiddenfolder = Instance.new("Folder", game:GetService("RobloxReplicatedStorage"))
+                local mutedimage = "rbxasset://textures/ui/VoiceChat/MicLight/Muted.png"
+                local hiddenfolder = Instance.new("Folder")
+                hiddenfolder.Name = "N0IR_VCHidden"
+                hiddenfolder.Parent = game:GetService("RobloxReplicatedStorage")
 
-local topbarapp = coregui:WaitForChild("TopBarApp", 15):WaitForChild("TopBarApp", 15)
-local unibarleft = topbarapp:WaitForChild("UnibarLeftFrame", 15)
-local unibarmenu = unibarleft:WaitForChild("UnibarMenu", 15) or unibarleft:WaitForChild("ChromeMenu", 15)
-local unibarcontainer
+                local topbarapp = coregui:WaitForChild("TopBarApp", 15):WaitForChild("TopBarApp", 15)
+                local unibarleft = topbarapp:WaitForChild("UnibarLeftFrame", 15)
+                local unibarmenu = unibarleft:WaitForChild("UnibarMenu", 15) or unibarleft:WaitForChild("ChromeMenu", 15)
+                local unibarcontainer
 
-pcall(function()
-    unibarcontainer = unibarmenu:WaitForChild("2", 15):WaitForChild("3", 15)
-end)
+                pcall(function()
+                    unibarcontainer = unibarmenu:WaitForChild("2", 15):WaitForChild("3", 15)
+                end)
 
-local micmutebutton = unibarcontainer and unibarcontainer:FindFirstChild("toggle_mic_mute", true)
+                local micmutebutton = unibarcontainer and unibarcontainer:FindFirstChild("toggle_mic_mute", true)
 
-local function geticonlabel(button)
-    button = button or micmutebutton
-    return button:WaitForChild("IntegrationIconFrame", 15):WaitForChild("IntegrationIcon", 15)["1"]
-end
+                local function geticonlabel(button)
+                    button = button or micmutebutton
+                    return button:WaitForChild("IntegrationIconFrame", 15):WaitForChild("IntegrationIcon", 15)["1"]
+                end
 
-local function getcurrentmutestate()
-    return voicechatinternal:IsPublishPaused()
-end
+                local function getcurrentmutestate()
+                    return voicechatinternal:IsPublishPaused()
+                end
 
-local function setmutestate(state)
-    voicechatinternal:PublishPause(state)
-end
+                local function setmutestate(state)
+                    voicechatinternal:PublishPause(state)
+                end
 
-if not micmutebutton then
-    voicechatservice:joinVoice()
-    pcall(function()
-        unibarcontainer = unibarmenu:WaitForChild("2", 15):WaitForChild("3", 15)
-        micmutebutton = unibarcontainer:WaitForChild("toggle_mic_mute", 15)
-    end)
-end
+                if not micmutebutton then
+                    pcall(function() voicechatservice:joinVoice() end)
+                    pcall(function()
+                        unibarcontainer = unibarmenu:WaitForChild("2", 15):WaitForChild("3", 15)
+                        micmutebutton = unibarcontainer:WaitForChild("toggle_mic_mute", 15)
+                    end)
+                end
 
-if not micmutebutton then return print("Mic button not found") end
+                if not micmutebutton then
+                    error("Mic button not found — open voice settings / unmute once")
+                end
 
-startergui:SetCore("SendNotification", {Title = "created by masklol,dm me for issue", Text = "Unmute to continue.", Duration = 5})
+                -- Wait until user unmutes (icon changes). No Roblox SetCore notification.
+                vcStatus("unmute your mic to continue")
+                local waited = 0
+                while waited < 60 do
+                    local iconOk, icon = pcall(geticonlabel)
+                    if iconOk and icon and icon.Image ~= mutedimage then
+                        break
+                    end
+                    task.wait(1)
+                    waited = waited + 1
+                end
+                if waited >= 60 then
+                    error("Timed out waiting for unmute")
+                end
 
-repeat task.wait(2) until geticonlabel().Image ~= mutedimage
+                voicechatservice:leaveVoice()
+                task.wait(2)
 
-voicechatservice:leaveVoice()
-task.wait(2)
+                local connections = getconnectionsfunc(voicechatinternal.StateChanged)
+                for i = 7, #connections do
+                    if connections[i] then
+                        pcall(function() connections[i]:Disable() end)
+                    end
+                end
 
-local connections = getconnectionsfunc(voicechatinternal.StateChanged)
-for i = 7, #connections do
-    if connections[i] then connections[i]:Disable() end
-end
+                task.wait(2)
+                voicechatservice:joinVoice()
 
-task.wait(2)
-voicechatservice:joinVoice()
+                pcall(function()
+                    unibarcontainer = unibarmenu:WaitForChild("2", 15):WaitForChild("3", 15)
+                    micmutebutton = unibarcontainer:WaitForChild("toggle_mic_mute", 15)
+                end)
 
-pcall(function()
-    unibarcontainer = unibarmenu:WaitForChild("2", 15):WaitForChild("3", 15)
-    micmutebutton = unibarcontainer:WaitForChild("toggle_mic_mute", 15)
-end)
+                if not (micmutebutton and unibarcontainer) then
+                    error("Mic button lost after rejoin")
+                end
 
-if micmutebutton and unibarcontainer then
-    local clonedmutebutton = micmutebutton:Clone()
-    micmutebutton.Parent = hiddenfolder
-    clonedmutebutton.Name = "toggle_mic_mute_new"
-    clonedmutebutton.Parent = unibarcontainer
+                local clonedmutebutton = micmutebutton:Clone()
+                micmutebutton.Parent = hiddenfolder
+                clonedmutebutton.Name = "toggle_mic_mute_new"
+                clonedmutebutton.Parent = unibarcontainer
 
-    local clonedicon = geticonlabel(clonedmutebutton)
-    local originalicon = geticonlabel(micmutebutton)
+                local clonedicon = geticonlabel(clonedmutebutton)
+                local originalicon = geticonlabel(micmutebutton)
 
-    -- Add UIGradient for fading effect on the cloned icon
-    local gradient = Instance.new("UIGradient")
-    gradient.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(100, 100, 100))
-    }
-    gradient.Transparency = NumberSequence.new{
-        NumberSequenceKeypoint.new(0, 0),
-        NumberSequenceKeypoint.new(1, 0.5)
-    }
-    gradient.Rotation = 45
-    gradient.Parent = clonedicon
+                -- Diagonal fade on cloned icon
+                local gradient = Instance.new("UIGradient")
+                gradient.Color = ColorSequence.new({
+                    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+                    ColorSequenceKeypoint.new(1, Color3.fromRGB(100, 100, 100)),
+                })
+                gradient.Transparency = NumberSequence.new({
+                    NumberSequenceKeypoint.new(0, 0),
+                    NumberSequenceKeypoint.new(1, 0.5),
+                })
+                gradient.Rotation = 45
+                gradient.Parent = clonedicon
 
-    -- Add UIGradient for fading effect on the original icon reference
-    local originalGradient = Instance.new("UIGradient")
-    originalGradient.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(100, 100, 100))
-    }
-    originalGradient.Transparency = NumberSequence.new{
-        NumberSequenceKeypoint.new(0, 0),
-        NumberSequenceKeypoint.new(1, 0.3)
-    }
-    originalGradient.Rotation = 45
-    originalGradient.Parent = originalicon
+                -- Soft fade on original icon reference
+                local originalGradient = Instance.new("UIGradient")
+                originalGradient.Color = ColorSequence.new({
+                    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+                    ColorSequenceKeypoint.new(1, Color3.fromRGB(100, 100, 100)),
+                })
+                originalGradient.Transparency = NumberSequence.new({
+                    NumberSequenceKeypoint.new(0, 0),
+                    NumberSequenceKeypoint.new(1, 0.3),
+                })
+                originalGradient.Rotation = 45
+                originalGradient.Parent = originalicon
 
-    setmutestate(true)
-    clonedicon.Image = mutedimage
+                setmutestate(true)
+                clonedicon.Image = mutedimage
 
-    clonedmutebutton:WaitForChild("IconHitArea_toggle_mic_mute", 15).Activated:Connect(function()
-        local newstate = not getcurrentmutestate()
-        setmutestate(newstate)
-        if newstate then
-            clonedicon.Image = mutedimage
-        else
-            clonedicon.Image = originalicon.Image
-        end
-    end)
-end
+                local hit = clonedmutebutton:WaitForChild("IconHitArea_toggle_mic_mute", 15)
+                hit.Activated:Connect(function()
+                    local newstate = not getcurrentmutestate()
+                    setmutestate(newstate)
+                    if newstate then
+                        clonedicon.Image = mutedimage
+                    else
+                        clonedicon.Image = originalicon.Image
+                    end
+                end)
 
-                run()
+                vcStatus("active")
             end)
+
             if not ok then
                 VCState.enabled = false
                 vcStatus("error · " .. tostring(err))
