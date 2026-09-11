@@ -3668,8 +3668,8 @@ function N0IR:MountUtilities(Window)
     -- Only the muted asset is hard-coded (it exists on all clients).
     -- Unmuted is detected from the live topbar icon after the user unmutes.
     local MUTED_IMAGE = "rbxasset://textures/ui/VoiceChat/MicLight/Muted.png"
-    local MUTED_TINT   = Color3.fromRGB(130, 130, 130)  -- faded dark
-    local UNMUTED_TINT = Color3.fromRGB(200, 200, 200)  -- soft white, not harsh
+    local MUTED_TINT   = Color3.fromRGB(210, 210, 210)  -- light gray fade
+    local UNMUTED_TINT = Color3.fromRGB(245, 245, 245)  -- near-white, soft
 
     local VCState = {
         enabled = false,
@@ -3807,7 +3807,7 @@ function N0IR:MountUtilities(Window)
                         imgLabel.Image = mutedimage
                         pcall(function()
                             imgLabel.ImageColor3 = MUTED_TINT
-                            imgLabel.ImageTransparency = 0.15
+                            imgLabel.ImageTransparency = 0.28  -- visible fade
                         end)
                     else
                         if unmutedimage and unmutedimage ~= "" then
@@ -3815,7 +3815,7 @@ function N0IR:MountUtilities(Window)
                         end
                         pcall(function()
                             imgLabel.ImageColor3 = UNMUTED_TINT
-                            imgLabel.ImageTransparency = 0.08
+                            imgLabel.ImageTransparency = 0.18  -- soft fade, not harsh
                         end)
                     end
                 end
