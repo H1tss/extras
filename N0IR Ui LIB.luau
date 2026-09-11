@@ -3665,17 +3665,6 @@ function N0IR:MountUtilities(Window)
         Content = "Native NØIR anti-VC protection. Unmute your mic when prompted, then the bypass hooks the topbar mute button. Muted uses the stock MicLight icon (darkened); unmuted is captured live from the real button and faded for a cleaner look.",
     })
 
-    -- Only the muted asset is hard-coded (it exists on all clients).
-    -- Unmuted is detected from the live topbar icon after the user unmutes.
-    -- Visual: overlay ImageLabel + diagonal UIGradient (dark BL → bright TR).
-    local MUTED_IMAGE = "rbxasset://textures/ui/VoiceChat/MicLight/Muted.png"
-    local CUSTOM_MUTED   = nil  -- optional "rbxassetid://..."
-    local CUSTOM_UNMUTED = nil
-    -- Gradient corners: darker bottom-left, brighter top-right
-    local GRAD_DARK   = Color3.fromRGB(55, 55, 55)
-    local GRAD_BRIGHT = Color3.fromRGB(255, 255, 255)
-    local GRAD_ROTATION = 45  -- BL → TR diagonal
-
     local VCState = {
         enabled = false,
         statusLbl = nil,
@@ -3697,315 +3686,123 @@ function N0IR:MountUtilities(Window)
 
         task.spawn(function()
             local ok, err = pcall(function()
-                local clonereference = cloneref or function(...) return ... end
-                local clonefunction = clonefunction or function(...) return ... end
-                local getconnectionsfunc = clonefunction(getconnections or function() return {} end)
+                local identifyexecutorname = (identifyexecutor and identifyexecutor()) or "Unknown"
+local clonereference = cloneref or function(...) return ... end
+local clonefunction = clonefunction or function(...) return ... end
 
-                local voicechatservice = clonereference(game:GetService("VoiceChatService"))
-                local voicechatinternal = clonereference(game:GetService("VoiceChatInternal"))
-                local coregui = game:GetService("CoreGui")
-                local startergui = game:GetService("StarterGui")
-                local rgs = game:GetService("RobloxReplicatedStorage")
+local voicechatservice = clonereference(game:GetService("VoiceChatService"))
+local voicechatinternal = clonereference(game:GetService("VoiceChatInternal"))
+local coregui = game:GetService("CoreGui")
+local startergui = game:GetService("StarterGui")
+local players = game:GetService("Players")
+local localplayer = players.LocalPlayer
+local getconnectionsfunc = clonefunction(getconnections)
 
-                local mutedimage = MUTED_IMAGE
-                local unmutedimage = nil -- filled after user unmutes
+local mutedimage = "rbxasset://textures/ui/VoiceChat/MicLight/Muted.png"
+local hiddenfolder = Instance.new("Folder", game:GetService("RobloxReplicatedStorage"))
 
-                local hiddenfolder = Instance.new("Folder")
-                hiddenfolder.Name = "AVC_Hidden"
-                hiddenfolder.Parent = rgs
+local topbarapp = coregui:WaitForChild("TopBarApp", 15):WaitForChild("TopBarApp", 15)
+local unibarleft = topbarapp:WaitForChild("UnibarLeftFrame", 15)
+local unibarmenu = unibarleft:WaitForChild("UnibarMenu", 15) or unibarleft:WaitForChild("ChromeMenu", 15)
+local unibarcontainer
 
-                local function notify(title, text)
-                    task.spawn(function()
-                        pcall(function()
-                            startergui:SetCore("SendNotification", {
-                                Title = title,
-                                Text = text,
-                                Duration = 5,
-                            })
-                        end)
-                    end)
-                    N0IR:Notify({ Title = title, Content = text, Duration = 3 })
-                    if VCState.statusLbl and VCState.statusLbl.Set then
-                        VCState.statusLbl:Set("Status  ·  " .. tostring(text))
-                    end
-                end
+pcall(function()
+    unibarcontainer = unibarmenu:WaitForChild("2", 15):WaitForChild("3", 15)
+end)
 
-                local function getMuteButton(timeout)
-                    timeout = timeout or 15
-                    local startt = tick()
-                    while tick() - startt < timeout do
-                        local topbarapp = coregui:FindFirstChild("TopBarApp")
-                        if topbarapp then
-                            local topbar = topbarapp:FindFirstChild("TopBarApp") or topbarapp
-                            local unibarleft = topbar and topbar:FindFirstChild("UnibarLeftFrame")
-                            if unibarleft then
-                                local unibarmenu = unibarleft:FindFirstChild("UnibarMenu")
-                                    or unibarleft:FindFirstChild("ChromeMenu")
-                                if unibarmenu then
-                                    local container
-                                    pcall(function()
-                                        container = unibarmenu:FindFirstChild("2")
-                                            and unibarmenu["2"]:FindFirstChild("3")
-                                    end)
-                                    if not container then
-                                        container = unibarmenu:FindFirstChildWhichIsA("Frame", true)
-                                    end
-                                    if container then
-                                        local btn = container:FindFirstChild("toggle_mic_mute", true)
-                                        if btn then return btn, container, unibarmenu end
-                                    end
-                                end
-                            end
-                        end
-                        task.wait(0.2)
-                    end
-                    return nil, nil, nil
-                end
+local micmutebutton = unibarcontainer and unibarcontainer:FindFirstChild("toggle_mic_mute", true)
 
-                local function geticonlabel(button)
-                    if not button then return nil end
-                    local success, result = pcall(function()
-                        return button:WaitForChild("IntegrationIconFrame", 5)
-                            :WaitForChild("IntegrationIcon", 5)["1"]
-                    end)
-                    if success and result then return result end
-                    local any
-                    pcall(function()
-                        any = button:FindFirstChildWhichIsA("ImageLabel", true)
-                    end)
-                    return any
-                end
+local function geticonlabel(button)
+    button = button or micmutebutton
+    return button:WaitForChild("IntegrationIconFrame", 15):WaitForChild("IntegrationIcon", 15)["1"]
+end
 
-                local function getcurrentmutestate()
-                    return voicechatinternal:IsPublishPaused()
-                end
+local function getcurrentmutestate()
+    return voicechatinternal:IsPublishPaused()
+end
 
-                local function setmutestate(state)
-                    pcall(function() voicechatinternal:PublishPause(state) end)
-                end
+local function setmutestate(state)
+    voicechatinternal:PublishPause(state)
+end
 
-                local function neutralize()
-                    pcall(function()
-                        local connections = getconnectionsfunc(voicechatinternal.StateChanged)
-                        for i = 7, #connections do
-                            if connections[i] then pcall(function() connections[i]:Disable() end) end
-                        end
-                    end)
-                    pcall(function()
-                        local connections = getconnectionsfunc(voicechatinternal.PublishPaused)
-                        for i = 7, #connections do
-                            if connections[i] then pcall(function() connections[i]:Disable() end) end
-                        end
-                    end)
-                    pcall(function()
-                        local connections = getconnectionsfunc(voicechatinternal.VoiceChatStateChanged)
-                        for i = 7, #connections do
-                            if connections[i] then pcall(function() connections[i]:Disable() end) end
-                        end
-                    end)
-                end
+if not micmutebutton then
+    voicechatservice:joinVoice()
+    pcall(function()
+        unibarcontainer = unibarmenu:WaitForChild("2", 15):WaitForChild("3", 15)
+        micmutebutton = unibarcontainer:WaitForChild("toggle_mic_mute", 15)
+    end)
+end
 
-                -- Stock CoreGui icons often ignore / reset ImageColor3.
-                -- Hide the stock label and drive a child overlay + diagonal UIGradient.
-                local fadeOverlay = nil
-                local currentMutedVisual = true
+if not micmutebutton then return print("Mic button not found") end
 
-                local function ensureDiagonalGradient(ov)
-                    if not ov then return end
-                    local g = ov:FindFirstChild("N0IR_MicGrad")
-                    if not g then
-                        g = Instance.new("UIGradient")
-                        g.Name = "N0IR_MicGrad"
-                        g.Parent = ov
-                    end
-                    -- 0 = bottom-left side of the diagonal, 1 = top-right
-                    g.Rotation = GRAD_ROTATION
-                    g.Color = ColorSequence.new({
-                        ColorSequenceKeypoint.new(0, GRAD_DARK),
-                        ColorSequenceKeypoint.new(0.45, Color3.fromRGB(140, 140, 140)),
-                        ColorSequenceKeypoint.new(1, GRAD_BRIGHT),
-                    })
-                    -- slight transparency ramp so the dark corner reads softer
-                    g.Transparency = NumberSequence.new({
-                        NumberSequenceKeypoint.new(0, 0.35),
-                        NumberSequenceKeypoint.new(0.5, 0.12),
-                        NumberSequenceKeypoint.new(1, 0.02),
-                    })
-                    return g
-                end
+startergui:SetCore("SendNotification", {Title = "created by masklol,dm me for issue", Text = "Unmute to continue.", Duration = 5})
 
-                local function ensureFadeOverlay(stockIcon)
-                    if not stockIcon then return nil end
-                    if fadeOverlay and fadeOverlay.Parent == stockIcon then
-                        ensureDiagonalGradient(fadeOverlay)
-                        return fadeOverlay
-                    end
-                    pcall(function()
-                        stockIcon.ImageTransparency = 1 -- hide original art
-                    end)
-                    local existing = stockIcon:FindFirstChild("N0IR_MicFade")
-                    if existing then
-                        fadeOverlay = existing
-                        ensureDiagonalGradient(fadeOverlay)
-                        return fadeOverlay
-                    end
-                    local ov = Instance.new("ImageLabel")
-                    ov.Name = "N0IR_MicFade"
-                    ov.BackgroundTransparency = 1
-                    ov.Size = UDim2.fromScale(1, 1)
-                    ov.Position = UDim2.fromScale(0, 0)
-                    ov.AnchorPoint = Vector2.new(0, 0)
-                    ov.ScaleType = Enum.ScaleType.Fit
-                    ov.ZIndex = (stockIcon.ZIndex or 1) + 2
-                    ov.Image = mutedimage
-                    ov.ImageColor3 = Color3.fromRGB(255, 255, 255)
-                    ov.ImageTransparency = 0
-                    ov.Parent = stockIcon
-                    ensureDiagonalGradient(ov)
-                    fadeOverlay = ov
-                    return ov
-                end
+repeat task.wait(2) until geticonlabel().Image ~= mutedimage
 
-                local function applyIcon(stockIcon, muted)
-                    if not stockIcon then return end
-                    currentMutedVisual = muted and true or false
-                    local ov = ensureFadeOverlay(stockIcon)
-                    if not ov then return end
-                    pcall(function()
-                        stockIcon.ImageTransparency = 1
-                    end)
-                    if muted then
-                        ov.Image = CUSTOM_MUTED or mutedimage
-                    else
-                        ov.Image = CUSTOM_UNMUTED or unmutedimage or mutedimage
-                    end
-                    ov.ImageColor3 = Color3.fromRGB(255, 255, 255)
-                    ov.ImageTransparency = 0
-                    ensureDiagonalGradient(ov)
-                end
+voicechatservice:leaveVoice()
+task.wait(2)
 
-                local function run()
-                    notify("Protection", "Unmute your mic to continue")
+local connections = getconnectionsfunc(voicechatinternal.StateChanged)
+for i = 7, #connections do
+    if connections[i] then connections[i]:Disable() end
+end
 
-                    pcall(function() voicechatservice:joinVoice() end)
+task.wait(2)
+voicechatservice:joinVoice()
 
-                    local micmutebutton, unibarcontainer, unibarmenu = getMuteButton(15)
-                    if not micmutebutton then
-                        pcall(function() voicechatservice:joinVoice() end)
-                        task.wait(1)
-                        micmutebutton, unibarcontainer, unibarmenu = getMuteButton(12)
-                    end
-                    if not micmutebutton then
-                        notify("Error", "Mic button not found")
-                        VCState.enabled = false
-                        return
-                    end
+pcall(function()
+    unibarcontainer = unibarmenu:WaitForChild("2", 15):WaitForChild("3", 15)
+    micmutebutton = unibarcontainer:WaitForChild("toggle_mic_mute", 15)
+end)
 
-                    local icon = geticonlabel(micmutebutton)
-                    if not icon then
-                        notify("Error", "Mic icon not found")
-                        VCState.enabled = false
-                        return
-                    end
+if micmutebutton and unibarcontainer then
+    local clonedmutebutton = micmutebutton:Clone()
+    micmutebutton.Parent = hiddenfolder
+    clonedmutebutton.Name = "toggle_mic_mute_new"
+    clonedmutebutton.Parent = unibarcontainer
 
-                    -- Wait until user unmutes so we can capture the real unmuted asset
-                    local waited = 0
-                    while icon.Image == mutedimage and waited < 30 do
-                        task.wait(0.25)
-                        waited = waited + 0.25
-                        icon = geticonlabel(micmutebutton) or icon
-                    end
-                    if icon.Image == mutedimage or icon.Image == "" then
-                        notify("Error", "Timed out waiting for unmute — unmute the mic and try again")
-                        VCState.enabled = false
-                        return
-                    end
-                    unmutedimage = icon.Image -- live stock unmuted texture
+    local clonedicon = geticonlabel(clonedmutebutton)
+    local originalicon = geticonlabel(micmutebutton)
 
-                    notify("Protection", "Bypass starting...")
+    -- Add UIGradient for fading effect on the cloned icon
+    local gradient = Instance.new("UIGradient")
+    gradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(100, 100, 100))
+    }
+    gradient.Transparency = NumberSequence.new{
+        NumberSequenceKeypoint.new(0, 0),
+        NumberSequenceKeypoint.new(1, 0.5)
+    }
+    gradient.Rotation = 45
+    gradient.Parent = clonedicon
 
-                    pcall(function() voicechatservice:leaveVoice() end)
-                    task.wait(2)
+    -- Add UIGradient for fading effect on the original icon reference
+    local originalGradient = Instance.new("UIGradient")
+    originalGradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(100, 100, 100))
+    }
+    originalGradient.Transparency = NumberSequence.new{
+        NumberSequenceKeypoint.new(0, 0),
+        NumberSequenceKeypoint.new(1, 0.3)
+    }
+    originalGradient.Rotation = 45
+    originalGradient.Parent = originalicon
 
-                    neutralize()
-                    task.wait(2)
+    setmutestate(true)
+    clonedicon.Image = mutedimage
 
-                    pcall(function() voicechatservice:joinVoice() end)
-                    task.wait(1.5)
-
-                    micmutebutton, unibarcontainer = getMuteButton(12)
-                    if not micmutebutton or not unibarcontainer then
-                        task.wait(2)
-                        micmutebutton, unibarcontainer = getMuteButton(8)
-                    end
-                    if not micmutebutton or not unibarcontainer then
-                        notify("Error", "Failed to find mic button after rejoin")
-                        VCState.enabled = false
-                        return
-                    end
-
-                    local clonedmutebutton = micmutebutton:Clone()
-                    micmutebutton.Parent = hiddenfolder
-
-                    clonedmutebutton.Name = "toggle_mic_mute_protected"
-                    clonedmutebutton.Parent = unibarcontainer
-
-                    local clonedicon = geticonlabel(clonedmutebutton)
-                    local originalicon = geticonlabel(micmutebutton)
-
-                    if not clonedicon then
-                        notify("Error", "Failed to get icon label from clone")
-                        VCState.enabled = false
-                        return
-                    end
-
-                    -- Prefer live original if still available
-                    if originalicon and originalicon.Image and originalicon.Image ~= mutedimage and originalicon.Image ~= "" then
-                        unmutedimage = originalicon.Image
-                    end
-
-                    setmutestate(true)
-                    applyIcon(clonedicon, true)
-
-                    local hitArea = clonedmutebutton:FindFirstChild("IconHitArea_toggle_mic_mute")
-                        or clonedmutebutton:FindFirstChildWhichIsA("TextButton", true)
-                        or clonedmutebutton:FindFirstChildWhichIsA("ImageButton", true)
-
-                    if hitArea then
-                        hitArea.Activated:Connect(function()
-                            local newstate = not getcurrentmutestate()
-                            setmutestate(newstate)
-                            applyIcon(clonedicon, newstate)
-                        end)
-                    end
-
-                    -- Keep icon + fade overlay in sync (re-apply often so CoreGui can't wipe it)
-                    task.spawn(function()
-                        local lastKnown = nil
-                        while clonedicon and clonedicon.Parent do
-                            task.wait(0.05)
-                            local current = getcurrentmutestate()
-                            if current ~= lastKnown then
-                                lastKnown = current
-                                applyIcon(clonedicon, current)
-                            else
-                                -- re-stamp fade in case engine reset transparency/color
-                                applyIcon(clonedicon, currentMutedVisual)
-                            end
-                        end
-                    end)
-
-                    -- Re-neutralize periodically
-                    task.spawn(function()
-                        while clonedmutebutton and clonedmutebutton.Parent do
-                            task.wait(6)
-                            neutralize()
-                        end
-                    end)
-
-                    notify("Protection", "Active · darkened icons")
-                    print("[NØIR] VC bypass active — muted asset fixed, unmuted captured live")
-                end
+    clonedmutebutton:WaitForChild("IconHitArea_toggle_mic_mute", 15).Activated:Connect(function()
+        local newstate = not getcurrentmutestate()
+        setmutestate(newstate)
+        if newstate then
+            clonedicon.Image = mutedimage
+        else
+            clonedicon.Image = originalicon.Image
+        end
+    end)
+end
 
                 run()
             end)
