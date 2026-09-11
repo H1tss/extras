@@ -11,6 +11,9 @@ end)
 -- BRAND / LOGO / BACKGROUNDS — owned by NØIR UI Library when present
 -- ============================================================
 do
+	local VISION_VIDEO_URL = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/%E1%B4%A0%C9%AA%EA%9C%B1%C9%AA%E1%B4%8F%C9%B4%20(%EA%9C%B1%CA%9F%E1%B4%8F%E1%B4%A1%E1%B4%87%E1%B4%85).mp4"
+	local VISION_AUDIO_URL = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/%E1%B4%A0%C9%AA%EA%9C%B1%C9%AA%E1%B4%8F%C9%B4%20(%EA%9C%B1%CA%9F%E1%B4%8F%E1%B4%A1%E1%B4%87%E1%B4%85).mp3"
+
 	local defaultBgs = {
 		{ Name = "Clouds With Black Sky",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(3).jfif",  Path = "N0IR/Bg_03.jfif" },
 		{ Name = "Minecraft Endermen B&W",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(4).jfif",  Path = "N0IR/Bg_04.jfif" },
@@ -21,6 +24,15 @@ do
 		{ Name = "Above Clouds",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(9).jfif",  Path = "N0IR/Bg_09.jfif" },
 		{ Name = "Above Clouds With Moon", Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(10).jfif", Path = "N0IR/Bg_10.jfif" },
 		{ Name = "Monster Can", Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(11).jfif", Path = "N0IR/Bg_11.jfif" },
+		-- Vision = looping video wallpaper + optional MP3 (toggle only when active)
+		{
+			Name = "Vision",
+			IsVideo = true,
+			Url = https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/%E1%B4%A0%C9%AA%EA%9C%B1%C9%AA%E1%B4%8F%C9%B4%20(%EA%9C%B1%CA%9F%E1%B4%8F%E1%B4%A1%E1%B4%87%E1%B4%85).mp4,
+			Path = "N0IR/Bg_Vision.mp4",
+			AudioUrl = https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/%E1%B4%A0%C9%AA%EA%9C%B1%C9%AA%E1%B4%8F%C9%B4%20(%EA%9C%B1%CA%9F%E1%B4%8F%E1%B4%A1%E1%B4%87%E1%B4%85).mp3,
+			AudioPath = "N0IR/Bg_Vision.mp3",
+		},
 	}
 	_G._N0IR_Brand = _G._N0IR_Brand or {
 		LogoUrl  = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/D27xi.png",
@@ -29,12 +41,56 @@ do
 		BgIndex  = 1,
 		BgTransparency = 0.42,
 		Backgrounds = defaultBgs,
+		VisionAudio = false,
 	}
 	if not _G._N0IR_Brand.Backgrounds or #_G._N0IR_Brand.Backgrounds == 0 then
 		_G._N0IR_Brand.Backgrounds = defaultBgs
+	else
+		-- ensure Vision exists even if brand was restored from older settings
+		local hasVision = false
+		for _, e in ipairs(_G._N0IR_Brand.Backgrounds) do
+			if e and (e.Name == "Vision" or e.IsVideo) then hasVision = true break end
+		end
+		if not hasVision then
+			table.insert(_G._N0IR_Brand.Backgrounds, defaultBgs[#defaultBgs])
+		end
 	end
+	if _G._N0IR_Brand.VisionAudio == nil then _G._N0IR_Brand.VisionAudio = false end
 	_G._N0IR_BgCache = _G._N0IR_BgCache or {}
 	_G._N0IR_BgTargets = _G._N0IR_BgTargets or {}
+	_G._N0IR_VideoBgTargets = _G._N0IR_VideoBgTargets or {}
+
+	local function _n0irCacheHttpAsset(url, path, dir, cacheKey, force)
+		if not force and cacheKey and _G._N0IR_BgCache[cacheKey] then
+			return _G._N0IR_BgCache[cacheKey]
+		end
+		dir = dir or "N0IR"
+		local onDisk = false
+		pcall(function()
+			if isfolder and not isfolder(dir) then makefolder(dir) end
+			if isfile and isfile(path) then onDisk = true end
+		end)
+		if force or not onDisk then
+			local ok, data = pcall(function() return game:HttpGet(url) end)
+			if ok and data and #data > 100 then
+				pcall(function()
+					if isfolder and not isfolder(dir) then makefolder(dir) end
+					if writefile then writefile(path, data) end
+				end)
+				onDisk = true
+			end
+		end
+		if onDisk and getcustomasset then
+			local ok, asset = pcall(getcustomasset, path)
+			if ok and type(asset) == "string" and asset ~= "" then
+				if cacheKey then _G._N0IR_BgCache[cacheKey] = asset end
+				return asset
+			end
+		end
+		if cacheKey then _G._N0IR_BgCache[cacheKey] = url end
+		return url
+	end
+	_G._N0IR_CacheHttpAsset = _n0irCacheHttpAsset
 
 	if type(_G._N0IR_EnsureLogoAsset) ~= "function" then
 		_G._N0IR_EnsureLogoAsset = function(force)
@@ -44,121 +100,278 @@ do
 			local url  = cfg.LogoUrl or "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/D27xi.png"
 			local dir  = cfg.LogoDir or "N0IR"
 			local path = cfg.LogoPath or "N0IR/Logo_D27xi.png"
-			local onDisk = false
-			pcall(function()
-				if isfolder and not isfolder(dir) then makefolder(dir) end
-				if isfile and isfile(path) then onDisk = true end
-			end)
-			if not onDisk then
-				local ok, data = pcall(function() return game:HttpGet(url) end)
-				if ok and data and #data > 100 then
+			local asset = _n0irCacheHttpAsset(url, path, dir, "logo", force)
+			_G._N0IR_LogoWM = asset
+			return asset
+		end
+	end
+
+	-- image OR video asset for a background index (cached to disk)
+	_G._N0IR_EnsureBgAsset = function(index, force)
+		local cfg = _G._N0IR_Brand or {}
+		local list = cfg.Backgrounds or {}
+		index = tonumber(index) or 1
+		local entry = list[index]
+		if not entry then return nil end
+		local key = "bg_" .. tostring(index)
+		if force then _G._N0IR_BgCache[key] = nil end
+		return _n0irCacheHttpAsset(entry.Url, entry.Path, cfg.LogoDir or "N0IR", key, force)
+	end
+
+	-- Vision MP3 only (separate cache key)
+	_G._N0IR_EnsureVisionAudioAsset = function(force)
+		local cfg = _G._N0IR_Brand or {}
+		local list = cfg.Backgrounds or {}
+		local entry
+		for _, e in ipairs(list) do
+			if e and (e.Name == "Vision" or e.IsVideo) and e.AudioUrl then
+				entry = e
+				break
+			end
+		end
+		if not entry then
+			entry = {
+				AudioUrl = VISION_AUDIO_URL,
+				AudioPath = "N0IR/Bg_Vision.mp3",
+			}
+		end
+		local key = "vision_audio"
+		if force then _G._N0IR_BgCache[key] = nil end
+		return _n0irCacheHttpAsset(
+			entry.AudioUrl or VISION_AUDIO_URL,
+			entry.AudioPath or "N0IR/Bg_Vision.mp3",
+			cfg.LogoDir or "N0IR",
+			key,
+			force
+		)
+	end
+
+	_G._N0IR_IsVisionBg = function(index)
+		index = tonumber(index)
+		if not index or index <= 0 then return false end
+		local list = (_G._N0IR_Brand and _G._N0IR_Brand.Backgrounds) or {}
+		local e = list[index]
+		return e and (e.Name == "Vision" or e.IsVideo == true) and true or false
+	end
+
+	_G._N0IR_RegisterBgTarget = function(img)
+		if not img then return end
+		local alive = {}
+		for _, t in ipairs(_G._N0IR_BgTargets or {}) do
+			if t and t.Parent then table.insert(alive, t) end
+		end
+		table.insert(alive, img)
+		_G._N0IR_BgTargets = alive
+	end
+
+	_G._N0IR_RegisterVideoBgTarget = function(vf)
+		if not vf then return end
+		_G._N0IR_VideoBgTargets = _G._N0IR_VideoBgTargets or {}
+		local alive = {}
+		for _, t in ipairs(_G._N0IR_VideoBgTargets) do
+			if t and t.Parent then table.insert(alive, t) end
+		end
+		table.insert(alive, vf)
+		_G._N0IR_VideoBgTargets = alive
+	end
+
+	-- stop / start Vision soundtrack (only while Vision wallpaper is active + toggle on)
+	_G._N0IR_UpdateVisionAudio = function()
+		local cfg = _G._N0IR_Brand or {}
+		local want = _G._N0IR_IsVisionBg(cfg.BgIndex) and (cfg.VisionAudio == true)
+		local SoundService = game:GetService("SoundService")
+		local snd = SoundService:FindFirstChild("N0IR_VisionAudio")
+		if not want then
+			if snd then
+				pcall(function() snd:Stop() end)
+				pcall(function() snd:Destroy() end)
+			end
+			return
+		end
+		local asset = _G._N0IR_EnsureVisionAudioAsset()
+		if not asset then return end
+		if not snd then
+			snd = Instance.new("Sound")
+			snd.Name = "N0IR_VisionAudio"
+			snd.Looped = true
+			snd.Volume = 0.55
+			snd.Parent = SoundService
+		end
+		if snd.SoundId ~= asset then
+			snd.SoundId = asset
+		end
+		if not snd.IsPlaying then
+			pcall(function() snd:Play() end)
+		end
+	end
+
+	_G._N0IR_SetVisionAudio = function(on)
+		_G._N0IR_Brand = _G._N0IR_Brand or {}
+		_G._N0IR_Brand.VisionAudio = on and true or false
+		_G._N0IR_UpdateVisionAudio()
+		if _G._N0IR_SaveSettings then task.defer(_G._N0IR_SaveSettings) end
+		if _G._N0IR_OnVisionAudioChanged then
+			pcall(_G._N0IR_OnVisionAudioChanged, _G._N0IR_Brand.VisionAudio)
+		end
+		return _G._N0IR_Brand.VisionAudio
+	end
+
+	-- Pre-cache Vision video + audio in background so first switch is fast
+	task.defer(function()
+		pcall(function()
+			local list = (_G._N0IR_Brand and _G._N0IR_Brand.Backgrounds) or {}
+			for i, e in ipairs(list) do
+				if e and (e.Name == "Vision" or e.IsVideo) then
+					_G._N0IR_EnsureBgAsset(i, false)
+					_G._N0IR_EnsureVisionAudioAsset(false)
+					break
+				end
+			end
+		end)
+	end)
+
+	_G._N0IR_SetBackground = function(index)
+		local cfg = _G._N0IR_Brand or {}
+		index = math.floor(tonumber(index) or 0)
+		local list = cfg.Backgrounds or {}
+		if index < 0 then index = 0 end
+		if index > #list then index = #list end
+		cfg.BgIndex = index
+		_G._N0IR_Brand = cfg
+
+		local entry = (index > 0) and list[index] or nil
+		local isVideo = entry and (entry.IsVideo or entry.Name == "Vision")
+		local asset = (index > 0) and _G._N0IR_EnsureBgAsset(index) or nil
+		local trans = tonumber(cfg.BgTransparency) or 0.42
+
+		-- static image targets
+		for _, img in ipairs(_G._N0IR_BgTargets or {}) do
+			if img and img.Parent then
+				if index <= 0 or not asset or isVideo then
+					img.Image = ""
+					img.Visible = false
+				else
+					img.Image = asset
+					img.ImageTransparency = trans
+					img.Visible = true
+				end
+			end
+		end
+
+		-- video targets (Vision)
+		for _, vf in ipairs(_G._N0IR_VideoBgTargets or {}) do
+			if vf and vf.Parent then
+				if isVideo and asset then
 					pcall(function()
-						if isfolder and not isfolder(dir) then makefolder(dir) end
-						if writefile then writefile(path, data) end
+						vf.Video = asset
+						vf.Looped = true
+						vf.Volume = 0 -- soundtrack is separate Sound
+						vf.Visible = true
+						if vf.Play then vf:Play() end
 					end)
-					onDisk = true
-				end
-			end
-			if onDisk and getcustomasset then
-				local ok, asset = pcall(getcustomasset, path)
-				if ok and type(asset) == "string" and asset ~= "" then
-					_G._N0IR_LogoWM = asset
-					return asset
-				end
-			end
-			_G._N0IR_LogoWM = url
-			return url
-		end
-	end
-
-	if type(_G._N0IR_EnsureBgAsset) ~= "function" then
-		_G._N0IR_EnsureBgAsset = function(index, force)
-			local cfg = _G._N0IR_Brand or {}
-			local list = cfg.Backgrounds or {}
-			index = tonumber(index) or 1
-			local entry = list[index]
-			if not entry then return nil end
-			local key = "bg_" .. tostring(index)
-			if force then _G._N0IR_BgCache[key] = nil end
-			if not force and _G._N0IR_BgCache[key] then return _G._N0IR_BgCache[key] end
-			local url, path, dir = entry.Url, entry.Path, cfg.LogoDir or "N0IR"
-			local onDisk = false
-			pcall(function()
-				if isfolder and not isfolder(dir) then makefolder(dir) end
-				if isfile and isfile(path) then onDisk = true end
-			end)
-			if not onDisk then
-				local ok, data = pcall(function() return game:HttpGet(url) end)
-				if ok and data and #data > 100 then
 					pcall(function()
-						if isfolder and not isfolder(dir) then makefolder(dir) end
-						if writefile then writefile(path, data) end
+						if vf:IsA("VideoFrame") then
+							vf.BackgroundTransparency = 1
+						end
 					end)
-					onDisk = true
+				else
+					pcall(function()
+						if vf.Pause then vf:Pause() end
+						vf.Video = ""
+						vf.Visible = false
+					end)
 				end
 			end
-			if onDisk and getcustomasset then
-				local ok, asset = pcall(getcustomasset, path)
-				if ok and type(asset) == "string" and asset ~= "" then
-					_G._N0IR_BgCache[key] = asset
-					return asset
+		end
+
+		_G._N0IR_UpdateVisionAudio()
+		if _G._N0IR_OnBackgroundChanged then
+			pcall(_G._N0IR_OnBackgroundChanged, index, isVideo)
+		end
+		if _G._N0IR_SaveSettings then task.defer(_G._N0IR_SaveSettings) end
+		return index
+	end
+
+	_G._N0IR_NextBackground = function()
+		local cfg = _G._N0IR_Brand or {}
+		local list = cfg.Backgrounds or {}
+		local n = #list
+		if n == 0 then return 0 end
+		local i = (tonumber(cfg.BgIndex) or 0) + 1
+		if i > n then i = 0 end
+		return _G._N0IR_SetBackground(i)
+	end
+
+	-- Inject VideoFrame into NØIR UI Library windows (and any host that only has ImageLabel bg)
+	_G._N0IR_EnsureVideoBgOnHost = function(host)
+		if not host then return end
+		local function inject(parent)
+			if not parent or not parent.Parent then return end
+			if parent:FindFirstChild("N0IR_BgVideo") then
+				local existing = parent:FindFirstChild("N0IR_BgVideo")
+				if existing and _G._N0IR_RegisterVideoBgTarget then
+					_G._N0IR_RegisterVideoBgTarget(existing)
+				end
+				return
+			end
+			local img = parent:FindFirstChild("N0IR_Bg")
+			local radius = 12
+			if img then
+				local c = img:FindFirstChildOfClass("UICorner")
+				if c then radius = c.CornerRadius.Offset end
+			end
+			local vbg = Instance.new("VideoFrame")
+			vbg.Name = "N0IR_BgVideo"
+			vbg.BackgroundTransparency = 1
+			vbg.Size = UDim2.fromScale(1, 1)
+			vbg.Position = UDim2.fromScale(0, 0)
+			vbg.ZIndex = (img and img.ZIndex) or 0
+			vbg.Visible = false
+			vbg.Looped = true
+			vbg.Volume = 0
+			vbg.Parent = parent
+			local corner = Instance.new("UICorner")
+			corner.CornerRadius = UDim.new(0, radius)
+			corner.Parent = vbg
+			if _G._N0IR_RegisterVideoBgTarget then
+				_G._N0IR_RegisterVideoBgTarget(vbg)
+			end
+		end
+		-- Library window: ScreenGui N0IR_Window → Main
+		local winGui = host:FindFirstChild("N0IR_Window")
+		if winGui then
+			local main = winGui:FindFirstChild("Main")
+			if main then inject(main) end
+		end
+		-- Reanim menu
+		local reanim = host:FindFirstChild("ReanimN0IRMenu")
+		if reanim then inject(reanim) end
+		-- Also walk known player gui
+		pcall(function()
+			local pg = game:GetService("Players").LocalPlayer:FindFirstChildOfClass("PlayerGui")
+			if pg and pg ~= host then
+				local w2 = pg:FindFirstChild("N0IR_Window")
+				if w2 then
+					local main = w2:FindFirstChild("Main")
+					if main then inject(main) end
 				end
 			end
-			_G._N0IR_BgCache[key] = url
-			return url
-		end
+		end)
 	end
 
-	if type(_G._N0IR_RegisterBgTarget) ~= "function" then
-		_G._N0IR_RegisterBgTarget = function(img)
-			if not img then return end
-			local alive = {}
-			for _, t in ipairs(_G._N0IR_BgTargets or {}) do
-				if t and t.Parent then table.insert(alive, t) end
-			end
-			table.insert(alive, img)
-			_G._N0IR_BgTargets = alive
+	-- Keep scanning briefly so late-created UI lib windows get Vision video layer
+	task.spawn(function()
+		for _ = 1, 40 do
+			pcall(function()
+				local plr = game:GetService("Players").LocalPlayer
+				local pg = plr and plr:FindFirstChildOfClass("PlayerGui")
+				if pg then _G._N0IR_EnsureVideoBgOnHost(pg) end
+				local cg = game:GetService("CoreGui")
+				if cg then _G._N0IR_EnsureVideoBgOnHost(cg) end
+			end)
+			task.wait(0.5)
 		end
-	end
-
-	if type(_G._N0IR_SetBackground) ~= "function" then
-		_G._N0IR_SetBackground = function(index)
-			local cfg = _G._N0IR_Brand or {}
-			index = math.floor(tonumber(index) or 0)
-			local list = cfg.Backgrounds or {}
-			if index < 0 then index = 0 end
-			if index > #list then index = #list end
-			cfg.BgIndex = index
-			_G._N0IR_Brand = cfg
-			local asset = (index > 0) and _G._N0IR_EnsureBgAsset(index) or nil
-			local trans = tonumber(cfg.BgTransparency) or 0.42
-			for _, img in ipairs(_G._N0IR_BgTargets or {}) do
-				if img and img.Parent then
-					if index <= 0 or not asset then
-						img.Image = ""
-						img.Visible = false
-					else
-						img.Image = asset
-						img.ImageTransparency = trans
-						img.Visible = true
-					end
-				end
-			end
-			return index
-		end
-	end
-
-	if type(_G._N0IR_NextBackground) ~= "function" then
-		_G._N0IR_NextBackground = function()
-			local cfg = _G._N0IR_Brand or {}
-			local list = cfg.Backgrounds or {}
-			local n = #list
-			if n == 0 then return 0 end
-			local i = (tonumber(cfg.BgIndex) or 0) + 1
-			if i > n then i = 0 end
-			return _G._N0IR_SetBackground(i)
-		end
-	end
+	end)
 end
 
 do
@@ -3813,6 +4026,16 @@ function LoadData()
                             if okK and kc then _G._N0IRTeleportKey = kc end
                         end
                     end
+                    _G._N0IR_Brand = _G._N0IR_Brand or {}
+                    if data.BgIndex ~= nil then
+                        _G._N0IR_Brand.BgIndex = tonumber(data.BgIndex) or 1
+                    end
+                    if data.BgTransparency ~= nil then
+                        _G._N0IR_Brand.BgTransparency = tonumber(data.BgTransparency) or 0.42
+                    end
+                    if data.VisionAudio ~= nil then
+                        _G._N0IR_Brand.VisionAudio = data.VisionAudio and true or false
+                    end
                 end
             end
         end)
@@ -4784,7 +5007,7 @@ do
     shadow.ZIndex = 29
 end
 
--- Window background (shared brand pack)
+-- Window background (shared brand pack) — image + Vision video layer
 do
     local bg = Instance.new("ImageLabel")
     bg.Name = "N0IR_Bg"
@@ -4801,6 +5024,24 @@ do
         c.CornerRadius = UDim.new(0, 10)
         c.Parent = bg
     end
+
+    -- Vision video wallpaper (same bounds / corners as image bg)
+    local vbg = Instance.new("VideoFrame")
+    vbg.Name = "N0IR_BgVideo"
+    vbg.BackgroundTransparency = 1
+    vbg.Size = UDim2.fromScale(1, 1)
+    vbg.Position = UDim2.fromScale(0, 0)
+    vbg.ZIndex = 29
+    vbg.Visible = false
+    vbg.Looped = true
+    vbg.Volume = 0
+    vbg.Parent = Menu
+    do
+        local c = Instance.new("UICorner")
+        c.CornerRadius = UDim.new(0, 10)
+        c.Parent = vbg
+    end
+
     local veil = Instance.new("Frame")
     veil.Name = "N0IR_BgVeil"
     veil.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
@@ -4816,6 +5057,9 @@ do
     end
     if _G._N0IR_RegisterBgTarget then
         _G._N0IR_RegisterBgTarget(bg)
+    end
+    if _G._N0IR_RegisterVideoBgTarget then
+        _G._N0IR_RegisterVideoBgTarget(vbg)
     end
     task.defer(function()
         local idx = (_G._N0IR_Brand and tonumber(_G._N0IR_Brand.BgIndex)) or 1
@@ -10466,7 +10710,7 @@ do
         end
     )
 
-    -- Background wallpaper (shared _G._N0IR_Brand pack)
+    -- Background wallpaper (shared _G._N0IR_Brand pack) + Vision audio toggle
     do
         local bgHeader = Instance.new("TextLabel")
         bgHeader.Parent = SettingsPanel
@@ -10498,6 +10742,104 @@ do
         status.TextXAlignment = Enum.TextXAlignment.Left
         status.ZIndex = 33
 
+        -- Vision MP3 toggle row — only visible while Vision wallpaper is active
+        local visionRow = Instance.new("Frame")
+        visionRow.Name = "VisionAudioRow"
+        visionRow.Parent = SettingsPanel
+        visionRow.Size = UDim2.new(1, 0, 0, 36)
+        visionRow.LayoutOrder = -4
+        visionRow.BackgroundColor3 = C.bg2
+        visionRow.BackgroundTransparency = 0.15
+        visionRow.BorderSizePixel = 0
+        visionRow.Visible = false
+        visionRow.ZIndex = 33
+        Instance.new("UICorner", visionRow).CornerRadius = UDim.new(0, 6)
+
+        local visionLbl = Instance.new("TextLabel")
+        visionLbl.Parent = visionRow
+        visionLbl.BackgroundTransparency = 1
+        visionLbl.Position = UDim2.fromOffset(10, 0)
+        visionLbl.Size = UDim2.new(1, -60, 1, 0)
+        visionLbl.Font = Enum.Font.GothamMedium
+        visionLbl.TextSize = 11
+        visionLbl.Text = "Play Vision audio"
+        visionLbl.TextColor3 = C.text
+        visionLbl.TextXAlignment = Enum.TextXAlignment.Left
+        visionLbl.ZIndex = 34
+
+        local visionState = (_G._N0IR_Brand and _G._N0IR_Brand.VisionAudio) == true
+        local visionTrack = Instance.new("Frame")
+        visionTrack.Parent = visionRow
+        visionTrack.AnchorPoint = Vector2.new(1, 0.5)
+        visionTrack.Position = UDim2.new(1, -10, 0.5, 0)
+        visionTrack.Size = UDim2.fromOffset(40, 22)
+        visionTrack.BackgroundColor3 = visionState and Color3.fromRGB(245, 245, 245) or Color3.fromRGB(18, 18, 18)
+        visionTrack.BorderSizePixel = 0
+        visionTrack.ZIndex = 34
+        Instance.new("UICorner", visionTrack).CornerRadius = UDim.new(0, 11)
+
+        local visionKnob = Instance.new("Frame")
+        visionKnob.Parent = visionTrack
+        visionKnob.Size = UDim2.fromOffset(16, 16)
+        visionKnob.Position = visionState and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
+        visionKnob.BackgroundColor3 = visionState and Color3.fromRGB(10, 10, 10) or Color3.fromRGB(140, 140, 140)
+        visionKnob.BorderSizePixel = 0
+        visionKnob.ZIndex = 35
+        Instance.new("UICorner", visionKnob).CornerRadius = UDim.new(0, 8)
+
+        local visionHit = Instance.new("TextButton")
+        visionHit.Parent = visionRow
+        visionHit.Size = UDim2.fromScale(1, 1)
+        visionHit.BackgroundTransparency = 1
+        visionHit.Text = ""
+        visionHit.ZIndex = 36
+
+        local function setVisionAudioUI(on)
+            visionState = on and true or false
+            visionTrack.BackgroundColor3 = visionState and Color3.fromRGB(245, 245, 245) or Color3.fromRGB(18, 18, 18)
+            visionKnob.Position = visionState and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
+            visionKnob.BackgroundColor3 = visionState and Color3.fromRGB(10, 10, 10) or Color3.fromRGB(140, 140, 140)
+        end
+
+        local function refreshVisionRowVisibility(idx)
+            idx = idx or (_G._N0IR_Brand and _G._N0IR_Brand.BgIndex)
+            local show = false
+            if _G._N0IR_IsVisionBg then
+                show = _G._N0IR_IsVisionBg(idx)
+            else
+                local e = list[tonumber(idx) or 0]
+                show = e and (e.Name == "Vision" or e.IsVideo) and true or false
+            end
+            visionRow.Visible = show
+            if not show and _G._N0IR_Brand and _G._N0IR_Brand.VisionAudio then
+                -- keep flag; audio stops via UpdateVisionAudio when bg leaves Vision
+            end
+            setVisionAudioUI((_G._N0IR_Brand and _G._N0IR_Brand.VisionAudio) == true)
+        end
+
+        visionHit.MouseButton1Click:Connect(function()
+            local nextOn = not visionState
+            if _G._N0IR_SetVisionAudio then
+                _G._N0IR_SetVisionAudio(nextOn)
+            else
+                _G._N0IR_Brand = _G._N0IR_Brand or {}
+                _G._N0IR_Brand.VisionAudio = nextOn
+                if _G._N0IR_UpdateVisionAudio then _G._N0IR_UpdateVisionAudio() end
+            end
+            setVisionAudioUI(nextOn)
+            if Notify then
+                Notify("Vision", nextOn and "Audio on" or "Audio off", 1.4)
+            end
+        end)
+
+        _G._N0IR_OnBackgroundChanged = function(idx)
+            status.Text = "Active  ·  " .. bgName(idx)
+            refreshVisionRowVisibility(idx)
+        end
+        _G._N0IR_OnVisionAudioChanged = function(on)
+            setVisionAudioUI(on)
+        end
+
         local function mkBtn(text, order, fn)
             local b = Instance.new("TextButton")
             b.Parent = SettingsPanel
@@ -10515,16 +10857,17 @@ do
             b.MouseButton1Click:Connect(function()
                 local i = fn()
                 status.Text = "Active  ·  " .. bgName(i)
+                refreshVisionRowVisibility(i)
                 if Notify then Notify("Background", bgName(i), 1.4) end
             end)
             return b
         end
 
-        mkBtn("Next background", -4, function()
+        mkBtn("Next background", -3, function()
             if _G._N0IR_NextBackground then return _G._N0IR_NextBackground() end
             return 0
         end)
-        mkBtn("Previous background", -3, function()
+        mkBtn("Previous background", -2, function()
             local cfg = _G._N0IR_Brand or {}
             local list2 = cfg.Backgrounds or {}
             local i = tonumber(cfg.BgIndex) or 0
@@ -10533,18 +10876,21 @@ do
             if _G._N0IR_SetBackground then return _G._N0IR_SetBackground(i) end
             return i
         end)
-        mkBtn("No background", -2, function()
+        mkBtn("No background", -1, function()
             if _G._N0IR_SetBackground then return _G._N0IR_SetBackground(0) end
             return 0
         end)
 
         -- one button per wallpaper
         for i, e in ipairs(list) do
-            mkBtn("Set · " .. (e.Name or ("BG " .. i)), -1 + i, function()
+            mkBtn("Set · " .. (e.Name or ("BG " .. i)), i, function()
                 if _G._N0IR_SetBackground then return _G._N0IR_SetBackground(i) end
                 return i
             end)
         end
+
+        -- initial visibility
+        refreshVisionRowVisibility(_G._N0IR_Brand and _G._N0IR_Brand.BgIndex)
     end
 end
 
