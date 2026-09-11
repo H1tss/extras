@@ -3662,7 +3662,7 @@ function N0IR:MountUtilities(Window)
     local VC = Window:CreateTab({ Name = "VC Bypass" })
     VC:CreateSection("NØIR Voice Chat Bypass")
     VC:CreateParagraph({
-        Content = "Suspension spoof path. When Roblox fires moderation (toxicity → 5m Voice chat suspended), we spoof manager isBanned/bannedUntil and auto-rejoin so you keep talking. Soft hooks only — mic stays alive.",
+        Content = "Native NØIR anti-VC protection. Unmute your mic when prompted, then the bypass hooks the topbar mute button. Muted uses the stock MicLight icon (darkened); unmuted is captured live from the real button and faded for a cleaner look.",
     })
 
     local VCState = {
@@ -3683,234 +3683,145 @@ function N0IR:MountUtilities(Window)
             return
         end
         VCState.enabled = true
-        vcStatus("suspension-spoof · arming")
+        vcStatus("starting — unmute your mic when ready")
 
         task.spawn(function()
             local ok, err = pcall(function()
-                -- ============================================================
-                -- NØIR Suspension Spoof + Mic-Safe VC Bypass
-                -- Matches the real moderation flow from CoreScripts:
-                --   OnPlayerModerated → ShowPlayerModeratedMessage
-                --   VoiceChatSuspendedTemporary (5 min style)
-                -- Goal: client *looks* suspended (manager isBanned/bannedUntil)
-                -- while publish stays alive and we rejoin if kicked.
-                -- Does NOT leaveVoice first (that kills mic).
-                -- ============================================================
                 local clonereference = cloneref or function(...) return ... end
-                local clonefunction = clonefunction or function(f) return f end
+                local clonefunction = clonefunction or function(...) return ... end
 
-                local VoiceChatService = clonereference(game:GetService("VoiceChatService"))
-                local VoiceChatInternal = clonereference(game:GetService("VoiceChatInternal"))
-                local CoreGui = game:GetService("CoreGui")
-                local RunService = game:GetService("RunService")
-                local Players = game:GetService("Players")
-                local getconnectionsfunc = (getconnections and clonefunction(getconnections)) or getconnections
+                local voicechatservice = clonereference(game:GetService("VoiceChatService"))
+                local voicechatinternal = clonereference(game:GetService("VoiceChatInternal"))
+                local coregui = game:GetService("CoreGui")
+                local getconnectionsfunc = clonefunction(getconnections)
 
-                local function safe(fn, ...)
-                    local a = { pcall(fn, ...) }
-                    if a[1] then return table.unpack(a, 2) end
-                    return nil
+                local mutedimage = "rbxasset://textures/ui/VoiceChat/MicLight/Muted.png"
+                local hiddenfolder = Instance.new("Folder")
+                hiddenfolder.Name = "N0IR_VCHidden"
+                hiddenfolder.Parent = game:GetService("RobloxReplicatedStorage")
+
+                local topbarapp = coregui:WaitForChild("TopBarApp", 15):WaitForChild("TopBarApp", 15)
+                local unibarleft = topbarapp:WaitForChild("UnibarLeftFrame", 15)
+                local unibarmenu = unibarleft:WaitForChild("UnibarMenu", 15) or unibarleft:WaitForChild("ChromeMenu", 15)
+                local unibarcontainer
+
+                pcall(function()
+                    unibarcontainer = unibarmenu:WaitForChild("2", 15):WaitForChild("3", 15)
+                end)
+
+                local micmutebutton = unibarcontainer and unibarcontainer:FindFirstChild("toggle_mic_mute", true)
+
+                local function geticonlabel(button)
+                    button = button or micmutebutton
+                    return button:WaitForChild("IntegrationIconFrame", 15):WaitForChild("IntegrationIcon", 15)["1"]
                 end
 
-                local function isJoined()
-                    local st = safe(function() return VoiceChatInternal.VoiceChatState end)
-                    return st == Enum.VoiceChatState.Joined
+                local function getcurrentmutestate()
+                    return voicechatinternal:IsPublishPaused()
                 end
 
-                local function isPublishPaused()
-                    local v = safe(function() return VoiceChatInternal:IsPublishPaused() end)
-                    if v ~= nil then return v end
-                    return safe(function() return VoiceChatService:isInternalPublishPaused() end) == true
+                local function setmutestate(state)
+                    voicechatinternal:PublishPause(state)
                 end
 
-                local function setPublishPaused(paused)
-                    safe(function() VoiceChatInternal:PublishPause(paused) end)
-                end
-
-                local function softJoin()
-                    if isJoined() then return true end
-                    safe(function() VoiceChatService:joinVoice() end)
-                    task.wait(0.7)
-                    if isJoined() then return true end
-                    safe(function() VoiceChatService:rejoinVoice() end)
-                    task.wait(0.9)
-                    return isJoined()
-                end
-
-                local function forceRejoinAfterModeration()
-                    -- Classic post-ban rejoin (server channel may still accept client)
-                    safe(function() VoiceChatService:leaveVoice() end)
-                    task.wait(0.35)
-                    safe(function() VoiceChatService:joinVoice() end)
-                    task.wait(0.8)
-                    if not isJoined() then
-                        safe(function() VoiceChatService:rejoinVoice() end)
-                        task.wait(0.8)
-                    end
-                    setPublishPaused(false)
-                    return isJoined()
-                end
-
-                -- Soft-disable late StateChanged listeners (keep lifecycle, cut force-mute/kick UI)
-                local function softDisableStateHooks()
-                    if not getconnectionsfunc then return 0 end
-                    local conns = safe(function() return getconnectionsfunc(VoiceChatInternal.StateChanged) end)
-                    if type(conns) ~= "table" then return 0 end
-                    local n = 0
-                    for i, c in ipairs(conns) do
-                        if i >= 6 and c then
-                            local did = false
-                            pcall(function() if c.Disable then c:Disable(); did = true end end)
-                            if not did then pcall(function() if c.Disconnect then c:Disconnect(); did = true end end) end
-                            if did then n = n + 1 end
-                        end
-                    end
-                    return n
-                end
-
-                -- Spoof manager ban fields so CoreScripts / UI think we're suspended
-                local function getManager()
-                    local RobloxGui = CoreGui:FindFirstChild("RobloxGui")
-                    if not RobloxGui then return nil end
-                    local modules = RobloxGui:FindFirstChild("Modules")
-                    if not modules then return nil end
-                    local vcFolder = modules:FindFirstChild("VoiceChat")
-                    if not vcFolder then return nil end
-                    local mgrMod = vcFolder:FindFirstChild("VoiceChatServiceManager")
-                    if not mgrMod then return nil end
-                    local mgr
+                if not micmutebutton then
+                    pcall(function() voicechatservice:joinVoice() end)
                     pcall(function()
-                        local r = require(mgrMod)
-                        mgr = r.default or r
+                        unibarcontainer = unibarmenu:WaitForChild("2", 15):WaitForChild("3", 15)
+                        micmutebutton = unibarcontainer:WaitForChild("toggle_mic_mute", 15)
                     end)
-                    return type(mgr) == "table" and mgr or nil
                 end
 
-                local function spoofLocalSuspension(minutes)
-                    minutes = minutes or 5
-                    local mgr = getManager()
-                    local untilTs = os.time() + (minutes * 60)
-                    if mgr then
-                        pcall(function()
-                            mgr.isBanned = true
-                            mgr.bannedUntil = { Seconds = untilTs }
-                            mgr.banReason = 7 -- BAN_REASON.NUDGE_V3 from Constants
-                        end)
-                        -- join progress path some UI still checks
-                        pcall(function()
-                            mgr.VoiceJoinProgress = "Suspended"
-                            if mgr.VoiceJoinProgressChanged and mgr.VoiceJoinProgressChanged.Fire then
-                                mgr.VoiceJoinProgressChanged:Fire("Suspended")
-                            end
-                        end)
+                if not micmutebutton then
+                    error("Mic button not found — open voice settings / unmute once")
+                end
+
+                -- Wait until user unmutes (icon changes). No Roblox SetCore notification.
+                vcStatus("unmute your mic to continue")
+                local waited = 0
+                while waited < 60 do
+                    local iconOk, icon = pcall(geticonlabel)
+                    if iconOk and icon and icon.Image ~= mutedimage then
+                        break
                     end
-                    return mgr ~= nil
+                    task.wait(1)
+                    waited = waited + 1
+                end
+                if waited >= 60 then
+                    error("Timed out waiting for unmute")
                 end
 
-                -- Hook LocalPlayerModerated / StateChanged so when Roblox kicks us we rejoin
-                local function armModerationWatcher()
-                    -- VoiceChatInternal.LocalPlayerModerated (RobloxScriptSecurity; may work under executor)
-                    pcall(function()
-                        if VoiceChatInternal.LocalPlayerModerated then
-                            VoiceChatInternal.LocalPlayerModerated:Connect(function()
-                                vcStatus("moderated · rejoining")
-                                spoofLocalSuspension(5)
-                                task.defer(function()
-                                    forceRejoinAfterModeration()
-                                    softDisableStateHooks()
-                                    setPublishPaused(false)
-                                    vcStatus("spoofed suspend · mic live")
-                                end)
-                            end)
-                        end
-                    end)
+                voicechatservice:leaveVoice()
+                task.wait(2)
 
-                    -- Also watch StateChanged for unexpected leave while bypass armed
-                    pcall(function()
-                        VoiceChatInternal.StateChanged:Connect(function(_old, new)
-                            if not VCState.enabled then return end
-                            if new == Enum.VoiceChatState.Ended
-                                or new == Enum.VoiceChatState.Failed
-                                or new == Enum.VoiceChatState.Leaving
-                            then
-                                task.delay(0.4, function()
-                                    if not VCState.enabled then return end
-                                    if not isJoined() then
-                                        vcStatus("kicked · auto-rejoin")
-                                        forceRejoinAfterModeration()
-                                        setPublishPaused(false)
-                                        vcStatus("spoofed suspend · mic live")
-                                    end
-                                end)
-                            end
-                        end)
-                    end)
-                end
-
-                -- Publish keep-alive (user mute still respected)
-                local function armPublishKeepAlive()
-                    VCState._userWantsMute = false
-                    if VCState._pubConn then
-                        pcall(function() VCState._pubConn:Disconnect() end)
-                    end
-                    VCState._pubConn = RunService.Heartbeat:Connect(function()
-                        if not VCState.enabled then return end
-                        if VCState._userWantsMute then return end
-                        if isPublishPaused() then
-                            setPublishPaused(false)
-                        end
-                    end)
-
-                    -- Respect real mute button taps
-                    task.spawn(function()
-                        local btn
-                        for _ = 1, 40 do
-                            for _, d in ipairs(CoreGui:GetDescendants()) do
-                                if d.Name == "toggle_mic_mute" or d.Name == "IconHitArea_toggle_mic_mute" then
-                                    btn = d
-                                    break
-                                end
-                            end
-                            if btn then break end
-                            task.wait(0.25)
-                        end
-                        if not btn then return end
-                        local hit = btn
-                        if btn.Name ~= "IconHitArea_toggle_mic_mute" then
-                            hit = btn:FindFirstChild("IconHitArea_toggle_mic_mute", true) or btn
-                        end
-                        pcall(function()
-                            hit.Activated:Connect(function()
-                                task.delay(0.05, function()
-                                    VCState._userWantsMute = isPublishPaused()
-                                end)
-                            end)
-                        end)
-                    end)
-                end
-
-                -- ---- sequence ----
-                vcStatus("joining (soft)")
-                if not softJoin() then
-                    -- controlled rejoin once
-                    forceRejoinAfterModeration()
-                    if not isJoined() then
-                        error("could not reach Joined")
+                local connections = getconnectionsfunc(voicechatinternal.StateChanged)
+                for i = 7, #connections do
+                    if connections[i] then
+                        pcall(function() connections[i]:Disable() end)
                     end
                 end
 
-                local hooks = softDisableStateHooks()
-                local spoofed = spoofLocalSuspension(5)
-                armModerationWatcher()
-                armPublishKeepAlive()
-                setPublishPaused(false)
+                task.wait(2)
+                voicechatservice:joinVoice()
 
-                vcStatus(string.format(
-                    "armed · hooks=%d spoof=%s joined=%s",
-                    hooks,
-                    spoofed and "ban+5m" or "local-only",
-                    tostring(isJoined())
-                ))
+                pcall(function()
+                    unibarcontainer = unibarmenu:WaitForChild("2", 15):WaitForChild("3", 15)
+                    micmutebutton = unibarcontainer:WaitForChild("toggle_mic_mute", 15)
+                end)
+
+                if not (micmutebutton and unibarcontainer) then
+                    error("Mic button lost after rejoin")
+                end
+
+                local clonedmutebutton = micmutebutton:Clone()
+                micmutebutton.Parent = hiddenfolder
+                clonedmutebutton.Name = "toggle_mic_mute_new"
+                clonedmutebutton.Parent = unibarcontainer
+
+                local clonedicon = geticonlabel(clonedmutebutton)
+                local originalicon = geticonlabel(micmutebutton)
+
+                -- Diagonal fade on cloned icon
+                local gradient = Instance.new("UIGradient")
+                gradient.Color = ColorSequence.new({
+                    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+                    ColorSequenceKeypoint.new(1, Color3.fromRGB(100, 100, 100)),
+                })
+                gradient.Transparency = NumberSequence.new({
+                    NumberSequenceKeypoint.new(0, 0),
+                    NumberSequenceKeypoint.new(1, 0.5),
+                })
+                gradient.Rotation = 45
+                gradient.Parent = clonedicon
+
+                -- Soft fade on original icon reference
+                local originalGradient = Instance.new("UIGradient")
+                originalGradient.Color = ColorSequence.new({
+                    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+                    ColorSequenceKeypoint.new(1, Color3.fromRGB(100, 100, 100)),
+                })
+                originalGradient.Transparency = NumberSequence.new({
+                    NumberSequenceKeypoint.new(0, 0),
+                    NumberSequenceKeypoint.new(1, 0.3),
+                })
+                originalGradient.Rotation = 45
+                originalGradient.Parent = originalicon
+
+                setmutestate(true)
+                clonedicon.Image = mutedimage
+
+                local hit = clonedmutebutton:WaitForChild("IconHitArea_toggle_mic_mute", 15)
+                hit.Activated:Connect(function()
+                    local newstate = not getcurrentmutestate()
+                    setmutestate(newstate)
+                    if newstate then
+                        clonedicon.Image = mutedimage
+                    else
+                        clonedicon.Image = originalicon.Image
+                    end
+                end)
+
+                vcStatus("active")
             end)
 
             if not ok then
@@ -3919,7 +3830,6 @@ function N0IR:MountUtilities(Window)
             end
         end)
     end
-
 
     VCState.statusLbl = VC:CreateLabel("Status  ·  idle")
 
