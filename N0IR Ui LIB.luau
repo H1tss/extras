@@ -128,7 +128,8 @@ local Nametag = {
     _started = false,
 }
 
--- 1:1 with https://n0ir.pages.dev/admin/nametagsys preview
+-- 1:1 with Nametag Studio (Roblox-only properties)
+-- Tree: BillboardGui > Root > Pill(Frame+UIStroke+UICorner[+UIGradient]) > Icon/Dot + Tag[+UIGradient] > Name > Rank
 local DEFAULT_TAG = "NØIR"
 local DEFAULT_COLOR = "#FFFFFF"
 
@@ -158,13 +159,12 @@ local FONT_MAP = {
     TitilliumWeb = Enum.Font.TitilliumWeb, Ubuntu = Enum.Font.Ubuntu,
 }
 
-local function fontOf(name, fb)
-    return FONT_MAP[tostring(name or "")] or fb or Enum.Font.GothamBold
+local function fontOf(n, fb)
+    return FONT_MAP[tostring(n or "")] or fb or Enum.Font.GothamBold
 end
 
 local function getHost()
-    local pg = LocalPlayer:FindFirstChildOfClass("PlayerGui")
-    return pg or CoreGui
+    return LocalPlayer:FindFirstChildOfClass("PlayerGui") or CoreGui
 end
 
 local function hexToColor3(hex)
@@ -178,14 +178,14 @@ local function hexToColor3(hex)
 end
 
 local function httpGetBinary(url)
-    local data = nil
+    local data
     pcall(function()
         if request then
-            local res = request({ Url = url, Method = "GET" })
-            if res and res.Body and #res.Body > 32 then data = res.Body end
+            local r = request({ Url = url, Method = "GET" })
+            if r and r.Body and #r.Body > 32 then data = r.Body end
         elseif syn and syn.request then
-            local res = syn.request({ Url = url, Method = "GET" })
-            if res and res.Body and #res.Body > 32 then data = res.Body end
+            local r = syn.request({ Url = url, Method = "GET" })
+            if r and r.Body and #r.Body > 32 then data = r.Body end
         end
     end)
     if not data then
@@ -197,70 +197,55 @@ local function httpGetBinary(url)
     return data
 end
 
--- Disk cache ONLY for local player's custom images
-local function resolveImageAsset(url, allowDiskCache)
+local function resolveImageAsset(url, allowDisk)
     if type(url) ~= "string" or url == "" then return nil end
     url = url:gsub("^%s+", ""):gsub("%s+$", "")
     if url == "" then return nil end
     if url:find("^rbxasset") or url:find("^rbxthumb") then return url end
     if _N0IR_ImgCache[url] then return _N0IR_ImgCache[url] end
-
-    if allowDiskCache then
+    if allowDisk then
         local h = 0
         for i = 1, #url do h = (h * 31 + string.byte(url, i)) % 2147483647 end
-        local path = "N0IR/MyTagImg_" .. tostring(h) .. ".img"
-        local asset = nil
+        local path = "N0IR/MyTagImg_" .. h .. ".img"
+        local asset
         pcall(function()
             if isfolder and not isfolder("N0IR") then makefolder("N0IR") end
             local onDisk = isfile and isfile(path)
             if not onDisk then
-                local data = httpGetBinary(url)
-                if data and writefile then
-                    writefile(path, data)
-                    onDisk = true
-                end
+                local bin = httpGetBinary(url)
+                if bin and writefile then writefile(path, bin) onDisk = true end
             end
             if onDisk and getcustomasset then
                 local ok, a = pcall(getcustomasset, path)
                 if ok and type(a) == "string" and a ~= "" then asset = a end
             end
         end)
-        if asset then
-            _N0IR_ImgCache[url] = asset
-            return asset
-        end
+        if asset then _N0IR_ImgCache[url] = asset return asset end
     end
-
-    -- always fall back to raw URL (many executors render https in ImageLabel)
     _N0IR_ImgCache[url] = url
     return url
 end
 
-local function applyPfpToImage(img, userId)
+local function applyPfp(img, userId)
     if not img or not img.Parent then return end
     userId = tonumber(userId) or 0
     if userId <= 0 then return end
     local thumb = string.format("rbxthumb://type=AvatarHeadShot&id=%d&w=150&h=150", userId)
-    local http = string.format(
-        "https://www.roblox.com/headshot-thumbnail/image?userId=%d&width=150&height=150&format=png",
-        userId
-    )
-    local api = string.format(
-        "https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=%d&size=150x150&format=Png&isCircular=false",
-        userId
-    )
+    local http = string.format("https://www.roblox.com/headshot-thumbnail/image?userId=%d&width=150&height=150&format=png", userId)
     img.Image = thumb
     task.delay(0.2, function()
         if img and img.Parent then img.Image = http end
     end)
     task.spawn(function()
-        local body = httpGetBinary(api)
+        local body = httpGetBinary(string.format(
+            "https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=%d&size=150x150&format=Png&isCircular=false",
+            userId
+        ))
         if not body then return end
-        -- body may be binary if request returned wrong; try as string
-        local s = typeof(body) == "string" and body or tostring(body)
-        local imageUrl = s:match('"imageUrl"%s*:%s*"(.-)"')
-        if imageUrl and imageUrl ~= "" and img and img.Parent then
-            img.Image = imageUrl:gsub("\\u0026", "&"):gsub("\\/", "/")
+        local s = type(body) == "string" and body or tostring(body)
+        local u = s:match('"imageUrl"%s*:%s*"(.-)"')
+        if u and u ~= "" and img and img.Parent then
+            img.Image = u:gsub("\\u0026", "&"):gsub("\\/", "/")
         end
     end)
 end
@@ -268,10 +253,10 @@ end
 local function resolveStyle(data)
     data = data or {}
     local st = type(data.style) == "table" and data.style or {}
-    local function pick(k, default)
+    local function pick(k, d)
         local v = st[k]
         if v == nil then v = data[k] end
-        if v == nil then return default end
+        if v == nil then return d end
         return v
     end
 
@@ -285,15 +270,11 @@ local function resolveStyle(data)
     elseif not c1 or c1 == "" then c1 = DEFAULT_COLOR end
     local c2 = st.tagColor2 or c1
 
-    -- auto gradient if color B differs (matches studio when user sets fade colors)
     local textGradient = pick("textGradient", false) == true
     local textFade = pick("textFade", false) == true
-    if not textGradient and not textFade then
-        local a = tostring(c1):upper()
-        local b = tostring(c2):upper()
-        if a ~= b and b ~= "" then
-            textGradient = true
-        end
+    -- if studio saved two different colors, treat as gradient (1:1 with preview default)
+    if not textGradient and tostring(c1):upper() ~= tostring(c2):upper() then
+        textGradient = true
     end
 
     local prefix = tostring(pick("prefix", "") or "")
@@ -304,23 +285,26 @@ local function resolveStyle(data)
         rank = rank,
         color = hexToColor3(c1),
         color2 = hexToColor3(c2),
-        stroke = hexToColor3(pick("strokeColor", c1)),
-        pillBg = hexToColor3(pick("pillBg", "#0A0A0A")),
+        stroke = hexToColor3(pick("strokeColor", hasCustom and c1 or "#FFFFFF")),
+        strokeThickness = tonumber(pick("strokeThickness", 1.2)) or 1.2,
+        strokeTransparency = tonumber(pick("strokeTransparency", 0.05)) or 0.05,
+        pillBg = hexToColor3(pick("pillBg", "#0C0C0C")),
         pillBg2 = hexToColor3(pick("pillBg2", "#1A1A1A")),
-        strokeThickness = tonumber(pick("strokeThickness", 1.4)) or 1.4,
+        pillTransparency = tonumber(pick("pillTransparency", 0.15)) or 0.15,
+        pillHeight = tonumber(pick("pillHeight", 28)) or 28,
+        cornerRadius = tonumber(pick("cornerRadius", 8)) or 8,
+        paddingX = tonumber(pick("paddingX", 10)) or 10,
+        paddingY = tonumber(pick("paddingY", 4)) or 4,
+        gap = tonumber(pick("gap", 6)) or 6,
         textSize = tonumber(pick("textSize", 12)) or 12,
         scale = tonumber(pick("scale", 1)) or 1,
         offsetY = tonumber(pick("offsetY", 3.15)) or 3.15,
         maxDistance = tonumber(pick("maxDistance", 180)) or 180,
-        pillTransparency = tonumber(pick("pillTransparency", 0.12)) or 0.12,
-        cornerRadius = tonumber(pick("cornerRadius", 9)) or 9,
-        paddingX = tonumber(pick("paddingX", 10)) or 10,
-        paddingY = tonumber(pick("paddingY", 4)) or 4,
         showDot = pick("showDot", true) ~= false,
         showName = pick("showName", true) ~= false,
         showRank = pick("showRank", false) == true,
         glow = pick("glow", false) == true,
-        glowStrength = tonumber(pick("glowStrength", 2.2)) or 2.2,
+        glowStrength = tonumber(pick("glowStrength", 2)) or 2,
         nameColor = hexToColor3(pick("nameColor", "#DCDCDC")),
         rankColor = hexToColor3(pick("rankColor", "#8C8C8C")),
         nameSize = tonumber(pick("nameSize", 11)) or 11,
@@ -328,7 +312,7 @@ local function resolveStyle(data)
         font = fontOf(pick("font", "GothamBold"), Enum.Font.GothamBold),
         nameFont = fontOf(pick("nameFont", "GothamMedium"), Enum.Font.GothamMedium),
         textStroke = pick("textStroke", true) ~= false,
-        textStrokeTransparency = tonumber(pick("textStrokeTransparency", 0.65)) or 0.65,
+        textStrokeTransparency = tonumber(pick("textStrokeTransparency", 0.7)) or 0.7,
         textStrokeColor = hexToColor3(pick("textStrokeColor", "#000000")),
         textGradient = textGradient,
         textFade = textFade,
@@ -338,12 +322,12 @@ local function resolveStyle(data)
         iconType = tostring(pick("iconType", "none") or "none"):lower(),
         iconUrl = tostring(pick("iconUrl", "") or ""),
         iconSize = tonumber(pick("iconSize", 18)) or 18,
-        pfpSize = tonumber(pick("pfpSize", 22)) or 22,
+        pfpSize = tonumber(pick("pfpSize", 18)) or 18,
         bgImageUrl = tostring(pick("bgImageUrl", "") or ""),
-        bgTransparency = tonumber(pick("bgTransparency", 0.35)) or 0.35,
+        bgTransparency = tonumber(pick("bgTransparency", 0.4)) or 0.4,
         bob = pick("bob", false) == true,
         bobSpeed = tonumber(pick("bobSpeed", 1.5)) or 1.5,
-        bobAmount = tonumber(pick("bobAmount", 0.15)) or 0.15,
+        bobAmount = tonumber(pick("bobAmount", 0.12)) or 0.12,
         pulse = pick("pulse", false) == true,
         alwaysOnTop = pick("alwaysOnTop", true) ~= false,
         dotSize = tonumber(pick("dotSize", 7)) or 7,
@@ -368,62 +352,63 @@ function Nametag:Create(player, data)
 
     local S = resolveStyle(data)
     local isSelf = player == LocalPlayer
-    local sc = math.clamp(S.scale, 0.6, 1.8)
+    local sc = math.clamp(S.scale, 0.7, 1.6)
 
-    -- Mirror website stack heights: pill 28 + gap + name 16 + rank 12
-    local stackH = 28
+    local stackH = S.pillHeight
     if S.showName then stackH = stackH + 6 + 16 end
     if S.showRank then stackH = stackH + 4 + 12 end
-    if S.bgImageUrl ~= "" then stackH = stackH + 8 end
 
     local bb = Instance.new("BillboardGui")
     bb.Name = "N0IR_Tag_" .. player.Name
     bb.Adornee = head
     bb.AlwaysOnTop = S.alwaysOnTop
-    bb.Size = UDim2.fromOffset(math.floor(300 * sc), math.floor((stackH + 12) * sc))
+    bb.Size = UDim2.fromOffset(math.floor(320 * sc), math.floor((stackH + 16) * sc))
     bb.StudsOffset = Vector3.new(0, S.offsetY, 0)
     bb.MaxDistance = S.maxDistance
     bb.Parent = self.Folder
 
     local root = Instance.new("Frame")
+    root.Name = "Root"
     root.BackgroundTransparency = 1
     root.Size = UDim2.fromScale(1, 1)
     root.Parent = bb
+
     local uiScale = Instance.new("UIScale")
     uiScale.Scale = sc
     uiScale.Parent = root
 
-    local list = Instance.new("UIListLayout")
-    list.FillDirection = Enum.FillDirection.Vertical
-    list.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    list.VerticalAlignment = Enum.VerticalAlignment.Top
-    list.Padding = UDim.new(0, 6)
-    list.Parent = root
+    local vlist = Instance.new("UIListLayout")
+    vlist.FillDirection = Enum.FillDirection.Vertical
+    vlist.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    vlist.VerticalAlignment = Enum.VerticalAlignment.Top
+    vlist.Padding = UDim.new(0, 6)
+    vlist.SortOrder = Enum.SortOrder.LayoutOrder
+    vlist.Parent = root
 
+    -- optional bg image behind stack
     if S.bgImageUrl ~= "" then
         local bg = Instance.new("ImageLabel")
         bg.Name = "Bg"
-        bg.Size = UDim2.fromOffset(200, stackH)
         bg.BackgroundTransparency = 1
+        bg.Size = UDim2.fromOffset(220, stackH + 8)
         bg.ImageTransparency = S.bgTransparency
         bg.ScaleType = Enum.ScaleType.Crop
         bg.ZIndex = 0
         bg.LayoutOrder = 0
         bg.Parent = root
         Instance.new("UICorner", bg).CornerRadius = UDim.new(0, 10)
-        -- put bg behind via absolute position instead of list
-        bg.LayoutOrder = -1
+        bg.Image = S.bgImageUrl
         task.spawn(function()
             local a = resolveImageAsset(S.bgImageUrl, isSelf)
             if a and bg.Parent then bg.Image = a end
         end)
     end
 
-    -- PILL (matches CSS .pill)
+    -- PILL
     local pill = Instance.new("Frame")
     pill.Name = "Pill"
     pill.AutomaticSize = Enum.AutomaticSize.X
-    pill.Size = UDim2.fromOffset(0, 28)
+    pill.Size = UDim2.fromOffset(0, S.pillHeight)
     pill.BackgroundColor3 = S.pillBg
     pill.BackgroundTransparency = S.pillTransparency
     pill.BorderSizePixel = 0
@@ -446,7 +431,7 @@ function Nametag:Create(player, data)
     local stroke = Instance.new("UIStroke")
     stroke.Color = S.stroke
     stroke.Thickness = S.strokeThickness
-    stroke.Transparency = 0.05
+    stroke.Transparency = S.strokeTransparency
     stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     stroke.Parent = pill
 
@@ -470,17 +455,15 @@ function Nametag:Create(player, data)
     row.FillDirection = Enum.FillDirection.Horizontal
     row.HorizontalAlignment = Enum.HorizontalAlignment.Center
     row.VerticalAlignment = Enum.VerticalAlignment.Center
-    row.Padding = UDim.new(0, 6)
+    row.Padding = UDim.new(0, S.gap)
     row.Parent = pill
 
     local showMedia = false
     local mediaSize = S.iconSize
     if S.iconType == "pfp" then
-        showMedia = true
-        mediaSize = S.pfpSize
+        showMedia, mediaSize = true, S.pfpSize
     elseif (S.iconType == "custom" or S.iconType == "gif") and S.iconUrl ~= "" then
-        showMedia = true
-        mediaSize = S.iconSize
+        showMedia, mediaSize = true, S.iconSize
     end
 
     if showMedia then
@@ -494,13 +477,11 @@ function Nametag:Create(player, data)
         icon.ZIndex = 3
         icon.Parent = pill
         local ic = Instance.new("UICorner")
-        ic.CornerRadius = (S.iconType == "pfp") and UDim.new(1, 0) or UDim.new(0, 6)
+        ic.CornerRadius = S.iconType == "pfp" and UDim.new(1, 0) or UDim.new(0, 6)
         ic.Parent = icon
-
         if S.iconType == "pfp" then
-            applyPfpToImage(icon, player.UserId)
+            applyPfp(icon, player.UserId)
         else
-            -- set URL immediately so it shows even before getcustomasset
             icon.Image = S.iconUrl
             task.spawn(function()
                 local a = resolveImageAsset(S.iconUrl, isSelf)
@@ -509,6 +490,7 @@ function Nametag:Create(player, data)
         end
     elseif S.showDot then
         local dot = Instance.new("Frame")
+        dot.Name = "Dot"
         dot.Size = UDim2.fromOffset(S.dotSize, S.dotSize)
         dot.BackgroundColor3 = S.color
         dot.BorderSizePixel = 0
@@ -529,7 +511,6 @@ function Nametag:Create(player, data)
     label.Parent = pill
 
     if S.textGradient or S.textFade then
-        -- critical for 1:1 with CSS gradient text
         label.TextColor3 = Color3.new(1, 1, 1)
         local grad = Instance.new("UIGradient")
         grad.Color = ColorSequence.new({
@@ -563,7 +544,7 @@ function Nametag:Create(player, data)
         local nameLbl = Instance.new("TextLabel")
         nameLbl.Name = "DisplayName"
         nameLbl.BackgroundTransparency = 1
-        nameLbl.Size = UDim2.fromOffset(200, 16)
+        nameLbl.Size = UDim2.fromOffset(220, 16)
         nameLbl.Font = S.nameFont
         nameLbl.TextSize = S.nameSize
         nameLbl.TextColor3 = S.nameColor
@@ -579,7 +560,7 @@ function Nametag:Create(player, data)
         local rankLbl = Instance.new("TextLabel")
         rankLbl.Name = "Rank"
         rankLbl.BackgroundTransparency = 1
-        rankLbl.Size = UDim2.fromOffset(200, 12)
+        rankLbl.Size = UDim2.fromOffset(220, 12)
         rankLbl.Font = Enum.Font.Gotham
         rankLbl.TextSize = S.rankSize
         rankLbl.TextColor3 = S.rankColor
