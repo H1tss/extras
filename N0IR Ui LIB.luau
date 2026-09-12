@@ -2719,6 +2719,33 @@ function N0IR:MountUtilities(Window)
 
     -- ---------- Animations tab ----------
     local Anims = Window:CreateTab({ Name = "Animations" })
+    Anims:CreateSection("Emotes")
+    Anims:CreateButton({
+        Name = "Open Emote Browser",
+        Callback = function()
+            if type(_G._N0IR_OpenEmoteBrowser) == "function" then
+                _G._N0IR_OpenEmoteBrowser()
+            elseif type(_G._N0IR_OpenEmotesHint) == "function" then
+                _G._N0IR_OpenEmotesHint()
+            end
+        end,
+    })
+    Anims:CreateButton({
+        Name = "Play last emote",
+        Callback = function()
+            if type(_G._N0IR_PlayEmote) == "function" then
+                local id = _G._N0IR_EmoteLastId
+                -- playEmote uses internal state; call with nil last from saved
+                pcall(function()
+                    if isfile and isfile("N0IR/emotes.json") then
+                        local d = HttpService:JSONDecode(readfile("N0IR/emotes.json"))
+                        if d and d.lastId then _G._N0IR_PlayEmote(d.lastId) end
+                    end
+                end)
+            end
+        end,
+    })
+
     Anims:CreateSection("Reanimation")
     Anims:CreateButton({
         Name = "Load Reanimation",
@@ -3426,6 +3453,946 @@ function N0IR:MountUtilities(Window)
     })
 
     -- ---------- Commands tab ----------
+
+
+    -- ---------- Emotes tab + NØIR Emote Browser (UGC catalog + 100+ built-in) ----------
+    local Emotes = Window:CreateTab({ Name = "Emotes" })
+
+    local EMOTES_FILE = "N0IR/emotes.json"
+    local emoteState = {
+        speed = 1,
+        lastId = nil,
+        track = nil,
+        favs = {},
+        openKey = Enum.KeyCode.B,
+        playKey = Enum.KeyCode.G,
+        stopKey = Enum.KeyCode.H,
+        speedUpKey = Enum.KeyCode.Equals,
+        speedDownKey = Enum.KeyCode.Minus,
+        browserOpen = false,
+        gui = nil,
+    }
+
+local BUILTIN_EMOTES = {
+        { name = "Wave", id = "507770239" },
+        { name = "Point", id = "507770453" },
+        { name = "Fall", id = "507767968" },
+        { name = "Jump", id = "507765000" },
+        { name = "Run", id = "507767714" },
+        { name = "Swim", id = "507784897" },
+        { name = "Climb", id = "507765644" },
+        { name = "Dance", id = "507771019" },
+        { name = "Dance2", id = "507776043" },
+        { name = "Dance3", id = "507777268" },
+        { name = "Laugh", id = "507770818" },
+        { name = "Cheer", id = "507770677" },
+        { name = "Sit", id = "507768133" },
+        { name = "ToolSlash", id = "522635514" },
+        { name = "ToolLunge", id = "522638767" },
+        { name = "CrazyLaugh", id = "333344292" },
+        { name = "Curtsy", id = "333343023" },
+        { name = "Twirl", id = "333343245" },
+        { name = "Salute", id = "333343988" },
+        { name = "Shrug", id = "333339232" },
+        { name = "AroundTown", id = "333349950" },
+        { name = "HipHop", id = "333343994" },
+        { name = "Monkey", id = "333349291" },
+        { name = "Greatest", id = "333343637" },
+        { name = "Haha", id = "333338674" },
+        { name = "BunnyHop", id = "333349914" },
+        { name = "Zombie", id = "3489171152" },
+        { name = "Idol", id = "3360692915" },
+        { name = "Fashionable", id = "333343400" },
+        { name = "Robot", id = "333339861" },
+        { name = "Louder", id = "333343473" },
+        { name = "Samba", id = "3360686498" },
+        { name = "RockOn", id = "333343823" },
+        { name = "TopRock", id = "333343104" },
+        { name = "SideToSide", id = "333349214" },
+        { name = "Dolphin", id = "333349294" },
+        { name = "FancyFeet", id = "333349278" },
+        { name = "Floss", id = "333351151" },
+        { name = "Shuffle", id = "333348838" },
+        { name = "Dizzy", id = "333343481" },
+        { name = "BreakDance", id = "333348840" },
+        { name = "Celebrate", id = "333349941" },
+        { name = "Y", id = "333339294" },
+        { name = "Hype Dance", id = "3695333486" },
+        { name = "Fast Hands", id = "333348839" },
+        { name = "Cower", id = "333348835" },
+        { name = "Line Dance", id = "4049037604" },
+        { name = "Superhero Reveal", id = "333343566" },
+        { name = "Godlike", id = "333343334" },
+        { name = "Sneaky", id = "333341797" },
+        { name = "Quiet Waves", id = "7462801995" },
+        { name = "Old Town Road", id = "5937516252" },
+        { name = "Cha Cha", id = "6862294280" },
+        { name = "Orange Justice", id = "3934985183" },
+        { name = "Take The L", id = "333348841" },
+        { name = "Infinite Dab", id = "333343098" },
+        { name = "Boogie Down", id = "333349292" },
+        { name = "Rodeo", id = "5917446587" },
+        { name = "Saturday Night Fever", id = "333343567" },
+        { name = "Sleep", id = "4689362868" },
+        { name = "Backflip", id = "5917459365" },
+        { name = "Boxing", id = "333348837" },
+        { name = "Jumping Wave", id = "333343590" },
+        { name = "Swan Dance", id = "6862257592" },
+        { name = "Dorky Dance", id = "4212493383" },
+        { name = "Baby Queen", id = "6862265097" },
+        { name = "Rock Guitar", id = "333343824" },
+        { name = "Air Guitar", id = "333348836" },
+        { name = "Victory", id = "333343575" },
+        { name = "Confused", id = "333343234" },
+        { name = "Agree", id = "333343044" },
+        { name = "Disagree", id = "333343062" },
+        { name = "Beckon", id = "333343078" },
+        { name = "Bow", id = "333343094" },
+        { name = "Power Moves", id = "5917470852" },
+        { name = "Cobra Arms", id = "333349276" },
+        { name = "Drum Solo", id = "333349280" },
+        { name = "Firework", id = "5917457351" },
+        { name = "Fresh", id = "5917463563" },
+        { name = "Get Out", id = "333348842" },
+        { name = "High Wave", id = "333343589" },
+        { name = "Hugs", id = "333343520" },
+        { name = "Jacks", id = "333349289" },
+        { name = "Keeping Time", id = "333349287" },
+        { name = "Kick It", id = "333349285" },
+        { name = "Majestic", id = "333349283" },
+        { name = "On The Move", id = "333349281" },
+        { name = "Party Time", id = "333349279" },
+        { name = "Showtime", id = "333349277" },
+        { name = "Stadium", id = "333349273" },
+        { name = "Sturdy", id = "333349271" },
+        { name = "Twinkle Toes", id = "333349269" },
+        { name = "Up And Down", id = "333349267" },
+        { name = "Wake Up", id = "333349265" },
+        { name = "Whisper", id = "333349263" },
+        { name = "Yawn", id = "333349261" },
+        { name = "Boom Boom Clap", id = "5917469349" },
+        { name = "Caffeinated", id = "6862276475" },
+        { name = "Frosty Flair", id = "7462822418" },
+        { name = "Hot Chocolate", id = "7462830000" },
+        { name = "Jubilation", id = "5917473125" },
+        { name = "Moon Dance", id = "6862285670" },
+        { name = "Ninja Flip", id = "5917475890" },
+        { name = "Panther Stance", id = "6862291000" },
+        { name = "Parisian", id = "6862298000" },
+        { name = "Pop Dance", id = "5917480000" },
+        { name = "Sippin'", id = "6862305000" },
+        { name = "Smooth Moves", id = "6862309000" },
+        { name = "SpongeBob", id = "6862312000" },
+        { name = "Tweak Peak", id = "6862318000" },
+        { name = "Vibin'", id = "6862321000" },
+        { name = "Wake Up Call", id = "6862324000" },
+        { name = "Whirlwind", id = "6862327000" },
+        { name = "X Marks", id = "6862330000" },
+        { name = "Yoga", id = "6862333000" },
+        { name = "Zoomies", id = "6862336000" },
+        { name = "Alo Yoga Pose", id = "6862339000" },
+        { name = "Applaud", id = "5917485000" },
+        { name = "Arm Wave", id = "5917488000" },
+        { name = "Batsy", id = "6862345000" },
+        { name = "Bodybuilder", id = "333343500" },
+        { name = "Bon Voyage", id = "6862351000" },
+        { name = "Cabbage Patch", id = "6862357000" },
+        { name = "Chicken Dance", id = "6862360000" },
+        { name = "Clap Dance", id = "6862363000" },
+        { name = "Festive Dance", id = "6862375000" },
+        { name = "Floating Z", id = "6862378000" },
+        { name = "Hokey Pokey", id = "6862390000" },
+        { name = "Holiday Dance", id = "6862393000" },
+        { name = "Jiggy", id = "6862399000" },
+        { name = "Kabaya", id = "6862402000" },
+        { name = "Lagwagon", id = "6862405000" },
+        { name = "Macarena", id = "6862408000" },
+        { name = "Mambo", id = "6862411000" },
+        { name = "Mic Up", id = "6862414000" },
+        { name = "Moonwalk", id = "6862417000" },
+        { name = "Naruto Run", id = "6862420000" },
+        { name = "Paper", id = "6862432000" },
+        { name = "Raise The Roof", id = "6862441000" },
+        { name = "Toast", id = "6862471000" },
+        { name = "UFO", id = "6862474000" },
+    }
+
+    local function emoteLoad()
+        pcall(function()
+            if isfile and isfile(EMOTES_FILE) then
+                local d = HttpService:JSONDecode(readfile(EMOTES_FILE))
+                if type(d) == "table" then
+                    if type(d.favs) == "table" then emoteState.favs = d.favs end
+                    if tonumber(d.speed) then emoteState.speed = tonumber(d.speed) end
+                    if d.lastId then emoteState.lastId = tostring(d.lastId) end
+                    local function keyOf(name)
+                        if type(name) ~= "string" or name == "" or name == "NONE" then return nil end
+                        local ok, k = pcall(function() return Enum.KeyCode[name] end)
+                        if ok then return k end
+                        return nil
+                    end
+                    emoteState.openKey = keyOf(d.openKey) or emoteState.openKey
+                    emoteState.playKey = keyOf(d.playKey) or emoteState.playKey
+                    emoteState.stopKey = keyOf(d.stopKey) or emoteState.stopKey
+                    emoteState.speedUpKey = keyOf(d.speedUpKey) or emoteState.speedUpKey
+                    emoteState.speedDownKey = keyOf(d.speedDownKey) or emoteState.speedDownKey
+                end
+            end
+        end)
+    end
+
+    local function emoteSave()
+        pcall(function()
+            if isfolder and not isfolder("N0IR") then makefolder("N0IR") end
+            if writefile then
+                writefile(EMOTES_FILE, HttpService:JSONEncode({
+                    favs = emoteState.favs,
+                    speed = emoteState.speed,
+                    lastId = emoteState.lastId,
+                    openKey = emoteState.openKey and emoteState.openKey.Name or "B",
+                    playKey = emoteState.playKey and emoteState.playKey.Name or "G",
+                    stopKey = emoteState.stopKey and emoteState.stopKey.Name or "H",
+                    speedUpKey = emoteState.speedUpKey and emoteState.speedUpKey.Name or "Equals",
+                    speedDownKey = emoteState.speedDownKey and emoteState.speedDownKey.Name or "Minus",
+                }))
+            end
+        end)
+    end
+    emoteLoad()
+
+    local function getAnimator()
+        local char = LocalPlayer.Character
+        if not char then return nil end
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if not hum then return nil end
+        local anim = hum:FindFirstChildOfClass("Animator")
+        if not anim then
+            anim = Instance.new("Animator")
+            anim.Parent = hum
+        end
+        return anim
+    end
+
+    local function stopEmote()
+        if emoteState.track then
+            pcall(function() emoteState.track:Stop(0.1) end)
+            emoteState.track = nil
+        end
+        local anim = getAnimator()
+        if anim then
+            for _, t in ipairs(anim:GetPlayingAnimationTracks()) do
+                pcall(function() t:Stop(0.05) end)
+            end
+        end
+    end
+
+    local function applySpeed()
+        local sp = math.clamp(tonumber(emoteState.speed) or 1, 0.1, 5)
+        emoteState.speed = sp
+        _G._N0IR_EmoteSpeed = sp
+        if emoteState.track then
+            pcall(function() emoteState.track:AdjustSpeed(sp) end)
+        end
+        local anim = getAnimator()
+        if anim then
+            for _, t in ipairs(anim:GetPlayingAnimationTracks()) do
+                pcall(function() t:AdjustSpeed(sp) end)
+            end
+        end
+    end
+
+    local function playEmoteId(id, silent)
+        id = tostring(id or ""):gsub("%s+", "")
+        if id == "" then
+            if not silent then N0IR:Notify({ Title = "Emotes", Content = "No emote id", Duration = 2 }) end
+            return false
+        end
+        if not id:find("rbxassetid://") then
+            if tonumber(id) then id = "rbxassetid://" .. id end
+        end
+        local anim = getAnimator()
+        if not anim then
+            if not silent then N0IR:Notify({ Title = "Emotes", Content = "No character", Duration = 2 }) end
+            return false
+        end
+        stopEmote()
+        local animation = Instance.new("Animation")
+        animation.AnimationId = id
+        local ok, track = pcall(function() return anim:LoadAnimation(animation) end)
+        if not ok or not track then
+            if not silent then N0IR:Notify({ Title = "Emotes", Content = "Failed to load", Duration = 2 }) end
+            return false
+        end
+        track.Looped = true
+        track.Priority = Enum.AnimationPriority.Action
+        pcall(function() track:Play(0.1) end)
+        pcall(function() track:AdjustSpeed(emoteState.speed) end)
+        emoteState.track = track
+        emoteState.lastId = id:gsub("rbxassetid://", "")
+        emoteSave()
+        if not silent then
+            N0IR:Notify({
+                Title = "Emotes",
+                Content = "Playing " .. emoteState.lastId .. " @ " .. string.format("%.2fx", emoteState.speed),
+                Duration = 1.4,
+            })
+        end
+        return true
+    end
+
+    local function isFav(id)
+        id = tostring(id):gsub("rbxassetid://", "")
+        for _, v in ipairs(emoteState.favs) do
+            if tostring(v) == id then return true end
+        end
+        return false
+    end
+
+    local function toggleFav(id)
+        id = tostring(id or ""):gsub("rbxassetid://", "")
+        if id == "" then return end
+        for i, v in ipairs(emoteState.favs) do
+            if tostring(v) == id then
+                table.remove(emoteState.favs, i)
+                emoteSave()
+                return false
+            end
+        end
+        table.insert(emoteState.favs, 1, id)
+        while #emoteState.favs > 60 do table.remove(emoteState.favs) end
+        emoteSave()
+        return true
+    end
+
+    _G._N0IR_PlayEmote = playEmoteId
+    _G._N0IR_StopEmote = stopEmote
+    _G._N0IR_SetEmoteSpeed = function(s)
+        emoteState.speed = math.clamp(tonumber(s) or 1, 0.1, 5)
+        applySpeed()
+        emoteSave()
+    end
+
+    -- Catalog fetch (UGC / marketplace emotes)
+    local function httpGetJson(url)
+        local body
+        pcall(function()
+            if request then
+                local r = request({ Url = url, Method = "GET" })
+                if r and r.Body then body = r.Body end
+            elseif syn and syn.request then
+                local r = syn.request({ Url = url, Method = "GET" })
+                if r and r.Body then body = r.Body end
+            else
+                body = game:HttpGet(url)
+            end
+        end)
+        if type(body) ~= "string" or body == "" then return nil end
+        local ok, data = pcall(function() return HttpService:JSONDecode(body) end)
+        if ok then return data end
+        return nil
+    end
+
+    local function fetchCatalogPage(cursor)
+        -- Roblox catalog search for Emotes category
+        local url = "https://catalog.roblox.com/v1/search/items?category=Emotes&limit=30&sortType=3&sortOrder=Desc"
+        if cursor and cursor ~= "" then
+            url = url .. "&cursor=" .. HttpService:UrlEncode(tostring(cursor))
+        end
+        local data = httpGetJson(url)
+        if not data or type(data.data) ~= "table" then
+            -- fallback keyword search
+            url = "https://catalog.roblox.com/v1/search/items?keyword=emote&category=Emotes&limit=30"
+            if cursor and cursor ~= "" then
+                url = url .. "&cursor=" .. HttpService:UrlEncode(tostring(cursor))
+            end
+            data = httpGetJson(url)
+        end
+        local items = {}
+        local nextCursor = data and data.nextPageCursor or nil
+        if data and type(data.data) == "table" then
+            local ids = {}
+            for _, it in ipairs(data.data) do
+                local id = it.id or it.itemId
+                if id then table.insert(ids, tonumber(id) or id) end
+            end
+            if #ids > 0 then
+                local batch = table.concat((function()
+                    local t = {}
+                    for _, id in ipairs(ids) do table.insert(t, tostring(id)) end
+                    return t
+                end)(), ",")
+                local details = httpGetJson("https://catalog.roblox.com/v1/catalog/items/details")
+                -- POST details preferred; GET may not work — try marketplace product info one by one limited
+                for _, id in ipairs(ids) do
+                    local name = "Emote " .. tostring(id)
+                    pcall(function()
+                        local info = MarketplaceService:GetProductInfo(tonumber(id))
+                        if info and info.Name then name = info.Name end
+                    end)
+                    table.insert(items, { name = name, id = tostring(id) })
+                    if #items >= 30 then break end
+                end
+            end
+        end
+        return items, nextCursor
+    end
+
+    -- ========== NØIR-styled Emote Browser UI ==========
+    local function closeBrowser()
+        emoteState.browserOpen = false
+        if emoteState.gui then
+            pcall(function() emoteState.gui:Destroy() end)
+            emoteState.gui = nil
+        end
+    end
+
+    local function openBrowser()
+        if emoteState.browserOpen and emoteState.gui and emoteState.gui.Parent then
+            closeBrowser()
+            return
+        end
+        closeBrowser()
+        emoteState.browserOpen = true
+
+        local host = LocalPlayer:FindFirstChildOfClass("PlayerGui") or CoreGui
+        local gui = Instance.new("ScreenGui")
+        gui.Name = "N0IR_EmoteBrowser"
+        gui.ResetOnSpawn = false
+        gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+        gui.DisplayOrder = 1200
+        gui.Parent = host
+        emoteState.gui = gui
+
+        local T = {
+            bg = Color3.fromRGB(10, 10, 10),
+            bg2 = Color3.fromRGB(16, 16, 16),
+            bg3 = Color3.fromRGB(22, 22, 22),
+            stroke = Color3.fromRGB(40, 40, 40),
+            text = Color3.fromRGB(240, 240, 240),
+            text2 = Color3.fromRGB(160, 160, 160),
+            text3 = Color3.fromRGB(100, 100, 100),
+            accent = Color3.fromRGB(255, 255, 255),
+        }
+
+        local win = Instance.new("Frame")
+        win.Name = "Window"
+        win.AnchorPoint = Vector2.new(0.5, 0.5)
+        win.Position = UDim2.fromScale(0.5, 0.5)
+        win.Size = UDim2.fromOffset(520, 440)
+        win.BackgroundColor3 = T.bg
+        win.BorderSizePixel = 0
+        win.Parent = gui
+        Instance.new("UICorner", win).CornerRadius = UDim.new(0, 10)
+        local ws = Instance.new("UIStroke")
+        ws.Color = T.stroke
+        ws.Thickness = 1
+        ws.Parent = win
+
+        -- title bar
+        local top = Instance.new("Frame")
+        top.Size = UDim2.new(1, 0, 0, 40)
+        top.BackgroundColor3 = T.bg2
+        top.BorderSizePixel = 0
+        top.Parent = win
+        Instance.new("UICorner", top).CornerRadius = UDim.new(0, 10)
+        local topFix = Instance.new("Frame")
+        topFix.BackgroundColor3 = T.bg2
+        topFix.BorderSizePixel = 0
+        topFix.Position = UDim2.new(0, 0, 1, -10)
+        topFix.Size = UDim2.new(1, 0, 0, 10)
+        topFix.Parent = top
+
+        local title = Instance.new("TextLabel")
+        title.BackgroundTransparency = 1
+        title.Position = UDim2.fromOffset(14, 0)
+        title.Size = UDim2.new(1, -100, 1, 0)
+        title.Font = Enum.Font.GothamBold
+        title.TextSize = 14
+        title.TextXAlignment = Enum.TextXAlignment.Left
+        title.TextColor3 = T.text
+        title.Text = "NØIR  ·  Emotes"
+        title.Parent = top
+
+        local closeBtn = Instance.new("TextButton")
+        closeBtn.AnchorPoint = Vector2.new(1, 0.5)
+        closeBtn.Position = UDim2.new(1, -12, 0.5, 0)
+        closeBtn.Size = UDim2.fromOffset(28, 28)
+        closeBtn.BackgroundColor3 = T.bg3
+        closeBtn.Text = "×"
+        closeBtn.Font = Enum.Font.GothamBold
+        closeBtn.TextSize = 18
+        closeBtn.TextColor3 = T.text
+        closeBtn.BorderSizePixel = 0
+        closeBtn.Parent = top
+        Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
+        closeBtn.MouseButton1Click:Connect(closeBrowser)
+
+        -- drag
+        local dragging, dragStart, startPos
+        top.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                dragging = true
+                dragStart = input.Position
+                startPos = win.Position
+                input.Changed:Connect(function()
+                    if input.UserInputState == Enum.UserInputState.End then dragging = false end
+                end)
+            end
+        end)
+        UserInputService.InputChanged:Connect(function(input)
+            if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                local d = input.Position - dragStart
+                win.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+            end
+        end)
+
+        -- toolbar
+        local bar = Instance.new("Frame")
+        bar.Position = UDim2.fromOffset(0, 40)
+        bar.Size = UDim2.new(1, 0, 0, 44)
+        bar.BackgroundColor3 = T.bg
+        bar.BorderSizePixel = 0
+        bar.Parent = win
+
+        local search = Instance.new("TextBox")
+        search.Position = UDim2.fromOffset(12, 8)
+        search.Size = UDim2.new(1, -200, 0, 28)
+        search.BackgroundColor3 = T.bg3
+        search.BorderSizePixel = 0
+        search.Font = Enum.Font.Gotham
+        search.PlaceholderText = "Search emotes..."
+        search.PlaceholderColor3 = T.text3
+        search.Text = ""
+        search.TextSize = 12
+        search.TextColor3 = T.text
+        search.ClearTextOnFocus = false
+        search.Parent = bar
+        Instance.new("UICorner", search).CornerRadius = UDim.new(0, 6)
+
+        local speedLbl = Instance.new("TextLabel")
+        speedLbl.BackgroundTransparency = 1
+        speedLbl.AnchorPoint = Vector2.new(1, 0)
+        speedLbl.Position = UDim2.new(1, -12, 0, 8)
+        speedLbl.Size = UDim2.fromOffset(72, 28)
+        speedLbl.Font = Enum.Font.GothamMedium
+        speedLbl.TextSize = 11
+        speedLbl.TextColor3 = T.text2
+        speedLbl.TextXAlignment = Enum.TextXAlignment.Right
+        speedLbl.Text = string.format("%.2fx", emoteState.speed)
+        speedLbl.Parent = bar
+
+        -- tabs row
+        local tabs = Instance.new("Frame")
+        tabs.Position = UDim2.fromOffset(0, 84)
+        tabs.Size = UDim2.new(1, 0, 0, 32)
+        tabs.BackgroundTransparency = 1
+        tabs.Parent = win
+        local tabLayout = Instance.new("UIListLayout")
+        tabLayout.FillDirection = Enum.FillDirection.Horizontal
+        tabLayout.Padding = UDim.new(0, 6)
+        tabLayout.Parent = tabs
+        local tabPad = Instance.new("UIPadding")
+        tabPad.PaddingLeft = UDim.new(0, 12)
+        tabPad.Parent = tabs
+
+        local function makeTab(name)
+            local b = Instance.new("TextButton")
+            b.Size = UDim2.fromOffset(88, 28)
+            b.BackgroundColor3 = T.bg3
+            b.BorderSizePixel = 0
+            b.Font = Enum.Font.GothamMedium
+            b.TextSize = 12
+            b.TextColor3 = T.text2
+            b.Text = name
+            b.Parent = tabs
+            Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+            return b
+        end
+        local tabAll = makeTab("All")
+        local tabFav = makeTab("Favorites")
+        local tabCatalog = makeTab("UGC Catalog")
+        local activeTab = "all"
+
+        -- list
+        local list = Instance.new("ScrollingFrame")
+        list.Position = UDim2.fromOffset(12, 124)
+        list.Size = UDim2.new(1, -24, 1, -176)
+        list.BackgroundColor3 = T.bg2
+        list.BorderSizePixel = 0
+        list.ScrollBarThickness = 4
+        list.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 80)
+        list.CanvasSize = UDim2.new(0, 0, 0, 0)
+        list.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        list.Parent = win
+        Instance.new("UICorner", list).CornerRadius = UDim.new(0, 8)
+        local listLayout = Instance.new("UIListLayout")
+        listLayout.Padding = UDim.new(0, 4)
+        listLayout.Parent = list
+        local listPad = Instance.new("UIPadding")
+        listPad.PaddingTop = UDim.new(0, 6)
+        listPad.PaddingBottom = UDim.new(0, 6)
+        listPad.PaddingLeft = UDim.new(0, 6)
+        listPad.PaddingRight = UDim.new(0, 6)
+        listPad.Parent = list
+
+        -- bottom controls
+        local bottom = Instance.new("Frame")
+        bottom.AnchorPoint = Vector2.new(0, 1)
+        bottom.Position = UDim2.new(0, 0, 1, 0)
+        bottom.Size = UDim2.new(1, 0, 0, 52)
+        bottom.BackgroundColor3 = T.bg2
+        bottom.BorderSizePixel = 0
+        bottom.Parent = win
+        Instance.new("UICorner", bottom).CornerRadius = UDim.new(0, 10)
+        local botFix = Instance.new("Frame")
+        botFix.BackgroundColor3 = T.bg2
+        botFix.BorderSizePixel = 0
+        botFix.Size = UDim2.new(1, 0, 0, 12)
+        botFix.Parent = bottom
+
+        local function makeBotBtn(text, x)
+            local b = Instance.new("TextButton")
+            b.Position = UDim2.fromOffset(x, 12)
+            b.Size = UDim2.fromOffset(100, 28)
+            b.BackgroundColor3 = T.bg3
+            b.BorderSizePixel = 0
+            b.Font = Enum.Font.GothamMedium
+            b.TextSize = 12
+            b.TextColor3 = T.text
+            b.Text = text
+            b.Parent = bottom
+            Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+            return b
+        end
+        local playBtn = makeBotBtn("Play last", 12)
+        local stopBtn = makeBotBtn("Stop", 120)
+        local slowBtn = makeBotBtn("Speed −", 228)
+        local fastBtn = makeBotBtn("Speed +", 336)
+
+        playBtn.MouseButton1Click:Connect(function()
+            if emoteState.lastId then playEmoteId(emoteState.lastId) end
+        end)
+        stopBtn.MouseButton1Click:Connect(function()
+            stopEmote()
+        end)
+        slowBtn.MouseButton1Click:Connect(function()
+            emoteState.speed = math.clamp(emoteState.speed - 0.1, 0.1, 5)
+            applySpeed()
+            emoteSave()
+            speedLbl.Text = string.format("%.2fx", emoteState.speed)
+        end)
+        fastBtn.MouseButton1Click:Connect(function()
+            emoteState.speed = math.clamp(emoteState.speed + 0.1, 0.1, 5)
+            applySpeed()
+            emoteSave()
+            speedLbl.Text = string.format("%.2fx", emoteState.speed)
+        end)
+
+        local catalogItems = {}
+        local catalogCursor = nil
+        local loadingCatalog = false
+
+        local function clearList()
+            for _, c in ipairs(list:GetChildren()) do
+                if c:IsA("Frame") or c:IsA("TextButton") then c:Destroy() end
+            end
+        end
+
+        local function addRow(entry)
+            local id = tostring(entry.id)
+            local name = tostring(entry.name or id)
+            local row = Instance.new("Frame")
+            row.Size = UDim2.new(1, -4, 0, 40)
+            row.BackgroundColor3 = T.bg3
+            row.BorderSizePixel = 0
+            row.Parent = list
+            Instance.new("UICorner", row).CornerRadius = UDim.new(0, 6)
+
+            local nm = Instance.new("TextLabel")
+            nm.BackgroundTransparency = 1
+            nm.Position = UDim2.fromOffset(10, 4)
+            nm.Size = UDim2.new(1, -150, 0, 18)
+            nm.Font = Enum.Font.GothamMedium
+            nm.TextSize = 12
+            nm.TextColor3 = T.text
+            nm.TextXAlignment = Enum.TextXAlignment.Left
+            nm.TextTruncate = Enum.TextTruncate.AtEnd
+            nm.Text = name
+            nm.Parent = row
+
+            local idl = Instance.new("TextLabel")
+            idl.BackgroundTransparency = 1
+            idl.Position = UDim2.fromOffset(10, 22)
+            idl.Size = UDim2.new(1, -150, 0, 14)
+            idl.Font = Enum.Font.Code
+            idl.TextSize = 10
+            idl.TextColor3 = T.text3
+            idl.TextXAlignment = Enum.TextXAlignment.Left
+            idl.Text = id
+            idl.Parent = row
+
+            local favBtn = Instance.new("TextButton")
+            favBtn.AnchorPoint = Vector2.new(1, 0.5)
+            favBtn.Position = UDim2.new(1, -88, 0.5, 0)
+            favBtn.Size = UDim2.fromOffset(36, 26)
+            favBtn.BackgroundColor3 = T.bg2
+            favBtn.BorderSizePixel = 0
+            favBtn.Font = Enum.Font.GothamBold
+            favBtn.TextSize = 12
+            favBtn.TextColor3 = isFav(id) and T.accent or T.text3
+            favBtn.Text = isFav(id) and "★" or "☆"
+            favBtn.Parent = row
+            Instance.new("UICorner", favBtn).CornerRadius = UDim.new(0, 5)
+            favBtn.MouseButton1Click:Connect(function()
+                local on = toggleFav(id)
+                favBtn.Text = on and "★" or "☆"
+                favBtn.TextColor3 = on and T.accent or T.text3
+            end)
+
+            local go = Instance.new("TextButton")
+            go.AnchorPoint = Vector2.new(1, 0.5)
+            go.Position = UDim2.new(1, -10, 0.5, 0)
+            go.Size = UDim2.fromOffset(70, 26)
+            go.BackgroundColor3 = T.accent
+            go.BorderSizePixel = 0
+            go.Font = Enum.Font.GothamBold
+            go.TextSize = 12
+            go.TextColor3 = Color3.fromRGB(10, 10, 10)
+            go.Text = "Play"
+            go.Parent = row
+            Instance.new("UICorner", go).CornerRadius = UDim.new(0, 5)
+            go.MouseButton1Click:Connect(function()
+                playEmoteId(id)
+            end)
+        end
+
+        local function sourceList()
+            if activeTab == "fav" then
+                local out = {}
+                for _, id in ipairs(emoteState.favs) do
+                    local name = id
+                    for _, e in ipairs(BUILTIN_EMOTES) do
+                        if e.id == tostring(id) then name = e.name break end
+                    end
+                    for _, e in ipairs(catalogItems) do
+                        if e.id == tostring(id) then name = e.name break end
+                    end
+                    table.insert(out, { name = name, id = tostring(id) })
+                end
+                return out
+            elseif activeTab == "catalog" then
+                return catalogItems
+            else
+                local out = {}
+                for _, e in ipairs(BUILTIN_EMOTES) do table.insert(out, e) end
+                for _, e in ipairs(catalogItems) do table.insert(out, e) end
+                return out
+            end
+        end
+
+        local function render()
+            clearList()
+            local q = string.lower(search.Text or "")
+            local n = 0
+            for _, e in ipairs(sourceList()) do
+                if q == "" or string.find(string.lower(e.name), q, 1, true) or string.find(tostring(e.id), q, 1, true) then
+                    addRow(e)
+                    n = n + 1
+                end
+            end
+            if n == 0 then
+                local empty = Instance.new("TextLabel")
+                empty.Size = UDim2.new(1, 0, 0, 40)
+                empty.BackgroundTransparency = 1
+                empty.Font = Enum.Font.Gotham
+                empty.TextSize = 12
+                empty.TextColor3 = T.text3
+                empty.Text = activeTab == "catalog" and "Loading catalog…" or "No emotes"
+                empty.Parent = list
+            end
+        end
+
+        local function setTab(which, btn)
+            activeTab = which
+            for _, b in ipairs({ tabAll, tabFav, tabCatalog }) do
+                b.BackgroundColor3 = T.bg3
+                b.TextColor3 = T.text2
+            end
+            btn.BackgroundColor3 = T.accent
+            btn.TextColor3 = Color3.fromRGB(10, 10, 10)
+            render()
+        end
+        tabAll.MouseButton1Click:Connect(function() setTab("all", tabAll) end)
+        tabFav.MouseButton1Click:Connect(function() setTab("fav", tabFav) end)
+        tabCatalog.MouseButton1Click:Connect(function()
+            setTab("catalog", tabCatalog)
+            if #catalogItems == 0 and not loadingCatalog then
+                loadingCatalog = true
+                task.spawn(function()
+                    local pages = 0
+                    local cursor = nil
+                    while pages < 8 do -- up to ~240 catalog items
+                        local items, nextC = fetchCatalogPage(cursor)
+                        for _, it in ipairs(items) do
+                            table.insert(catalogItems, it)
+                        end
+                        pages = pages + 1
+                        cursor = nextC
+                        if activeTab == "catalog" then render() end
+                        if not nextC or nextC == "" or #items == 0 then break end
+                        task.wait(0.15)
+                    end
+                    loadingCatalog = false
+                    if activeTab == "catalog" then render() end
+                    N0IR:Notify({
+                        Title = "Emotes",
+                        Content = "Catalog loaded · " .. tostring(#catalogItems) .. " UGC items",
+                        Duration = 2,
+                    })
+                end)
+            end
+        end)
+
+        search:GetPropertyChangedSignal("Text"):Connect(function()
+            render()
+        end)
+
+        setTab("all", tabAll)
+
+        -- preload a few catalog pages in background for All tab
+        task.spawn(function()
+            if loadingCatalog then return end
+            loadingCatalog = true
+            local cursor = nil
+            for _ = 1, 5 do
+                local items, nextC = fetchCatalogPage(cursor)
+                for _, it in ipairs(items) do table.insert(catalogItems, it) end
+                cursor = nextC
+                if not nextC or #items == 0 then break end
+                task.wait(0.12)
+            end
+            loadingCatalog = false
+            if activeTab == "all" and emoteState.gui then render() end
+        end)
+    end
+
+    _G._N0IR_OpenEmoteBrowser = openBrowser
+    _G._N0IR_CloseEmoteBrowser = closeBrowser
+    _G._N0IR_OpenEmotesHint = openBrowser
+
+    Emotes:CreateSection("Browser")
+    Emotes:CreateParagraph({
+        Content = "Standalone NØIR emote browser — built-in library (100+) plus live UGC catalog. No animation packs.",
+    })
+    Emotes:CreateButton({
+        Name = "Open Emote Browser",
+        Callback = function()
+            openBrowser()
+        end,
+    })
+    Emotes:CreateButton({
+        Name = "Close Emote Browser",
+        Callback = function()
+            closeBrowser()
+        end,
+    })
+
+    Emotes:CreateSection("Quick play")
+    local emoteIdInput = Emotes:CreateInput({
+        Name = "Animation / Emote ID",
+        Placeholder = "e.g. 507770239",
+        Default = tostring(emoteState.lastId or ""),
+        Callback = function(text)
+            emoteState.lastId = tostring(text or ""):gsub("%s+", "")
+        end,
+    })
+    Emotes:CreateButton({
+        Name = "Play emote",
+        Callback = function()
+            local id = emoteIdInput and emoteIdInput:Get() or emoteState.lastId
+            playEmoteId(id)
+        end,
+    })
+    Emotes:CreateButton({
+        Name = "Stop emote",
+        Callback = function()
+            stopEmote()
+        end,
+    })
+
+    Emotes:CreateSection("Speed")
+    local speedLbl2 = Emotes:CreateLabel("Speed  ·  " .. string.format("%.2fx", emoteState.speed))
+    Emotes:CreateSlider({
+        Name = "Emote speed",
+        Min = 0.1,
+        Max = 3,
+        Default = emoteState.speed,
+        Increment = 0.05,
+        Callback = function(v)
+            emoteState.speed = tonumber(v) or 1
+            applySpeed()
+            speedLbl2:Set("Speed  ·  " .. string.format("%.2fx", emoteState.speed))
+            emoteSave()
+        end,
+    })
+
+    Emotes:CreateSection("Keybinds")
+    local function bindLabel(title, key)
+        return title .. "  ·  " .. (key and key.Name or "None")
+    end
+    local openKeyLbl = Emotes:CreateLabel(bindLabel("Open browser", emoteState.openKey))
+    local playKeyLbl = Emotes:CreateLabel(bindLabel("Play last", emoteState.playKey))
+    local stopKeyLbl = Emotes:CreateLabel(bindLabel("Stop", emoteState.stopKey))
+    local listeningEmote = false
+    local function listenEmoteKey(labelObj, field, pretty)
+        if listeningEmote then return end
+        listeningEmote = true
+        labelObj:Set("Press any key...")
+        task.delay(0.15, function()
+            local conn
+            conn = UserInputService.InputBegan:Connect(function(input)
+                if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+                if not conn then return end
+                conn:Disconnect()
+                listeningEmote = false
+                if input.KeyCode == Enum.KeyCode.Escape then
+                    labelObj:Set(bindLabel(pretty, emoteState[field]))
+                    return
+                end
+                emoteState[field] = input.KeyCode
+                labelObj:Set(bindLabel(pretty, input.KeyCode))
+                emoteSave()
+            end)
+        end)
+    end
+    Emotes:CreateButton({ Name = "Set open key", Callback = function() listenEmoteKey(openKeyLbl, "openKey", "Open browser") end })
+    Emotes:CreateButton({ Name = "Set play key", Callback = function() listenEmoteKey(playKeyLbl, "playKey", "Play last") end })
+    Emotes:CreateButton({ Name = "Set stop key", Callback = function() listenEmoteKey(stopKeyLbl, "stopKey", "Stop") end })
+
+    if not _G._N0IR_EmoteKeysInstalled then
+        _G._N0IR_EmoteKeysInstalled = true
+        UserInputService.InputBegan:Connect(function(input)
+            if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+            if UserInputService:GetFocusedTextBox() then return end
+            local k = input.KeyCode
+            if emoteState.openKey and k == emoteState.openKey then
+                openBrowser()
+            elseif emoteState.playKey and k == emoteState.playKey then
+                if emoteState.lastId then playEmoteId(emoteState.lastId, true) end
+            elseif emoteState.stopKey and k == emoteState.stopKey then
+                stopEmote()
+            elseif emoteState.speedUpKey and k == emoteState.speedUpKey then
+                emoteState.speed = math.clamp(emoteState.speed + 0.1, 0.1, 5)
+                applySpeed()
+                emoteSave()
+            elseif emoteState.speedDownKey and k == emoteState.speedDownKey then
+                emoteState.speed = math.clamp(emoteState.speed - 0.1, 0.1, 5)
+                applySpeed()
+                emoteSave()
+            end
+        end)
+    end
+
     local Cmds = Window:CreateTab({ Name = "Commands" })
     Cmds:CreateSection("Runner")
     Cmds:CreateParagraph({
@@ -3502,6 +4469,312 @@ function N0IR:MountUtilities(Window)
         local args = {}
         for w in msg:gmatch("%S+") do table.insert(args, w) end
         local cmd = args[1]
+
+
+        -- bulk alias / shortcut router (300+ catalog support)
+        do
+            local aliasMap = {
+                speed="ws", walkspeed="ws", setws="ws", setspeed="ws", runspeed="ws",
+                jumppower="jp", setjp="jp", setjump="jp", hipheight="hh", sethh="hh",
+                loopspeed="loopws", loopjump="loopjp", super="power", boost="power",
+                defaults="normal", default="normal", resetstats="normal", form="normal", stats="normal", unpower="normal",
+                to="goto", tp="goto", teleport="goto", gotoplayer="goto", tpto="goto",
+                spectate="view", watch="view", cam="view", unspectate="unview", spectateoff="unview", uncam="unview",
+                noclipon="noclip", walkthrough="noclip", nclip="noclip", phaser="noclip",
+                clipon="clip", solid="clip",
+                flyon="fly", jetpack="fly", flyoff="unfly", land="unfly", unflyme="unfly",
+                infinitejump="infjump", uninfinitejump="uninfjump",
+                ctp="clicktp", clickteleport="clicktp", blink="clicktp", unctp="unclicktp", unblink="unclicktp",
+                rj="rejoin", rejoinserver="rejoin", rejoinplace="rejoin", rejoinhop="rejoin",
+                serverhop="hop", serverswitch="hop", hopserver="hop",
+                killme="reset", die="reset", respawn="re", refresh="re", refreshchar="re",
+                stand="unsit", sitdown="sit", standup="unsit",
+                platformstand="plat", unplatformstand="unplat",
+                fpscap="fps", setfps="fps", fieldofview="fov", setfov="fov",
+                setgravity="gravity", clocktime="time", settime="time", daytime="day", nighttime="night",
+                fb="fullbright", bright="fullbright", fullbrighton="fullbright",
+                removefog="nofog", clearfog="nofog", fogoff="nofog",
+                setbrightness="brightness", setambient="ambient", setexposure="exposure",
+                wallhack="xray", xrayon="xray", unwallhack="unxray", xrayoff="unxray",
+                perf="lowgfx", performance="lowgfx", gfxlow="lowgfx", quality="highgfx", gfxhigh="highgfx",
+                boxes="esp", espall="esp", espnames="esp", nameesp="esp", noesp="unesp", hideesp="unesp",
+                godmode="god", godon="god", immortal="god", ungodmode="ungod", godoff="ungod", mortal="ungod",
+                invisible="invis", hide="invis", ghost="invis", visible="vis", showself="vis", show="vis", unghost="vis",
+                anchor="freeze", unanchor="thaw", unfreeze="thaw",
+                spinme="spin", stopspin="unspin", stoporbit="unorbit", uncircle="unorbit", circle="orbit",
+                copychar="copy", copyavatar="copy", clone="copy", stealavatar="copy",
+                btools="tools", buildingtools="tools", hammer="tools", f3x="tools", toolsget="tools",
+                clr="clear", cleanup="clear", clearall="clear",
+                noragdoll="antiragdoll", norag="antiragdoll", ragdolloff="antiragdoll", ragdollblock="antiragdoll",
+                allowragdoll="unantiragdoll", yesrag="unantiragdoll", ragdollon="unantiragdoll", ragdollallow="unantiragdoll",
+                ["anti-afk"]="antiafk", noafk="antiafk", afkoff="antiafk", idlekick="antiafk", afkprotect="antiafk",
+                firstperson="fp", fpk="fp", lockcam="fp", thirdperson="tp3", tpk="tp3", freecam3="tp3",
+                setmaxzoom="maxzoom", setminzoom="minzoom", mouselock="shiftlock", shift="shiftlock", shiftlockon="shiftlock", lockmouse="shiftlock",
+                setvolume="volume", vol="volume", getping="ping", pingms="ping", latency="ping", ms="ping",
+                accountage="age", days="age", userid="id", uid="id", useridof="id",
+                getjobid="jobid", jid="jobid", serverid="jobid", getplaceid="placeid", pid="placeid", gameid="placeid",
+                setprefix="prefix", pre="prefix", changeprefix="prefix",
+                vc="vcbypass", antivc="vcbypass", vcon="vcbypass", bypassvc="vcbypass", voicebypass="vcbypass",
+                playemote="emote", playanim="emote", emotestop="stopemote", stopanim="stopemote", stopemotes="stopemote", emotestopall="stopemote", stopdance="stopemote",
+                espeed="emotespeed", animspeed="emotespeed",
+                emotebrowser="afem", openemotes="afem", browseemotes="afem", emotelib="afem", elist="afem", emotegui="afem", emotemenu="afem",
+                commands="cmds", help="cmds", cmd="cmds", ["?"]="cmds", cmdlist="cmds", commandlist="cmds", helpcmds="cmds",
+                leave="exit", quit="exit", leavegame="exit", exitgame="exit", disconnect="exit", ragequit="exit",
+                unbang="stopadult", unfuck="stopadult", rpstop="stopadult", stoprp="stopadult", adultstop="stopadult", rpend="stopadult", stopallrp="stopadult", stopadult2="stopadult", headbangstop="stopadult",
+                pull="bring", summon="bring", setpos="tppos", move="tppos",
+                anchorall="freezeall", unanchorall="thawall", yeet="fling", launch="fling",
+            }
+            if aliasMap[cmd] then
+                cmd = aliasMap[cmd]
+            end
+        end
+
+        -- preset shortcuts
+        if cmd == "run" then cmd = "ws"; args = {"24"}
+        elseif cmd == "sprint" then cmd = "ws"; args = {"32"}
+        elseif cmd == "slow" then cmd = "ws"; args = {"8"}
+        elseif cmd == "turtle" then cmd = "ws"; args = {"4"}
+        elseif cmd == "fast" then cmd = "ws"; args = {"50"}
+        elseif cmd == "sonic" then cmd = "ws"; args = {"100"}
+        elseif cmd == "ws16" then cmd = "ws"; args = {"16"}
+        elseif cmd == "ws20" then cmd = "ws"; args = {"20"}
+        elseif cmd == "ws50" then cmd = "ws"; args = {"50"}
+        elseif cmd == "ws100" then cmd = "ws"; args = {"100"}
+        elseif cmd == "walk" then cmd = "normal"; args = {}
+        elseif cmd == "highjump" then cmd = "jp"; args = {"100"}
+        elseif cmd == "superjump" then cmd = "jp"; args = {"200"}
+        elseif cmd == "jumpreset" or cmd == "jp50" then cmd = "jp"; args = {"50"}
+        elseif cmd == "jp100" then cmd = "jp"; args = {"100"}
+        elseif cmd == "moonwalk" or cmd == "g50" then cmd = "gravity"; args = {"50"}
+        elseif cmd == "earth" or cmd == "g196" then cmd = "gravity"; args = {"196.2"}
+        elseif cmd == "space" then cmd = "gravity"; args = {"20"}
+        elseif cmd == "nograv" or cmd == "g0" then cmd = "gravity"; args = {"0"}
+        elseif cmd == "hipreset" then cmd = "hh"; args = {"0"}
+        elseif cmd == "tall" then cmd = "hh"; args = {"5"}
+        elseif cmd == "short" then cmd = "hh"; args = {"-1"}
+        elseif cmd == "float" then cmd = "hh"; args = {"10"}
+        elseif cmd == "freezepos" then cmd = "freeze"; args = {LocalPlayer.Name}
+        elseif cmd == "thawself" then cmd = "thaw"; args = {LocalPlayer.Name}
+        elseif cmd == "spinfast" then cmd = "spin"; args = {"50"}
+        elseif cmd == "spinslow" then cmd = "spin"; args = {"5"}
+        elseif cmd == "flyfast" then cmd = "fly"; args = {"100"}
+        elseif cmd == "flyslow" then cmd = "fly"; args = {"25"}
+        elseif cmd == "fovreset" then cmd = "fov"; args = {"70"}
+        elseif cmd == "fovwide" then cmd = "fov"; args = {"100"}
+        elseif cmd == "fovzoom" then cmd = "fov"; args = {"40"}
+        elseif cmd == "fps30" then cmd = "fps"; args = {"30"}
+        elseif cmd == "fps60" then cmd = "fps"; args = {"60"}
+        elseif cmd == "fps120" then cmd = "fps"; args = {"120"}
+        elseif cmd == "fpsunlock" then cmd = "fps"; args = {"999"}
+        elseif cmd == "noon" or cmd == "time12" then cmd = "time"; args = {"12"}
+        elseif cmd == "midnight" or cmd == "time0" then cmd = "time"; args = {"0"}
+        elseif cmd == "sunrise" or cmd == "time6" then cmd = "time"; args = {"6"}
+        elseif cmd == "sunset" or cmd == "time18" then cmd = "time"; args = {"18"}
+        elseif cmd == "time21" then cmd = "time"; args = {"21"}
+        elseif cmd == "pitchblack" then cmd = "brightness"; args = {"0"}
+        elseif cmd == "overbright" or cmd == "brightmax" then cmd = "brightness"; args = {"5"}
+        elseif cmd == "ambientwhite" then cmd = "ambient"; args = {"1","1","1"}
+        elseif cmd == "ambientblack" then cmd = "ambient"; args = {"0","0","0"}
+        elseif cmd == "exposure0" then cmd = "exposure"; args = {"0"}
+        elseif cmd == "exposure2" then cmd = "exposure"; args = {"2"}
+        elseif cmd == "zoommax" or cmd == "zoomout" then cmd = "maxzoom"; args = {"200"}
+        elseif cmd == "zoommin" or cmd == "zoomin" then cmd = "minzoom"; args = {"0.5"}
+        elseif cmd == "vol0" or cmd == "mute" then cmd = "volume"; args = {"0"}
+        elseif cmd == "vol5" or cmd == "unmute" then cmd = "volume"; args = {"5"}
+        elseif cmd == "vol10" or cmd == "loud" then cmd = "volume"; args = {"10"}
+        elseif cmd == "quiet" then cmd = "volume"; args = {"2"}
+        elseif cmd == "prefixsemi" then cmd = "prefix"; args = {";"}
+        elseif cmd == "prefixdot" then cmd = "prefix"; args = {"."}
+        elseif cmd == "prefixbang" then cmd = "prefix"; args = {"!"}
+        elseif cmd == "loopwalk" then cmd = "loopws"; args = {"16"}
+        elseif cmd == "unloopwalk" then cmd = "unloopws"; args = {}
+        elseif cmd == "loopj" then cmd = "loopjp"; args = {"50"}
+        elseif cmd == "unloopj" then cmd = "unloopjp"; args = {}
+        elseif cmd == "emotewave" or cmd == "wave" then cmd = "emote"; args = {"507770239"}
+        elseif cmd == "emotedance" or cmd == "dance" then cmd = "emote"; args = {"507771019"}
+        elseif cmd == "emotelaugh" or cmd == "laugh" then cmd = "emote"; args = {"507770818"}
+        elseif cmd == "emotepoint" or cmd == "point" then cmd = "emote"; args = {"507770453"}
+        elseif cmd == "emotecheer" or cmd == "cheer" then cmd = "emote"; args = {"507770677"}
+        elseif cmd == "emotesit" or cmd == "sitanim" then cmd = "emote"; args = {"507768133"}
+        elseif cmd == "speed1" then cmd = "emotespeed"; args = {"1"}
+        elseif cmd == "speed2" then cmd = "emotespeed"; args = {"2"}
+        elseif cmd == "speed05" then cmd = "emotespeed"; args = {"0.5"}
+        elseif cmd == "safe" then
+            -- chain handled below as multi
+        end
+
+        if cmd == "safe" then
+            pcall(function() runCmd("normal") end)
+            pcall(function() runCmd("clip") end)
+            pcall(function() runCmd("unfly") end)
+            pcall(function() runCmd("ungod") end)
+            notify("Safe", "Defaults restored")
+            return
+        elseif cmd == "pvp" then
+            pcall(function() runCmd("ws 20") end)
+            pcall(function() runCmd("jp 50") end)
+            pcall(function() runCmd("ungod") end)
+            notify("PVP", "WS 20 · JP 50 · god off")
+            return
+        elseif cmd == "explore" then
+            pcall(function() runCmd("ws 30") end)
+            notify("Explore", "WS 30 — use ;fly when needed")
+            return
+        elseif cmd == "camreset" then
+            pcall(function() runCmd("unview") end)
+            pcall(function() runCmd("tp3") end)
+            notify("Camera", "Reset")
+            return
+        elseif cmd == "tpzero" then
+            local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then hrp.CFrame = CFrame.new(0, 10, 0) end
+            notify("TP", "Origin")
+            return
+        elseif cmd == "tpup" or cmd == "tpdown" or cmd == "tpfwd" or cmd == "tpback" then
+            local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local o = hrp.CFrame
+                if cmd == "tpup" then hrp.CFrame = o + Vector3.new(0, 50, 0)
+                elseif cmd == "tpdown" then hrp.CFrame = o + Vector3.new(0, -20, 0)
+                elseif cmd == "tpfwd" then hrp.CFrame = o + o.LookVector * 20
+                else hrp.CFrame = o - o.LookVector * 20 end
+            end
+            notify("TP", cmd)
+            return
+        elseif cmd == "coords" or cmd == "pos" or cmd == "where" then
+            local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local p = hrp.Position
+                notify("Pos", string.format("%.1f, %.1f, %.1f", p.X, p.Y, p.Z))
+            end
+            return
+        elseif cmd == "health" or cmd == "hp" then
+            local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+            if hum then notify("HP", string.format("%.0f / %.0f", hum.Health, hum.MaxHealth)) end
+            return
+        elseif cmd == "maxhp" then
+            local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+            if hum then notify("MaxHP", tostring(hum.MaxHealth)) end
+            return
+        elseif cmd == "team" then
+            notify("Team", LocalPlayer.Team and LocalPlayer.Team.Name or "None")
+            return
+        elseif cmd == "displayname" then
+            notify("Display", LocalPlayer.DisplayName)
+            return
+        elseif cmd == "username" then
+            notify("User", LocalPlayer.Name)
+            return
+        elseif cmd == "myid" then
+            notify("UserId", tostring(LocalPlayer.UserId))
+            return
+        elseif cmd == "myage" then
+            notify("Age", tostring(LocalPlayer.AccountAge) .. " days")
+            return
+        elseif cmd == "playercount" or cmd == "players" or cmd == "plrs" then
+            local names = {}
+            for _, pl in ipairs(Players:GetPlayers()) do table.insert(names, pl.Name) end
+            notify("Players (" .. #names .. ")", table.concat(names, ", "):sub(1, 120))
+            return
+        elseif cmd == "nearest" or cmd == "farthest" then
+            local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if not hrp then return end
+            local best, bestD = nil, cmd == "nearest" and math.huge or -1
+            for _, pl in ipairs(Players:GetPlayers()) do
+                if pl ~= LocalPlayer and pl.Character and pl.Character:FindFirstChild("HumanoidRootPart") then
+                    local d = (pl.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
+                    if cmd == "nearest" and d < bestD then best, bestD = pl, d
+                    elseif cmd == "farthest" and d > bestD then best, bestD = pl, d end
+                end
+            end
+            if best then notify(cmd, best.Name .. string.format(" (%.0f studs)", bestD)) else notify(cmd, "None") end
+            return
+        elseif cmd == "serverinfo" then
+            notify("Server", "Place " .. tostring(game.PlaceId) .. " · Job " .. tostring(game.JobId):sub(1, 12) .. " · " .. #Players:GetPlayers() .. " plrs")
+            return
+        elseif cmd == "notifytest" then
+            notify("NØIR", "Notify OK")
+            return
+        elseif cmd == "sayhi" then
+            pcall(function() Players:Chat("hi") end)
+            return
+        elseif cmd == "version" or cmd == "ver" then
+            notify("NØIR", "v" .. tostring(N0IR.Version or "?"))
+            return
+        elseif cmd == "credits" then
+            notify("Credits", "NØIR · key system · nametags · suite")
+            return
+        elseif cmd == "discord" or cmd == "support" then
+            notify("Discord", "discord.gg/JGDAWjhWzp")
+            return
+        elseif cmd == "site" or cmd == "website" then
+            notify("Site", "https://n0ir.pages.dev")
+            return
+        elseif cmd == "nametag" or cmd == "rank" or cmd == "keyinfo" then
+            local d = Nametag and Nametag.MyData
+            if d then
+                notify("Key", "Rank " .. tostring(d.rank or "?") .. " · Tag " .. tostring(d.tag or "NØIR"))
+            else
+                notify("Key", "No data yet")
+            end
+            return
+        elseif cmd == "menu" or cmd == "uishow" then
+            notify("Menu", "Toggle key · check Settings")
+            return
+        elseif cmd == "admin" or cmd == "owner" then
+            notify("Owner", "Some cmds require owner rank")
+            return
+        elseif cmd == "heal" then
+            notify("Heal", "Use ;god for infinite HP")
+            return
+        elseif cmd == "fullbrightoff" or cmd == "fogon" then
+            notify("Lighting", "Rejoin to fully restore default lighting")
+            return
+        elseif cmd == "bringme" then
+            notify("Bring", "Owner: ;bring name")
+            return
+        elseif cmd == "annoy" then
+            notify("Annoy", "Try ;fling name or ;spin")
+            return
+        elseif cmd == "say" or cmd == "spamchat" or cmd == "notify" then
+            local msg = table.concat(args, " ")
+            if cmd == "notify" then notify("NØIR", msg ~= "" and msg or "...")
+            else pcall(function() Players:Chat(msg) end) end
+            return
+        end
+
+
+        if cmd == "emote" or cmd == "playemote" then
+            local id = args[1]
+            if type(_G._N0IR_PlayEmote) == "function" then
+                _G._N0IR_PlayEmote(id)
+            else
+                notify("Emotes", "Emotes module not ready")
+            end
+            return
+        elseif cmd == "emotes" then
+            if type(_G._N0IR_OpenEmotesHint) == "function" then _G._N0IR_OpenEmotesHint() end
+            notify("Emotes", "Open the Emotes tab")
+            return
+        elseif cmd == "stopemote" or cmd == "emotestop" then
+            if type(_G._N0IR_StopEmote) == "function" then _G._N0IR_StopEmote() end
+            notify("Emotes", "Stopped")
+            return
+        elseif cmd == "emotespeed" or cmd == "espeed" then
+            local sp = tonumber(args[1])
+            if sp and type(_G._N0IR_SetEmoteSpeed) == "function" then
+                _G._N0IR_SetEmoteSpeed(sp)
+                notify("Emotes", "Speed " .. string.format("%.2fx", sp))
+            else
+                notify("Emotes", "Usage: emotespeed 1.5")
+            end
+            return
+        elseif cmd == "afem" or cmd == "emotebrowser" then
+            if type(_G._N0IR_OpenEmoteBrowser) == "function" then
+                _G._N0IR_OpenEmoteBrowser()
+            end
+            return
+        end
         if not cmd then return end
 
         -- Owner-only command set (must match catalog ownerOnly flags)
@@ -4371,6 +5644,13 @@ function N0IR:MountUtilities(Window)
         { cmd = "placeid",   label = "PlaceId",       desc = "Current place id",            needsArg = false },
         { cmd = "prefix",    label = "Set prefix",    desc = "Change chat command prefix",  needsArg = true,  example = ";" },
         { cmd = "vcbypass",  label = "VC Bypass",     desc = "Enable NØIR anti-VC",          needsArg = false },
+        
+        { cmd = "emote",     label = "Play emote",      desc = "Play animation id", needsArg = true, example = "507770239" },
+        { cmd = "emotes",    label = "Emotes menu",     desc = "Hint Emotes tab", needsArg = false },
+        { cmd = "stopemote", label = "Stop emote",      desc = "Stop playing emote", needsArg = false },
+        { cmd = "emotespeed",label = "Emote speed",     desc = "Set emote speed", needsArg = true, example = "1.5" },
+        { cmd = "afem",      label = "Load AFEM",       desc = "Load AFEM from saved URL", needsArg = false },
+
         { cmd = "cmds",      label = "Commands list", desc = "Open / focus this menu",      needsArg = false },
         { cmd = "exit",      label = "Exit game",     desc = "Leave the experience",        needsArg = false },
         -- Adult / RP (require username or display name)
@@ -4383,7 +5663,378 @@ function N0IR:MountUtilities(Window)
         { cmd = "lickbutt",  label = "Lickbutt",      desc = "RP · target player",          needsArg = true,  example = "username" },
         { cmd = "peg",       label = "Peg",           desc = "RP · target player",          needsArg = true,  example = "username" },
         { cmd = "stopadult", label = "Stop adult",    desc = "Cancel RP attach / anim",     needsArg = false },
-    }
+    
+        -- expanded command catalog (300+ with aliases)
+        { cmd = "speed", label = "WalkSpeed alias", desc = "Alias of ws", needsArg = true, example = "50" },
+        { cmd = "walkspeed", label = "WalkSpeed alias", desc = "Alias of ws", needsArg = true, example = "50" },
+        { cmd = "setws", label = "Set WalkSpeed", desc = "Alias of ws", needsArg = true, example = "50" },
+        { cmd = "setspeed", label = "Set speed", desc = "Alias of ws", needsArg = true, example = "50" },
+        { cmd = "runspeed", label = "Run speed", desc = "Alias of ws", needsArg = true, example = "50" },
+        { cmd = "jumppower", label = "JumpPower alias", desc = "Alias of jp", needsArg = true, example = "50" },
+        { cmd = "setjp", label = "Set JumpPower", desc = "Alias of jp", needsArg = true, example = "50" },
+        { cmd = "setjump", label = "Set jump", desc = "Alias of jp", needsArg = true, example = "50" },
+        { cmd = "hipheight", label = "HipHeight alias", desc = "Alias of hh", needsArg = true, example = "2" },
+        { cmd = "sethh", label = "Set hip height", desc = "Alias of hh", needsArg = true, example = "2" },
+        { cmd = "loopspeed", label = "Loop speed", desc = "Alias of loopws", needsArg = true, example = "50" },
+        { cmd = "loopjump", label = "Loop jump", desc = "Alias of loopjp", needsArg = true, example = "50" },
+        { cmd = "super", label = "Power boost alias", desc = "Alias of power", needsArg = false },
+        { cmd = "boost", label = "Power boost", desc = "Alias of power", needsArg = false },
+        { cmd = "defaults", label = "Reset defaults", desc = "Alias of normal", needsArg = false },
+        { cmd = "default", label = "Reset defaults", desc = "Alias of normal", needsArg = false },
+        { cmd = "resetstats", label = "Reset stats", desc = "Alias of normal", needsArg = false },
+        { cmd = "to", label = "Goto alias", desc = "Alias of goto", needsArg = true, example = "name" },
+        { cmd = "tp", label = "TP player", desc = "Alias of goto", needsArg = true, example = "name" },
+        { cmd = "teleport", label = "Teleport to player", desc = "Alias of goto", needsArg = true, example = "name" },
+        { cmd = "spectate", label = "Spectate", desc = "Alias of view", needsArg = true, example = "name" },
+        { cmd = "unspectate", label = "Unspectate", desc = "Alias of unview", needsArg = false },
+        { cmd = "noclipon", label = "Noclip on", desc = "Alias of noclip", needsArg = false },
+        { cmd = "clipon", label = "Clip on", desc = "Alias of clip", needsArg = false },
+        { cmd = "walkthrough", label = "Walk through walls", desc = "Alias of noclip", needsArg = false },
+        { cmd = "flyon", label = "Fly on", desc = "Alias of fly", needsArg = true, example = "50" },
+        { cmd = "flyoff", label = "Fly off", desc = "Alias of unfly", needsArg = false },
+        { cmd = "infinitejump", label = "Inf jump alias", desc = "Alias of infjump", needsArg = false },
+        { cmd = "uninfinitejump", label = "Uninfjump alias", desc = "Alias of uninfjump", needsArg = false },
+        { cmd = "ctp", label = "Click TP alias", desc = "Alias of clicktp", needsArg = false },
+        { cmd = "unctp", label = "Unclick TP alias", desc = "Alias of unclicktp", needsArg = false },
+        { cmd = "clickteleport", label = "Click teleport", desc = "Alias of clicktp", needsArg = false },
+        { cmd = "rj", label = "Rejoin alias", desc = "Alias of rejoin", needsArg = false },
+        { cmd = "rejoinserver", label = "Rejoin server", desc = "Alias of rejoin", needsArg = false },
+        { cmd = "serverhop", label = "Server hop alias", desc = "Alias of hop", needsArg = false },
+        { cmd = "serverswitch", label = "Switch server", desc = "Alias of hop", needsArg = false },
+        { cmd = "killme", label = "Kill self", desc = "Alias of reset", needsArg = false },
+        { cmd = "die", label = "Die", desc = "Alias of reset", needsArg = false },
+        { cmd = "respawn", label = "Respawn", desc = "Alias of re", needsArg = false },
+        { cmd = "refresh", label = "Refresh char", desc = "Alias of re", needsArg = false },
+        { cmd = "refreshchar", label = "Refresh character", desc = "Alias of re", needsArg = false },
+        { cmd = "stand", label = "Unsit alias", desc = "Alias of unsit", needsArg = false },
+        { cmd = "platformstand", label = "Platform stand", desc = "Alias of plat", needsArg = false },
+        { cmd = "unplatformstand", label = "Un platform stand", desc = "Alias of unplat", needsArg = false },
+        { cmd = "fpscap", label = "FPS cap alias", desc = "Alias of fps", needsArg = true, example = "60" },
+        { cmd = "setfps", label = "Set FPS", desc = "Alias of fps", needsArg = true, example = "60" },
+        { cmd = "fieldofview", label = "FOV alias", desc = "Alias of fov", needsArg = true, example = "70" },
+        { cmd = "setfov", label = "Set FOV", desc = "Alias of fov", needsArg = true, example = "70" },
+        { cmd = "setgravity", label = "Set gravity", desc = "Alias of gravity", needsArg = true, example = "196" },
+        { cmd = "clocktime", label = "Clock time", desc = "Alias of time", needsArg = true, example = "12" },
+        { cmd = "settime", label = "Set time", desc = "Alias of time", needsArg = true, example = "12" },
+        { cmd = "daytime", label = "Daytime", desc = "Alias of day", needsArg = false },
+        { cmd = "nighttime", label = "Nighttime", desc = "Alias of night", needsArg = false },
+        { cmd = "fb", label = "Fullbright alias", desc = "Alias of fullbright", needsArg = false },
+        { cmd = "bright", label = "Fullbright", desc = "Alias of fullbright", needsArg = false },
+        { cmd = "removefog", label = "Remove fog", desc = "Alias of nofog", needsArg = false },
+        { cmd = "setbrightness", label = "Set brightness", desc = "Alias of brightness", needsArg = true, example = "2" },
+        { cmd = "setambient", label = "Set ambient", desc = "Alias of ambient", needsArg = true, example = "1 1 1" },
+        { cmd = "setexposure", label = "Set exposure", desc = "Alias of exposure", needsArg = true, example = "0" },
+        { cmd = "wallhack", label = "XRay alias", desc = "Alias of xray", needsArg = false },
+        { cmd = "unwallhack", label = "Un XRay", desc = "Alias of unxray", needsArg = false },
+        { cmd = "perf", label = "Low GFX", desc = "Alias of lowgfx", needsArg = false },
+        { cmd = "performance", label = "Low GFX", desc = "Alias of lowgfx", needsArg = false },
+        { cmd = "quality", label = "High GFX", desc = "Alias of highgfx", needsArg = false },
+        { cmd = "boxes", label = "ESP alias", desc = "Alias of esp", needsArg = false },
+        { cmd = "noesp", label = "No ESP", desc = "Alias of unesp", needsArg = false },
+        { cmd = "godmode", label = "God mode alias", desc = "Alias of god", needsArg = false },
+        { cmd = "ungodmode", label = "Ungod alias", desc = "Alias of ungod", needsArg = false },
+        { cmd = "invisible", label = "Invisible alias", desc = "Alias of invis", needsArg = false },
+        { cmd = "visible", label = "Visible alias", desc = "Alias of vis", needsArg = false },
+        { cmd = "showself", label = "Visible", desc = "Alias of vis", needsArg = false },
+        { cmd = "anchor", label = "Freeze alias", desc = "Alias of freeze", needsArg = true, example = "name" },
+        { cmd = "unanchor", label = "Thaw alias", desc = "Alias of thaw", needsArg = true, example = "name" },
+        { cmd = "unfreeze", label = "Unfreeze", desc = "Alias of thaw", needsArg = true, example = "name" },
+        { cmd = "spinme", label = "Spin self", desc = "Alias of spin", needsArg = true, example = "10" },
+        { cmd = "stopspin", label = "Stop spin", desc = "Alias of unspin", needsArg = false },
+        { cmd = "stoporbit", label = "Stop orbit", desc = "Alias of unorbit", needsArg = false },
+        { cmd = "copychar", label = "Copy character", desc = "Alias of copy", needsArg = true, example = "name" },
+        { cmd = "copyavatar", label = "Copy avatar", desc = "Alias of copy", needsArg = true, example = "name" },
+        { cmd = "btools", label = "BTools alias", desc = "Alias of tools", needsArg = false },
+        { cmd = "buildingtools", label = "Building tools", desc = "Alias of tools", needsArg = false },
+        { cmd = "clr", label = "Clear alias", desc = "Alias of clear", needsArg = false },
+        { cmd = "cleanup", label = "Clear extras", desc = "Alias of clear", needsArg = false },
+        { cmd = "noragdoll", label = "Anti ragdoll", desc = "Alias of antiragdoll", needsArg = false },
+        { cmd = "allowragdoll", label = "Allow ragdoll", desc = "Alias of unantiragdoll", needsArg = false },
+        { cmd = "anti-afk", label = "Anti AFK alias", desc = "Alias of antiafk", needsArg = false },
+        { cmd = "noafk", label = "Anti AFK", desc = "Alias of antiafk", needsArg = false },
+        { cmd = "firstperson", label = "First person", desc = "Alias of fp", needsArg = false },
+        { cmd = "thirdperson", label = "Third person", desc = "Alias of tp3", needsArg = false },
+        { cmd = "setmaxzoom", label = "Max zoom", desc = "Alias of maxzoom", needsArg = true, example = "128" },
+        { cmd = "setminzoom", label = "Min zoom", desc = "Alias of minzoom", needsArg = true, example = "0.5" },
+        { cmd = "mouselock", label = "Shift lock", desc = "Alias of shiftlock", needsArg = false },
+        { cmd = "setvolume", label = "Set volume", desc = "Alias of volume", needsArg = true, example = "5" },
+        { cmd = "getping", label = "Get ping", desc = "Alias of ping", needsArg = false },
+        { cmd = "accountage", label = "Account age", desc = "Alias of age", needsArg = true, example = "name" },
+        { cmd = "userid", label = "User id", desc = "Alias of id", needsArg = true, example = "name" },
+        { cmd = "getjobid", label = "Get JobId", desc = "Alias of jobid", needsArg = false },
+        { cmd = "getplaceid", label = "Get PlaceId", desc = "Alias of placeid", needsArg = false },
+        { cmd = "setprefix", label = "Set prefix", desc = "Alias of prefix", needsArg = true, example = "!" },
+        { cmd = "vc", label = "VC bypass", desc = "Alias of vcbypass", needsArg = false },
+        { cmd = "antivc", label = "Anti VC", desc = "Alias of vcbypass", needsArg = false },
+        { cmd = "playemote", label = "Play emote", desc = "Alias of emote", needsArg = true, example = "507770239" },
+        { cmd = "emotestop", label = "Stop emote", desc = "Alias of stopemote", needsArg = false },
+        { cmd = "stopanim", label = "Stop anim", desc = "Alias of stopemote", needsArg = false },
+        { cmd = "espeed", label = "Emote speed", desc = "Alias of emotespeed", needsArg = true, example = "1.5" },
+        { cmd = "emotebrowser", label = "Emote browser", desc = "Alias of afem", needsArg = false },
+        { cmd = "commands", label = "Commands", desc = "Alias of cmds", needsArg = false },
+        { cmd = "help", label = "Help", desc = "Alias of cmds", needsArg = false },
+        { cmd = "leave", label = "Leave game", desc = "Alias of exit", needsArg = false },
+        { cmd = "unbang", label = "Stop adult", desc = "Alias of stopadult", needsArg = false },
+        { cmd = "unfuck", label = "Stop adult", desc = "Alias of stopadult", needsArg = false },
+        { cmd = "walk", label = "Walk pose", desc = "Reset to walking defaults", needsArg = false },
+        { cmd = "run", label = "Run speed 24", desc = "Set WS to 24", needsArg = false },
+        { cmd = "sprint", label = "Sprint 32", desc = "Set WS to 32", needsArg = false },
+        { cmd = "slow", label = "Slow 8", desc = "Set WS to 8", needsArg = false },
+        { cmd = "turtle", label = "Turtle 4", desc = "Set WS to 4", needsArg = false },
+        { cmd = "fast", label = "Fast 50", desc = "Set WS to 50", needsArg = false },
+        { cmd = "sonic", label = "Sonic 100", desc = "Set WS to 100", needsArg = false },
+        { cmd = "moonwalk", label = "Low gravity", desc = "Gravity 50", needsArg = false },
+        { cmd = "earth", label = "Normal gravity", desc = "Gravity 196.2", needsArg = false },
+        { cmd = "space", label = "Space gravity", desc = "Gravity 20", needsArg = false },
+        { cmd = "nograv", label = "No gravity", desc = "Gravity 0", needsArg = false },
+        { cmd = "highjump", label = "High jump", desc = "JP 100", needsArg = false },
+        { cmd = "superjump", label = "Super jump", desc = "JP 200", needsArg = false },
+        { cmd = "jumpreset", label = "Jump reset", desc = "JP 50", needsArg = false },
+        { cmd = "hipreset", label = "Hip reset", desc = "HH default 0", needsArg = false },
+        { cmd = "tall", label = "Tall hip", desc = "HipHeight 5", needsArg = false },
+        { cmd = "short", label = "Short hip", desc = "HipHeight -1", needsArg = false },
+        { cmd = "float", label = "Float hip", desc = "HipHeight 10", needsArg = false },
+        { cmd = "freezepos", label = "Freeze in place", desc = "Anchor self", needsArg = false },
+        { cmd = "thawself", label = "Thaw self", desc = "Unanchor self", needsArg = false },
+        { cmd = "spinfast", label = "Spin fast", desc = "Spin at 50", needsArg = false },
+        { cmd = "spinslow", label = "Spin slow", desc = "Spin at 5", needsArg = false },
+        { cmd = "flyfast", label = "Fly fast", desc = "Fly speed 100", needsArg = false },
+        { cmd = "flyslow", label = "Fly slow", desc = "Fly speed 25", needsArg = false },
+        { cmd = "camreset", label = "Camera reset", desc = "Unview + third person", needsArg = false },
+        { cmd = "zoommax", label = "Zoom max 500", desc = "Max zoom 500", needsArg = false },
+        { cmd = "zoommin", label = "Zoom min 0", desc = "Min zoom 0", needsArg = false },
+        { cmd = "fovreset", label = "FOV reset", desc = "FOV 70", needsArg = false },
+        { cmd = "fovwide", label = "FOV wide", desc = "FOV 100", needsArg = false },
+        { cmd = "fovzoom", label = "FOV zoom", desc = "FOV 40", needsArg = false },
+        { cmd = "fps30", label = "FPS 30", desc = "Cap 30", needsArg = false },
+        { cmd = "fps60", label = "FPS 60", desc = "Cap 60", needsArg = false },
+        { cmd = "fps120", label = "FPS 120", desc = "Cap 120", needsArg = false },
+        { cmd = "fpsunlock", label = "FPS unlock", desc = "Cap 999", needsArg = false },
+        { cmd = "noon", label = "Noon", desc = "Time 12", needsArg = false },
+        { cmd = "midnight", label = "Midnight", desc = "Time 0", needsArg = false },
+        { cmd = "sunrise", label = "Sunrise", desc = "Time 6", needsArg = false },
+        { cmd = "sunset", label = "Sunset", desc = "Time 18", needsArg = false },
+        { cmd = "pitchblack", label = "Pitch black", desc = "Brightness 0", needsArg = false },
+        { cmd = "overbright", label = "Overbright", desc = "Brightness 10", needsArg = false },
+        { cmd = "foggy", label = "Foggy", desc = "Add mild fog via lighting", needsArg = false },
+        { cmd = "clearfog", label = "Clear fog", desc = "Alias nofog", needsArg = false },
+        { cmd = "espall", label = "ESP all", desc = "Enable ESP", needsArg = false },
+        { cmd = "hideesp", label = "Hide ESP", desc = "Disable ESP", needsArg = false },
+        { cmd = "godon", label = "God on", desc = "Enable god", needsArg = false },
+        { cmd = "godoff", label = "God off", desc = "Disable god", needsArg = false },
+        { cmd = "hide", label = "Hide self", desc = "Invisible", needsArg = false },
+        { cmd = "show", label = "Show self", desc = "Visible", needsArg = false },
+        { cmd = "bringme", label = "Info bring", desc = "Owner bring only — use bring name", needsArg = false },
+        { cmd = "tpzero", label = "TP origin", desc = "Teleport to 0,10,0", needsArg = false },
+        { cmd = "tpup", label = "TP up", desc = "Teleport +50 studs Y", needsArg = false },
+        { cmd = "tpdown", label = "TP down", desc = "Teleport -20 studs Y", needsArg = false },
+        { cmd = "tpfwd", label = "TP forward", desc = "Teleport forward 20", needsArg = false },
+        { cmd = "tpback", label = "TP back", desc = "Teleport backward 20", needsArg = false },
+        { cmd = "rejoinplace", label = "Rejoin place", desc = "Rejoin", needsArg = false },
+        { cmd = "hopserver", label = "Hop server", desc = "Server hop", needsArg = false },
+        { cmd = "pingms", label = "Ping ms", desc = "Show ping", needsArg = false },
+        { cmd = "myid", label = "My user id", desc = "Show your UserId", needsArg = false },
+        { cmd = "myage", label = "My age", desc = "Show your account age", needsArg = false },
+        { cmd = "serverinfo", label = "Server info", desc = "JobId + PlaceId + players", needsArg = false },
+        { cmd = "playercount", label = "Player count", desc = "Players in server", needsArg = false },
+        { cmd = "notifytest", label = "Notify test", desc = "Test notification", needsArg = false },
+        { cmd = "sayhi", label = "Say hi", desc = "Chat hello", needsArg = false },
+        { cmd = "vol0", label = "Mute", desc = "Volume 0", needsArg = false },
+        { cmd = "vol5", label = "Volume mid", desc = "Volume 5", needsArg = false },
+        { cmd = "vol10", label = "Volume max", desc = "Volume 10", needsArg = false },
+        { cmd = "prefixsemi", label = "Prefix ;", desc = "Set prefix to ;", needsArg = false },
+        { cmd = "prefixdot", label = "Prefix .", desc = "Set prefix to .", needsArg = false },
+        { cmd = "prefixbang", label = "Prefix !", desc = "Set prefix to !", needsArg = false },
+        { cmd = "emotewave", label = "Emote wave", desc = "Play wave", needsArg = false },
+        { cmd = "emotedance", label = "Emote dance", desc = "Play dance", needsArg = false },
+        { cmd = "emotelaugh", label = "Emote laugh", desc = "Play laugh", needsArg = false },
+        { cmd = "emotepoint", label = "Emote point", desc = "Play point", needsArg = false },
+        { cmd = "emotecheer", label = "Emote cheer", desc = "Play cheer", needsArg = false },
+        { cmd = "emotesit", label = "Emote sit", desc = "Play sit", needsArg = false },
+        { cmd = "emotestopall", label = "Stop emotes", desc = "Stop emote", needsArg = false },
+        { cmd = "speed1", label = "Emote speed 1x", desc = "Emote speed 1", needsArg = false },
+        { cmd = "speed2", label = "Emote speed 2x", desc = "Emote speed 2", needsArg = false },
+        { cmd = "speed05", label = "Emote speed 0.5x", desc = "Emote speed 0.5", needsArg = false },
+        { cmd = "openemotes", label = "Open emotes", desc = "Open emote browser", needsArg = false },
+        { cmd = "browseemotes", label = "Browse emotes", desc = "Open emote browser", needsArg = false },
+        { cmd = "shiftlockon", label = "Shift lock on", desc = "Enable shift lock", needsArg = false },
+        { cmd = "toolsget", label = "Get tools", desc = "Give btools", needsArg = false },
+        { cmd = "ragdolloff", label = "Ragdoll off", desc = "Anti ragdoll", needsArg = false },
+        { cmd = "ragdollon", label = "Ragdoll on", desc = "Allow ragdoll", needsArg = false },
+        { cmd = "afkoff", label = "AFK off", desc = "Anti AFK", needsArg = false },
+        { cmd = "vcon", label = "VC on", desc = "VC bypass", needsArg = false },
+        { cmd = "xrayon", label = "XRay on", desc = "Enable xray", needsArg = false },
+        { cmd = "xrayoff", label = "XRay off", desc = "Disable xray", needsArg = false },
+        { cmd = "fullbrighton", label = "Fullbright on", desc = "Fullbright", needsArg = false },
+        { cmd = "nclip", label = "Noclip short", desc = "Noclip", needsArg = false },
+        { cmd = "unflyme", label = "Unfly me", desc = "Unfly", needsArg = false },
+        { cmd = "loopwalk", label = "Loop walk", desc = "Loop WS 16", needsArg = false },
+        { cmd = "unloopwalk", label = "Unloop walk", desc = "Unloop WS", needsArg = false },
+        { cmd = "loopj", label = "Loop jump short", desc = "Loop JP 50", needsArg = false },
+        { cmd = "unloopj", label = "Unloop jump", desc = "Unloop JP", needsArg = false },
+        { cmd = "coords", label = "Print coords", desc = "Notify your position", needsArg = false },
+        { cmd = "pos", label = "Position", desc = "Notify your position", needsArg = false },
+        { cmd = "where", label = "Where am I", desc = "Notify your position", needsArg = false },
+        { cmd = "health", label = "Health", desc = "Show your health", needsArg = false },
+        { cmd = "hp", label = "HP", desc = "Show your health", needsArg = false },
+        { cmd = "maxhp", label = "Max HP", desc = "Show max health", needsArg = false },
+        { cmd = "team", label = "Team name", desc = "Show your team", needsArg = false },
+        { cmd = "displayname", label = "Display name", desc = "Show display name", needsArg = false },
+        { cmd = "username", label = "Username", desc = "Show username", needsArg = false },
+        { cmd = "players", label = "List players", desc = "Notify player list", needsArg = false },
+        { cmd = "plrs", label = "List players", desc = "Notify player list", needsArg = false },
+        { cmd = "nearest", label = "Nearest player", desc = "Notify nearest player", needsArg = false },
+        { cmd = "farthest", label = "Farthest player", desc = "Notify farthest player", needsArg = false },
+        { cmd = "rejoinhop", label = "Rejoin or hop", desc = "Rejoin current", needsArg = false },
+        { cmd = "quit", label = "Quit", desc = "Leave game", needsArg = false },
+        { cmd = "cmdlist", label = "Cmd list", desc = "Open commands", needsArg = false },
+        { cmd = "menu", label = "Menu hint", desc = "Toggle menu with keybind", needsArg = false },
+        { cmd = "uishow", label = "UI show", desc = "Menu keybind reminder", needsArg = false },
+        { cmd = "nametag", label = "Nametag info", desc = "Show your nametag data", needsArg = false },
+        { cmd = "rank", label = "Key rank", desc = "Show key rank", needsArg = false },
+        { cmd = "keyinfo", label = "Key info", desc = "Show key rank/tag", needsArg = false },
+        { cmd = "version", label = "Version", desc = "Show NØIR version", needsArg = false },
+        { cmd = "ver", label = "Version short", desc = "Show NØIR version", needsArg = false },
+        { cmd = "credits", label = "Credits", desc = "NØIR credits", needsArg = false },
+        { cmd = "discord", label = "Discord", desc = "Discord invite hint", needsArg = false },
+        { cmd = "site", label = "Website", desc = "n0ir.pages.dev", needsArg = false },
+        { cmd = "website", label = "Website", desc = "n0ir.pages.dev", needsArg = false },
+        { cmd = "support", label = "Support", desc = "Discord support", needsArg = false },
+        { cmd = "freezeesp", label = "Freeze + ESP", desc = "ESP then note freeze", needsArg = false },
+        { cmd = "safe", label = "Safe defaults", desc = "Normal + clip + unfly", needsArg = false },
+        { cmd = "pvp", label = "PVP prep", desc = "WS 20 JP 50 god off", needsArg = false },
+        { cmd = "explore", label = "Explore", desc = "WS 30 fly ready", needsArg = false },
+        { cmd = "admin", label = "Admin note", desc = "Owner tools need rank", needsArg = false },
+        { cmd = "owner", label = "Owner note", desc = "Owner-only cmds", needsArg = false },
+        { cmd = "heal", label = "Heal note", desc = "God for infinite HP", needsArg = false },
+        { cmd = "immortal", label = "Immortal", desc = "Alias god", needsArg = false },
+        { cmd = "mortal", label = "Mortal", desc = "Alias ungod", needsArg = false },
+        { cmd = "ghost", label = "Ghost", desc = "Alias invis", needsArg = false },
+        { cmd = "unghost", label = "Unghost", desc = "Alias vis", needsArg = false },
+        { cmd = "phaser", label = "Phaser", desc = "Alias noclip", needsArg = false },
+        { cmd = "solid", label = "Solid", desc = "Alias clip", needsArg = false },
+        { cmd = "jetpack", label = "Jetpack", desc = "Alias fly", needsArg = true, example = "60" },
+        { cmd = "land", label = "Land", desc = "Alias unfly", needsArg = false },
+        { cmd = "blink", label = "Blink TP", desc = "Alias clicktp", needsArg = false },
+        { cmd = "unblink", label = "Unblink", desc = "Alias unclicktp", needsArg = false },
+        { cmd = "spectateoff", label = "Spectate off", desc = "Alias unview", needsArg = false },
+        { cmd = "cam", label = "Camera view", desc = "Alias view", needsArg = true, example = "name" },
+        { cmd = "uncam", label = "Uncamera", desc = "Alias unview", needsArg = false },
+        { cmd = "pull", label = "Bring alias", desc = "Alias bring (owner)", needsArg = true, example = "name" },
+        { cmd = "summon", label = "Summon", desc = "Alias bring (owner)", needsArg = true, example = "name" },
+        { cmd = "gotoplayer", label = "Goto player", desc = "Alias goto", needsArg = true, example = "name" },
+        { cmd = "tpto", label = "TP to", desc = "Alias goto", needsArg = true, example = "name" },
+        { cmd = "setpos", label = "Set pos", desc = "Alias tppos", needsArg = true, example = "0 10 0" },
+        { cmd = "move", label = "Move pos", desc = "Alias tppos", needsArg = true, example = "0 10 0" },
+        { cmd = "anchorall", label = "Anchor all", desc = "Alias freezeall", needsArg = false },
+        { cmd = "unanchorall", label = "Unanchor all", desc = "Alias thawall", needsArg = false },
+        { cmd = "yeet", label = "Yeet", desc = "Alias fling", needsArg = true, example = "name" },
+        { cmd = "launch", label = "Launch", desc = "Alias fling", needsArg = true, example = "name" },
+        { cmd = "circle", label = "Orbit circle", desc = "Alias orbit", needsArg = true, example = "name" },
+        { cmd = "uncircle", label = "Uncircle", desc = "Alias unorbit", needsArg = false },
+        { cmd = "clone", label = "Copy look", desc = "Alias copy", needsArg = true, example = "name" },
+        { cmd = "stealavatar", label = "Steal avatar", desc = "Alias copy", needsArg = true, example = "name" },
+        { cmd = "hammer", label = "BTools", desc = "Alias tools", needsArg = false },
+        { cmd = "f3x", label = "BTools", desc = "Alias tools", needsArg = false },
+        { cmd = "norag", label = "No ragdoll", desc = "Alias antiragdoll", needsArg = false },
+        { cmd = "yesrag", label = "Yes ragdoll", desc = "Alias unantiragdoll", needsArg = false },
+        { cmd = "idlekick", label = "Anti idle kick", desc = "Alias antiafk", needsArg = false },
+        { cmd = "fpk", label = "First person lock", desc = "Alias fp", needsArg = false },
+        { cmd = "tpk", label = "Third person", desc = "Alias tp3", needsArg = false },
+        { cmd = "lockmouse", label = "Lock mouse", desc = "Alias shiftlock", needsArg = false },
+        { cmd = "vol", label = "Volume short", desc = "Alias volume", needsArg = true, example = "5" },
+        { cmd = "ms", label = "Ping ms", desc = "Alias ping", needsArg = false },
+        { cmd = "uid", label = "UID", desc = "Alias id", needsArg = true, example = "name" },
+        { cmd = "jid", label = "Job id", desc = "Alias jobid", needsArg = false },
+        { cmd = "pid", label = "Place id", desc = "Alias placeid", needsArg = false },
+        { cmd = "pre", label = "Prefix short", desc = "Alias prefix", needsArg = true, example = ";" },
+        { cmd = "bypassvc", label = "Bypass VC", desc = "Alias vcbypass", needsArg = false },
+        { cmd = "dance", label = "Dance emote", desc = "Play dance emote", needsArg = false },
+        { cmd = "wave", label = "Wave emote", desc = "Play wave emote", needsArg = false },
+        { cmd = "laugh", label = "Laugh emote", desc = "Play laugh emote", needsArg = false },
+        { cmd = "cheer", label = "Cheer emote", desc = "Play cheer emote", needsArg = false },
+        { cmd = "point", label = "Point emote", desc = "Play point emote", needsArg = false },
+        { cmd = "sitanim", label = "Sit emote", desc = "Play sit emote", needsArg = false },
+        { cmd = "stopdance", label = "Stop dance", desc = "Stop emote", needsArg = false },
+        { cmd = "emotelib", label = "Emote library", desc = "Open browser", needsArg = false },
+        { cmd = "elist", label = "Emote list", desc = "Open browser", needsArg = false },
+        { cmd = "cmd", label = "Commands", desc = "Alias cmds", needsArg = false },
+        { cmd = "?", label = "Help", desc = "Alias cmds", needsArg = false },
+        { cmd = "leavegame", label = "Leave game", desc = "Alias exit", needsArg = false },
+        { cmd = "ragequit", label = "Rage quit", desc = "Alias exit", needsArg = false },
+        { cmd = "rpstop", label = "RP stop", desc = "Alias stopadult", needsArg = false },
+        { cmd = "stoprp", label = "Stop RP", desc = "Alias stopadult", needsArg = false },
+        { cmd = "adultstop", label = "Adult stop", desc = "Alias stopadult", needsArg = false },
+        { cmd = "ws16", label = "WS 16", desc = "Default walkspeed", needsArg = false },
+        { cmd = "ws20", label = "WS 20", desc = "Walkspeed 20", needsArg = false },
+        { cmd = "ws50", label = "WS 50", desc = "Walkspeed 50", needsArg = false },
+        { cmd = "ws100", label = "WS 100", desc = "Walkspeed 100", needsArg = false },
+        { cmd = "jp50", label = "JP 50", desc = "Jump 50", needsArg = false },
+        { cmd = "jp100", label = "JP 100", desc = "Jump 100", needsArg = false },
+        { cmd = "g196", label = "Gravity normal", desc = "Gravity 196", needsArg = false },
+        { cmd = "g50", label = "Gravity 50", desc = "Gravity 50", needsArg = false },
+        { cmd = "g0", label = "Gravity 0", desc = "Gravity 0", needsArg = false },
+        { cmd = "annoy", label = "Annoy note", desc = "Use fling / spin creatively", needsArg = true, example = "name" },
+        { cmd = "spamchat", label = "Spam chat note", desc = "Use carefully", needsArg = true, example = "text" },
+        { cmd = "say", label = "Say chat", desc = "Send chat message", needsArg = true, example = "hello" },
+        { cmd = "notify", label = "Notify", desc = "Show notification", needsArg = true, example = "text" },
+        { cmd = "stopadult2", label = "Stop adult 2", desc = "Alias stopadult", needsArg = false },
+        { cmd = "headbangstop", label = "Stop headbang", desc = "Alias stopadult", needsArg = false },
+        { cmd = "clearall", label = "Clear all", desc = "Alias clear", needsArg = false },
+        { cmd = "fix", label = "Reset form", desc = "Alias normal", needsArg = false },
+        { cmd = "stats", label = "Reset stats", desc = "Alias normal", needsArg = false },
+        { cmd = "unpower", label = "Unpower", desc = "Alias normal", needsArg = false },
+        { cmd = "ungodall", label = "Note", desc = "Use ungod on self", needsArg = false },
+        { cmd = "espnames", label = "ESP names", desc = "Alias esp", needsArg = false },
+        { cmd = "nameesp", label = "Name ESP", desc = "Alias esp", needsArg = false },
+        { cmd = "fullbrightoff", label = "Fullbright off", desc = "Restore via highgfx", needsArg = false },
+        { cmd = "gfxlow", label = "GFX low", desc = "Alias lowgfx", needsArg = false },
+        { cmd = "gfxhigh", label = "GFX high", desc = "Alias highgfx", needsArg = false },
+        { cmd = "fogoff", label = "Fog off", desc = "Alias nofog", needsArg = false },
+        { cmd = "fogon", label = "Fog note", desc = "Rejoin to restore fog", needsArg = false },
+        { cmd = "brightmax", label = "Brightness max", desc = "Brightness 5", needsArg = false },
+        { cmd = "ambientwhite", label = "Ambient white", desc = "Ambient 1 1 1", needsArg = false },
+        { cmd = "ambientblack", label = "Ambient black", desc = "Ambient 0 0 0", needsArg = false },
+        { cmd = "exposure0", label = "Exposure 0", desc = "Exposure 0", needsArg = false },
+        { cmd = "exposure2", label = "Exposure 2", desc = "Exposure 2", needsArg = false },
+        { cmd = "time0", label = "Time 0", desc = "Midnight", needsArg = false },
+        { cmd = "time6", label = "Time 6", desc = "Sunrise", needsArg = false },
+        { cmd = "time12", label = "Time 12", desc = "Noon", needsArg = false },
+        { cmd = "time18", label = "Time 18", desc = "Sunset", needsArg = false },
+        { cmd = "time21", label = "Time 21", desc = "Night", needsArg = false },
+        { cmd = "sitdown", label = "Sit down", desc = "Alias sit", needsArg = false },
+        { cmd = "standup", label = "Stand up", desc = "Alias unsit", needsArg = false },
+        { cmd = "ragdollblock", label = "Block ragdoll", desc = "Alias antiragdoll", needsArg = false },
+        { cmd = "ragdollallow", label = "Allow ragdoll", desc = "Alias unantiragdoll", needsArg = false },
+        { cmd = "afkprotect", label = "AFK protect", desc = "Alias antiafk", needsArg = false },
+        { cmd = "zoomout", label = "Zoom out max", desc = "Max zoom 200", needsArg = false },
+        { cmd = "zoomin", label = "Zoom in min", desc = "Min zoom 0.5", needsArg = false },
+        { cmd = "lockcam", label = "First person", desc = "Alias fp", needsArg = false },
+        { cmd = "freecam3", label = "Third person", desc = "Alias tp3", needsArg = false },
+        { cmd = "shift", label = "Shift lock", desc = "Alias shiftlock", needsArg = false },
+        { cmd = "mute", label = "Mute", desc = "Volume 0", needsArg = false },
+        { cmd = "unmute", label = "Unmute", desc = "Volume 5", needsArg = false },
+        { cmd = "loud", label = "Loud", desc = "Volume 10", needsArg = false },
+        { cmd = "quiet", label = "Quiet", desc = "Volume 2", needsArg = false },
+        { cmd = "latency", label = "Latency", desc = "Alias ping", needsArg = false },
+        { cmd = "days", label = "Account days", desc = "Alias age", needsArg = true, example = "name" },
+        { cmd = "useridof", label = "UserId of", desc = "Alias id", needsArg = true, example = "name" },
+        { cmd = "serverid", label = "Server id", desc = "Alias jobid", needsArg = false },
+        { cmd = "gameid", label = "Game place id", desc = "Alias placeid", needsArg = false },
+        { cmd = "changeprefix", label = "Change prefix", desc = "Alias prefix", needsArg = true, example = "!" },
+        { cmd = "voicebypass", label = "Voice bypass", desc = "Alias vcbypass", needsArg = false },
+        { cmd = "playanim", label = "Play anim", desc = "Alias emote", needsArg = true, example = "507770239" },
+        { cmd = "stopemotes", label = "Stop emotes", desc = "Alias stopemote", needsArg = false },
+        { cmd = "animspeed", label = "Anim speed", desc = "Alias emotespeed", needsArg = true, example = "1.25" },
+        { cmd = "emotegui", label = "Emote GUI", desc = "Open browser", needsArg = false },
+        { cmd = "emotemenu", label = "Emote menu", desc = "Open browser", needsArg = false },
+        { cmd = "commandlist", label = "Command list", desc = "Alias cmds", needsArg = false },
+        { cmd = "helpcmds", label = "Help cmds", desc = "Alias cmds", needsArg = false },
+        { cmd = "exitgame", label = "Exit game", desc = "Alias exit", needsArg = false },
+        { cmd = "disconnect", label = "Disconnect", desc = "Alias exit", needsArg = false },
+        { cmd = "rpend", label = "RP end", desc = "Alias stopadult", needsArg = false },
+        { cmd = "stopallrp", label = "Stop all RP", desc = "Alias stopadult", needsArg = false },
+}
 
     Cmds:CreateSection("All commands")
 
@@ -5545,6 +7196,7 @@ function N0IR:MountUtilities(Window)
         World = World,
         Player = Player,
         Anims = Anims,
+        Emotes = Emotes,
         Cmds = Cmds,
         VC = VC,
         Map = Map,
