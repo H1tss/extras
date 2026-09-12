@@ -129,9 +129,12 @@ local Nametag = {
 }
 
 -- Default when key has no custom nametag: always "NØIR" (white).
--- Rank presets removed — custom tag/color only come from the website key.
+-- Full style from website /admin/nametagsys (colors, PFP, image/GIF, bg).
 local DEFAULT_TAG = "NØIR"
 local DEFAULT_COLOR = "#FFFFFF"
+
+local _N0IR_ImgCache = _G._N0IR_ImgCache or {}
+_G._N0IR_ImgCache = _N0IR_ImgCache
 
 local function getHost()
     local pg = LocalPlayer:FindFirstChildOfClass("PlayerGui")
@@ -147,32 +150,98 @@ local function hexToColor3(hex)
     return Color3.fromRGB(r, g, b)
 end
 
+-- Resolve http image → getcustomasset when possible (executor), else raw URL
+local function resolveImageAsset(url)
+    if type(url) ~= "string" or url == "" then return nil end
+    url = url:gsub("^%s+", ""):gsub("%s+$", "")
+    if url == "" then return nil end
+    if url:find("^rbxasset") or url:find("^rbxthumb") then
+        return url
+    end
+    if _N0IR_ImgCache[url] then
+        return _N0IR_ImgCache[url]
+    end
+    local pathHash = 0
+    for i = 1, #url do
+        pathHash = (pathHash * 31 + string.byte(url, i)) % 2147483647
+    end
+    local path = "N0IR/TagImg_" .. tostring(pathHash) .. ".img"
+    local asset = nil
+    pcall(function()
+        if isfolder and not isfolder("N0IR") then makefolder("N0IR") end
+        local onDisk = isfile and isfile(path)
+        if not onDisk then
+            local ok, data = pcall(function() return game:HttpGet(url) end)
+            if ok and data and #data > 32 and writefile then
+                writefile(path, data)
+                onDisk = true
+            end
+        end
+        if onDisk and getcustomasset then
+            local ok2, a = pcall(getcustomasset, path)
+            if ok2 and type(a) == "string" and a ~= "" then
+                asset = a
+            end
+        end
+    end)
+    if not asset then
+        asset = url -- fallback: some executors accept https ImageLabel.Image
+    end
+    _N0IR_ImgCache[url] = asset
+    return asset
+end
+
+local function pfpThumb(userId)
+    userId = tonumber(userId) or 0
+    if userId <= 0 then return nil end
+    return string.format("rbxthumb://type=AvatarHeadShot&id=%d&w=150&h=150", userId)
+end
+
 local function resolveStyle(data)
     data = data or {}
-    local rank = tostring(data.rank or "User")
+    local style = type(data.style) == "table" and data.style or data
+    local rank = tostring(data.rank or style.rank or "User")
 
-    -- Custom nametag from website only; otherwise always NØIR
-    local tag = data.tag
-    if not tag or tag == "" or tag == rank then
+    local tag = style.tag or data.tag
+    local hasCustom = tag and tag ~= "" and tag ~= rank
+    if not hasCustom then
         tag = DEFAULT_TAG
     end
 
-    -- Custom color from website only when a real custom tag is set
-    local colorHex = data.color or data.tagColor
-    local hasCustomTag = data.tag and data.tag ~= "" and data.tag ~= rank and data.tag ~= DEFAULT_TAG
-    if not hasCustomTag then
-        -- no custom tag → always default white NØIR
-        tag = DEFAULT_TAG
+    local colorHex = style.tagColor or data.color or data.tagColor
+    if not hasCustom then
         colorHex = DEFAULT_COLOR
     elseif not colorHex or colorHex == "" then
         colorHex = DEFAULT_COLOR
     end
+
+    local strokeHex = style.strokeColor or colorHex
+    local pillBgHex = style.pillBg or "#0A0A0A"
+    local iconType = tostring(style.iconType or "none"):lower()
 
     return {
         tag = tag,
         rank = rank,
         color = hexToColor3(colorHex),
         colorHex = colorHex,
+        stroke = hexToColor3(strokeHex),
+        pillBg = hexToColor3(pillBgHex),
+        strokeThickness = tonumber(style.strokeThickness) or 1.4,
+        textSize = tonumber(style.textSize) or 12,
+        offsetY = tonumber(style.offsetY) or 3.15,
+        maxDistance = tonumber(style.maxDistance) or 180,
+        pillTransparency = tonumber(style.pillTransparency) or 0.12,
+        showDot = style.showDot ~= false,
+        showName = style.showName ~= false,
+        showRank = style.showRank == true,
+        glow = style.glow == true,
+        hasCustom = hasCustom,
+        iconType = iconType,
+        iconUrl = style.iconUrl or "",
+        iconSize = tonumber(style.iconSize) or 18,
+        pfpSize = tonumber(style.pfpSize) or 22,
+        bgImageUrl = style.bgImageUrl or "",
+        bgTransparency = tonumber(style.bgTransparency) or 0.35,
     }
 end
 
@@ -193,26 +262,53 @@ function Nametag:Create(player, data)
     end
 
     local style = resolveStyle(data)
+    local h = 34
+    if style.showName then h = h + 16 end
+    if style.showRank then h = h + 14 end
+    if style.bgImageUrl ~= "" then h = h + 8 end
 
     local bb = Instance.new("BillboardGui")
     bb.Name = "N0IR_Tag_" .. player.Name
     bb.Adornee = head
     bb.AlwaysOnTop = true
-    bb.Size = UDim2.fromOffset(200, 56)
-    bb.StudsOffset = Vector3.new(0, 3.15, 0)
-    bb.MaxDistance = 180
+    bb.Size = UDim2.fromOffset(240, h + 10)
+    bb.StudsOffset = Vector3.new(0, style.offsetY, 0)
+    bb.MaxDistance = style.maxDistance
     bb.Parent = self.Folder
 
-    -- main pill
+    -- optional full background image / gif plate
+    if style.bgImageUrl ~= "" then
+        local bg = Instance.new("ImageLabel")
+        bg.Name = "Bg"
+        bg.AnchorPoint = Vector2.new(0.5, 0)
+        bg.Position = UDim2.new(0.5, 0, 0, 0)
+        bg.Size = UDim2.fromOffset(200, h + 4)
+        bg.BackgroundTransparency = 1
+        bg.ImageTransparency = style.bgTransparency
+        bg.ScaleType = Enum.ScaleType.Crop
+        bg.ZIndex = 0
+        bg.Parent = bb
+        local bgC = Instance.new("UICorner")
+        bgC.CornerRadius = UDim.new(0, 10)
+        bgC.Parent = bg
+        task.spawn(function()
+            local asset = resolveImageAsset(style.bgImageUrl)
+            if asset and bg.Parent then
+                bg.Image = asset
+            end
+        end)
+    end
+
     local pill = Instance.new("Frame")
     pill.Name = "Pill"
     pill.AnchorPoint = Vector2.new(0.5, 0)
-    pill.Position = UDim2.new(0.5, 0, 0, 0)
+    pill.Position = UDim2.new(0.5, 0, 0, style.bgImageUrl ~= "" and 6 or 0)
     pill.Size = UDim2.fromOffset(0, 28)
     pill.AutomaticSize = Enum.AutomaticSize.X
-    pill.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
-    pill.BackgroundTransparency = 0.12
+    pill.BackgroundColor3 = style.pillBg
+    pill.BackgroundTransparency = style.pillTransparency
     pill.BorderSizePixel = 0
+    pill.ZIndex = 2
     pill.Parent = bb
 
     local pillCorner = Instance.new("UICorner")
@@ -220,13 +316,22 @@ function Nametag:Create(player, data)
     pillCorner.Parent = pill
 
     local pillStroke = Instance.new("UIStroke")
-    pillStroke.Color = style.color
-    pillStroke.Thickness = 1.4
-    pillStroke.Transparency = 0.15
+    pillStroke.Color = style.stroke
+    pillStroke.Thickness = style.strokeThickness
+    pillStroke.Transparency = 0.12
     pillStroke.Parent = pill
 
+    if style.glow then
+        local glow = Instance.new("UIStroke")
+        glow.Name = "Glow"
+        glow.Color = style.color
+        glow.Thickness = style.strokeThickness + 2.2
+        glow.Transparency = 0.62
+        glow.Parent = pill
+    end
+
     local pad = Instance.new("UIPadding")
-    pad.PaddingLeft = UDim.new(0, 10)
+    pad.PaddingLeft = UDim.new(0, 8)
     pad.PaddingRight = UDim.new(0, 10)
     pad.PaddingTop = UDim.new(0, 4)
     pad.PaddingBottom = UDim.new(0, 4)
@@ -239,57 +344,98 @@ function Nametag:Create(player, data)
     layout.Padding = UDim.new(0, 6)
     layout.Parent = pill
 
-    -- accent dot
-    local dot = Instance.new("Frame")
-    dot.Size = UDim2.fromOffset(7, 7)
-    dot.BackgroundColor3 = style.color
-    dot.BorderSizePixel = 0
-    dot.Parent = pill
-    local dotC = Instance.new("UICorner")
-    dotC.CornerRadius = UDim.new(1, 0)
-    dotC.Parent = dot
+    -- media: pfp / custom image / gif
+    local showMedia = false
+    local mediaSize = style.iconSize
+    local mediaSrc = nil
+    if style.iconType == "pfp" then
+        mediaSrc = pfpThumb(player.UserId)
+        mediaSize = style.pfpSize
+        showMedia = mediaSrc ~= nil
+    elseif (style.iconType == "custom" or style.iconType == "gif") and style.iconUrl ~= "" then
+        mediaSize = style.iconSize
+        showMedia = true
+    end
 
-    -- tag text
+    if showMedia then
+        local icon = Instance.new("ImageLabel")
+        icon.Name = "Icon"
+        icon.Size = UDim2.fromOffset(mediaSize, mediaSize)
+        icon.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+        icon.BackgroundTransparency = 0.3
+        icon.BorderSizePixel = 0
+        icon.ScaleType = Enum.ScaleType.Crop
+        icon.ZIndex = 3
+        icon.Parent = pill
+        local ic = Instance.new("UICorner")
+        ic.CornerRadius = UDim.new(style.iconType == "gif" and 0 or 1, style.iconType == "gif" and 4 or 0)
+        ic.Parent = icon
+        if style.iconType == "pfp" then
+            icon.Image = mediaSrc
+        else
+            task.spawn(function()
+                local asset = resolveImageAsset(style.iconUrl)
+                if asset and icon.Parent then
+                    icon.Image = asset
+                end
+            end)
+        end
+    elseif style.showDot then
+        local dot = Instance.new("Frame")
+        dot.Size = UDim2.fromOffset(7, 7)
+        dot.BackgroundColor3 = style.color
+        dot.BorderSizePixel = 0
+        dot.ZIndex = 3
+        dot.Parent = pill
+        local dotC = Instance.new("UICorner")
+        dotC.CornerRadius = UDim.new(1, 0)
+        dotC.Parent = dot
+    end
+
     local label = Instance.new("TextLabel")
     label.BackgroundTransparency = 1
     label.AutomaticSize = Enum.AutomaticSize.X
     label.Size = UDim2.fromOffset(0, 20)
     label.Font = Enum.Font.GothamBold
-    label.TextSize = 12
+    label.TextSize = style.textSize
     label.TextColor3 = style.color
     label.Text = style.tag
     label.TextStrokeTransparency = 0.65
+    label.ZIndex = 3
     label.Parent = pill
 
-    -- display name
-    local nameLbl = Instance.new("TextLabel")
-    nameLbl.BackgroundTransparency = 1
-    nameLbl.Position = UDim2.new(0, 0, 0, 30)
-    nameLbl.Size = UDim2.new(1, 0, 0, 16)
-    nameLbl.Font = Enum.Font.GothamMedium
-    nameLbl.TextSize = 11
-    nameLbl.TextColor3 = Color3.fromRGB(220, 220, 220)
-    nameLbl.TextStrokeTransparency = 0.45
-    nameLbl.Text = player.DisplayName
-    nameLbl.TextTruncate = Enum.TextTruncate.AtEnd
-    nameLbl.Parent = bb
+    local y = (style.bgImageUrl ~= "" and 6 or 0) + 30
+    if style.showName then
+        local nameLbl = Instance.new("TextLabel")
+        nameLbl.BackgroundTransparency = 1
+        nameLbl.Position = UDim2.new(0, 0, 0, y)
+        nameLbl.Size = UDim2.new(1, 0, 0, 16)
+        nameLbl.Font = Enum.Font.GothamMedium
+        nameLbl.TextSize = 11
+        nameLbl.TextColor3 = Color3.fromRGB(220, 220, 220)
+        nameLbl.TextStrokeTransparency = 0.45
+        nameLbl.Text = player.DisplayName
+        nameLbl.TextTruncate = Enum.TextTruncate.AtEnd
+        nameLbl.ZIndex = 2
+        nameLbl.Parent = bb
+        y = y + 16
+    end
 
-    if style.rank and style.rank ~= "User" then
+    if style.showRank then
         local rankLbl = Instance.new("TextLabel")
         rankLbl.BackgroundTransparency = 1
-        rankLbl.Position = UDim2.new(0, 0, 0, 44)
+        rankLbl.Position = UDim2.new(0, 0, 0, y)
         rankLbl.Size = UDim2.new(1, 0, 0, 12)
         rankLbl.Font = Enum.Font.Gotham
         rankLbl.TextSize = 9
         rankLbl.TextColor3 = Color3.fromRGB(140, 140, 140)
         rankLbl.Text = style.rank
+        rankLbl.ZIndex = 2
         rankLbl.Parent = bb
-        bb.Size = UDim2.fromOffset(200, 60)
     end
 
     self.Tags[player] = bb
 
-    -- reconnect on character change without stacking
     if not player:GetAttribute("N0IR_TagHooked") then
         player:SetAttribute("N0IR_TagHooked", true)
         player.CharacterRemoving:Connect(function()
@@ -341,6 +487,7 @@ function Nametag:SyncFromMap(tagMap)
             tag = data.tag,
             rank = data.rank,
             color = data.color or data.tagColor,
+            style = data.style,
         }
     end
     -- apply / remove for everyone in server
@@ -560,12 +707,12 @@ local function applyAuthData(result)
     local rank = result.rank or "User"
     local tag = result.tag
     local color = result.tagColor or result.color
-    -- empty / same-as-rank → let resolveStyle use rank preset
     if tag == rank or tag == "" then tag = nil end
     local data = {
         tag = tag,
         rank = rank,
         color = color,
+        style = result.style,
     }
     Nametag:Start()
     Nametag:SetMyData(data)
