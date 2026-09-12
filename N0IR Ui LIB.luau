@@ -1,13 +1,3 @@
---[[
-    NØIR UI Library + Key System + Nametag
-    Connected to: https://n0ir.pages.dev
-
-    Usage:
-        KEY = "N0IR-XXXXXXXXXXXXXXXX"
-        local N0IR = loadstring(game:HttpGet("https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/N0IR%20Ui%20LIB.luau"))()
-        local Window = N0IR:Init({ Title = "NØIR", SubTitle = "GUI" })
-]]
-
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -20,9 +10,7 @@ local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 
--- ============================================================
--- KEY SYSTEM  (https://n0ir.pages.dev)
--- ============================================================
+-- key system (n0ir.pages.dev)
 local API_URL = "https://n0ir.pages.dev"
 local KEY_FILE = "N0IR/key.txt"
 
@@ -1008,12 +996,9 @@ local function validateKey(key)
     }) or { success = false, message = "Server error" }
 end
 
--- ============================================================
--- NAMETAG SYSTEM  (multi-user)
--- On key validate the API stores userId → tag/rank/color.
--- Clients poll /api/nametags with server UserIds and only show
--- tags for real NØIR key users (each with their own custom tag).
--- ============================================================
+-- nametag system (multi-user)
+-- on key validate the API stores userId -> tag/rank/color
+-- clients poll /api/nametags and only show tags for real N0IR key users
 local Nametag = {
     Folder = nil,
     Tags = {},          -- [Player] = BillboardGui
@@ -1839,9 +1824,7 @@ end
 _G.N0IR_Nametag = Nametag
 _G.N0IR_RequireKey = requireKey
 
--- ============================================================
--- NØIR UI LIBRARY
--- ============================================================
+-- n0ir ui library
 local N0IR = {
     Version = "1.0.0",
     Flags = {},
@@ -1849,9 +1832,7 @@ local N0IR = {
 }
 
 
--- ============================================================
--- THEME
--- ============================================================
+-- theme
 local T = {
     bg0       = Color3.fromRGB(8, 8, 8),
     bg1       = Color3.fromRGB(14, 14, 14),
@@ -1915,12 +1896,7 @@ local function getHost()
     return LocalPlayer:WaitForChild("PlayerGui")
 end
 
--- ============================================================
--- NØIR SHARED BRAND  (UI LIBRARY OWNS THIS — change once, all suites follow)
--- Reanim / Animator / future modules MUST use:
---   _G._N0IR_EnsureLogoAsset()
---   _G._N0IR_Brand
--- ============================================================
+-- shared brand (change logo/bg once here; other modules use _G._N0IR_Brand)
 _G._N0IR_Brand = {
     -- >>> CHANGE LOGO HERE ONLY <<<
     LogoUrl  = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/D27xi.png",
@@ -2110,10 +2086,7 @@ local function attachWindowBackground(parent, radius)
     return bg
 end
 
--- ============================================================
--- SETTINGS PERSISTENCE  (N0IR/settings.json)
--- Executor-safe keycode encode/decode (no typeof EnumItem dependency)
--- ============================================================
+-- settings persistence (N0IR/settings.json)
 local SETTINGS_PATH = "N0IR/settings.json"
 local KEYBINDS_PATH = "N0IR/keybinds.json"
 
@@ -2265,9 +2238,7 @@ end
 _G._N0IR_LoadSettings = _n0irLoadSettings
 _n0irLoadSettings()
 
--- ============================================================
--- LOADING SCREEN (fullscreen, half-transparent, NØIR)
--- ============================================================
+-- loading screen
 function N0IR:LoadingScreen(opts)
     opts = opts or {}
     local duration = opts.Duration or 2.4
@@ -2414,9 +2385,7 @@ function N0IR:LoadingScreen(opts)
     return gui
 end
 
--- ============================================================
--- NOTIFY
--- ============================================================
+-- notify
 function N0IR:Notify(opts)
     if type(opts) == "string" then
         opts = { Title = opts }
@@ -2499,9 +2468,7 @@ function N0IR:Notify(opts)
     end)
 end
 
--- ============================================================
--- WINDOW
--- ============================================================
+-- window
 function N0IR:CreateWindow(opts)
     opts = opts or {}
     local title = opts.Title or "NØIR"
@@ -3378,11 +3345,9 @@ function N0IR:CreateWindow(opts)
     return Window
 end
 
--- ============================================================
--- UTILITY MODULES (baseplate, cmds) — no reanim dependency
--- ============================================================
+-- utility modules (baseplate, cmds)
 function N0IR:MountUtilities(Window)
-    -- ---------- Home ----------
+    -- home
     local Home = Window:CreateTab({ Name = "Home" })
     Home:CreateSection("Welcome")
     Home:CreateParagraph({
@@ -3436,7 +3401,7 @@ function N0IR:MountUtilities(Window)
     Home:CreateLabel("PlaceId  ·  " .. tostring(game.PlaceId))
     Home:CreateLabel("Players  ·  " .. tostring(#Players:GetPlayers()))
 
-    -- ---------- World tab ----------
+    -- world tab
     local World = Window:CreateTab({ Name = "World" })
     World:CreateSection("Baseplate")
 
@@ -3493,7 +3458,7 @@ function N0IR:MountUtilities(Window)
 
     World:CreateSection("Inf Baseplate")
 
-    -- Shared Inf Baseplate (persists across respawn; no toggle-flicker required)
+    -- inf baseplate (stays on across respawn)
     if not _G._N0IR_InfBaseplateState then
         _G._N0IR_InfBaseplateState = { on = false, conn = nil, part = nil }
     end
@@ -3569,7 +3534,7 @@ function N0IR:MountUtilities(Window)
             setInfBaseplate(on, false)
         end,
     })
-    -- Re-apply from saved flag so it does not need toggle off/on again
+    -- re-apply from saved flag
     if N0IR.Flags and N0IR.Flags.AutoInfBaseplate then
         task.defer(function() setInfBaseplate(true, true) end)
     end
@@ -3584,7 +3549,7 @@ function N0IR:MountUtilities(Window)
         end)
     end
 
-    -- ---------- Player tab ----------
+    -- player tab
     local Player = Window:CreateTab({ Name = "Player" })
     Player:CreateSection("Scripts")
     Player:CreateButton({
@@ -3682,7 +3647,7 @@ function N0IR:MountUtilities(Window)
         end,
     })
 
-    -- ---------- Animations tab ----------
+    -- animations tab
     local Anims = Window:CreateTab({ Name = "Animations" })
     Anims:CreateSection("Emotes")
     Anims:CreateButton({
@@ -4417,10 +4382,10 @@ function N0IR:MountUtilities(Window)
         end,
     })
 
-    -- ---------- Commands tab ----------
+    -- commands tab
 
 
-    -- ---------- Emotes tab + NØIR Emote Browser (UGC catalog + 100+ built-in) ----------
+    -- emotes tab + browser
     local Emotes = Window:CreateTab({ Name = "Emotes" })
 
     local EMOTES_FILE = "N0IR/emotes.json"
@@ -4802,7 +4767,7 @@ local BUILTIN_EMOTES = {
         return items, nextCursor
     end
 
-    -- ========== NØIR-styled Emote Browser UI ==========
+    -- emote browser ui
     local function closeBrowser()
         emoteState.browserOpen = false
         if emoteState.gui then
@@ -5369,11 +5334,9 @@ local BUILTIN_EMOTES = {
     local cmdBarKey = _G._N0IR_CmdBarKey or Enum.KeyCode.Semicolon
     local menuToggleKey = _G._N0IR_ToggleKey or Enum.KeyCode.M
 
-    -- ============================================================
     -- OWNER IDS  ·  edit this list to unlock owner-only commands
     -- Put your Roblox UserId(s) here (numbers). Multiple allowed.
     -- Example: { 123456789, 987654321 }
-    -- ============================================================
     local OWNER_IDS = {
         -- YOUR_USER_ID_HERE,
     }
@@ -5424,7 +5387,7 @@ local BUILTIN_EMOTES = {
         N0IR:Notify({ Title = title, Content = content or "", Duration = dur or 1.8 })
     end
 
-    -- ===================== COMMAND IMPLEMENTATIONS =====================
+    -- command implementations
     local function runCmd(msg, silent)
         if silent then _G._N0IR_SilentCmd = true end
         msg = tostring(msg or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
@@ -6592,7 +6555,7 @@ local BUILTIN_EMOTES = {
         elseif cmd == "exit" or cmd == "leave" then
             pcall(function() game:Shutdown() end)
 
-        -- ========== ADULT / RP ANIMATION COMMANDS (need player) ==========
+        -- adult / rp animation commands
         elseif cmd == "headbang" or cmd == "headfuck" or cmd == "bang" or cmd == "fuck"
             or cmd == "suck" or cmd == "blowjob" or cmd == "lickbutt" or cmd == "peg" then
             local t = findPlayer(args[2])
@@ -7567,7 +7530,7 @@ local BUILTIN_EMOTES = {
 
     Cmds:CreateLabel("Tip  ·  open cmd bar with your keybind (Settings) · type cmds to focus this list")
 
-    -- ---------- VC Bypass (NØIR) ----------
+    -- vc bypass
     local VC = Window:CreateTab({ Name = "VC Bypass" })
     VC:CreateSection("NØIR Voice Chat Bypass")
     VC:CreateParagraph({
@@ -7764,7 +7727,7 @@ local BUILTIN_EMOTES = {
     -- also expose for commands
     _G._N0IR_EnableVCBypass = enableN0IRVCBypass
 
-    -- ---------- Map / Treehouse ----------
+    -- map / treehouse
     local Map = Window:CreateTab({ Name = "Map" })
     Map:CreateSection("Treehouse")
     Map:CreateParagraph({
@@ -7897,7 +7860,7 @@ local BUILTIN_EMOTES = {
     Map:CreateButton({ Name = "Teleport to Treehouse", Callback = teleportToTreehouse })
     Map:CreateButton({ Name = "Delete Treehouse", Callback = deleteTreehouse })
 
-    -- ---------- Social ----------
+    -- social
     local Social = Window:CreateTab({ Name = "Social" })
     Social:CreateSection("Friends")
     Social:CreateParagraph({
@@ -7977,7 +7940,7 @@ local BUILTIN_EMOTES = {
     -- auto-start if default on
     startFriendLeft()
 
-    -- ---------- AutoExec ----------
+    -- autoexec
     local AutoExec = Window:CreateTab({ Name = "AutoExec" })
     AutoExec:CreateSection("Auto-execute on load / respawn")
     AutoExec:CreateParagraph({
@@ -7986,7 +7949,7 @@ local BUILTIN_EMOTES = {
 
     _G._N0IR_AutoExec = type(_G._N0IR_AutoExec) == "table" and _G._N0IR_AutoExec or {}
 
-    -- Build AutoExec list from full command catalog (+ Inf Baseplate)
+    -- autoexec list from full command catalog
     local autoExecDefs = {}
     do
         local seen = {}
@@ -8001,7 +7964,7 @@ local BUILTIN_EMOTES = {
                 example = example or "",
             })
         end
-        -- Prefer Inf Baseplate near top
+        -- inf baseplate near top
         addDef("infbaseplate", "Inf Baseplate", false, "")
         if type(catalog) == "table" then
             for _, entry in ipairs(catalog) do
@@ -8069,7 +8032,7 @@ local BUILTIN_EMOTES = {
         elseif val ~= "" then
             line = def.cmd .. " " .. val
         end
-        -- Always silent when driven by AutoExec (no toasts)
+        -- silent when driven by autoexec
         local prev = _G._N0IR_SilentCmd
         _G._N0IR_SilentCmd = true
         local ok = pcall(function()
@@ -8208,7 +8171,7 @@ local BUILTIN_EMOTES = {
             }, 0.18)
             autoExecSave()
             if fire and state then
-                -- silent apply when enabling from AutoExec UI
+                -- silent when enabling from autoexec ui
                 task.defer(function() autoExecRunOne(def, true) end)
             end
         end
@@ -8269,7 +8232,7 @@ local BUILTIN_EMOTES = {
         end)
     end
 
-    -- ---------- Settings tab ----------
+    -- settings tab
     local Settings = Window:CreateTab({ Name = "Settings" })
     Settings:CreateSection("About")
     Settings:CreateParagraph({
@@ -8524,7 +8487,7 @@ local BUILTIN_EMOTES = {
         end,
     })
 
-    -- ---------- Mouse TP keybind runtime (shared with reanim via _G) ----------
+    -- mouse tp keybind runtime
     if not _G._N0IR_UI_TPRuntimeInstalled then
         _G._N0IR_UI_TPRuntimeInstalled = true
         if _G._N0IR_TPKeybindEnabled == nil then
@@ -8587,9 +8550,7 @@ local BUILTIN_EMOTES = {
     }
 end
 
--- ============================================================
--- QUICK START HELPER
--- ============================================================
+-- quick start helper
 function N0IR:Init(opts)
     opts = opts or {}
 
