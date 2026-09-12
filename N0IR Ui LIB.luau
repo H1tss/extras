@@ -3491,44 +3491,98 @@ function N0IR:MountUtilities(Window)
         })
     end
 
-    World:CreateSection("Infinite Baseplate")
+    World:CreateSection("Inf Baseplate")
 
-    local infConn = nil
-    local infPart = nil
+    -- Shared Inf Baseplate (persists across respawn; no toggle-flicker required)
+    if not _G._N0IR_InfBaseplateState then
+        _G._N0IR_InfBaseplateState = { on = false, conn = nil, part = nil }
+    end
+    local function setInfBaseplate(on, silent)
+        local st = _G._N0IR_InfBaseplateState
+        on = on and true or false
+        st.on = on
+        N0IR.Flags = N0IR.Flags or {}
+        N0IR.Flags.AutoInfBaseplate = on
+        if st.conn then
+            pcall(function() st.conn:Disconnect() end)
+            st.conn = nil
+        end
+        if not on then
+            if st.part then
+                pcall(function() st.part:Destroy() end)
+                st.part = nil
+            end
+            local existing = workspace:FindFirstChild("N0IR_InfBaseplate")
+            if existing then pcall(function() existing:Destroy() end) end
+            if not silent and not _G._N0IR_SilentCmd then
+                N0IR:Notify({ Title = "Inf Baseplate", Content = "Off", Duration = 1.2 })
+            end
+            return
+        end
+        local part = st.part
+        if not (part and part.Parent) then
+            part = workspace:FindFirstChild("N0IR_InfBaseplate")
+        end
+        if not (part and part.Parent) then
+            part = Instance.new("Part")
+            part.Name = "N0IR_InfBaseplate"
+            part.Anchored = true
+            part.CanCollide = true
+            part.Transparency = 1
+            part.Size = Vector3.new(2048, 1, 2048)
+            part.Material = Enum.Material.SmoothPlastic
+            part.Parent = workspace
+        end
+        st.part = part
+        st.conn = RunService.Heartbeat:Connect(function()
+            if not st.on then return end
+            local p = st.part
+            if not (p and p.Parent) then
+                p = Instance.new("Part")
+                p.Name = "N0IR_InfBaseplate"
+                p.Anchored = true
+                p.CanCollide = true
+                p.Transparency = 1
+                p.Size = Vector3.new(2048, 1, 2048)
+                p.Material = Enum.Material.SmoothPlastic
+                p.Parent = workspace
+                st.part = p
+            end
+            local char = LocalPlayer.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            if hrp and st.part then
+                st.part.CFrame = CFrame.new(hrp.Position.X, -0.5, hrp.Position.Z)
+            end
+        end)
+        if not silent and not _G._N0IR_SilentCmd then
+            N0IR:Notify({ Title = "Inf Baseplate", Content = "On", Duration = 1.2 })
+        end
+    end
+    _G._N0IR_SetInfBaseplate = setInfBaseplate
+
     World:CreateToggle({
-        Name = "Auto Infinite Baseplate",
-        Description = "Invisible floor that follows you (auto-runs when enabled)",
+        Name = "Inf Baseplate",
+        Description = "Invisible floor that follows you (stays on across respawn)",
         Flag = "AutoInfBaseplate",
         Default = false,
         Callback = function(on)
-            if infConn then infConn:Disconnect(); infConn = nil end
-            if not on then
-                if infPart then infPart:Destroy(); infPart = nil end
-                N0IR:Notify({ Title = "Inf Baseplate", Content = "Off", Duration = 1.2 })
-                return
-            end
-            local cam = workspace.CurrentCamera
-            if cam:FindFirstChild("N0IR_InfBaseplate") then
-                infPart = cam:FindFirstChild("N0IR_InfBaseplate")
-            else
-                infPart = Instance.new("Part")
-                infPart.Name = "N0IR_InfBaseplate"
-                infPart.Anchored = true
-                infPart.CanCollide = true
-                infPart.Transparency = 1
-                infPart.Size = Vector3.new(2048, 1, 2048)
-                infPart.Parent = cam
-            end
-            infConn = RunService.Heartbeat:Connect(function()
-                local char = LocalPlayer.Character
-                local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                if hrp and infPart then
-                    infPart.CFrame = CFrame.new(hrp.Position.X, -0.5, hrp.Position.Z)
-                end
-            end)
-            N0IR:Notify({ Title = "Inf Baseplate", Content = "On", Duration = 1.2 })
+            setInfBaseplate(on, false)
         end,
     })
+    -- Re-apply from saved flag so it does not need toggle off/on again
+    if N0IR.Flags and N0IR.Flags.AutoInfBaseplate then
+        task.defer(function() setInfBaseplate(true, true) end)
+    end
+    if not _G._N0IR_InfBaseplateCharConn then
+        _G._N0IR_InfBaseplateCharConn = LocalPlayer.CharacterAdded:Connect(function()
+            task.wait(0.3)
+            local want = (N0IR.Flags and N0IR.Flags.AutoInfBaseplate)
+                or (_G._N0IR_AutoExec and type(_G._N0IR_AutoExec.infbaseplate) == "table" and _G._N0IR_AutoExec.infbaseplate.enabled)
+            if want and type(_G._N0IR_SetInfBaseplate) == "function" then
+                pcall(_G._N0IR_SetInfBaseplate, true, true)
+            end
+        end)
+    end
 
     -- ---------- Player tab ----------
     local Player = Window:CreateTab({ Name = "Player" })
@@ -5366,13 +5420,18 @@ local BUILTIN_EMOTES = {
     end
 
     local function notify(title, content, dur)
+        if _G._N0IR_SilentCmd then return end
         N0IR:Notify({ Title = title, Content = content or "", Duration = dur or 1.8 })
     end
 
     -- ===================== COMMAND IMPLEMENTATIONS =====================
-    local function runCmd(msg)
+    local function runCmd(msg, silent)
+        if silent then _G._N0IR_SilentCmd = true end
         msg = tostring(msg or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
-        if msg == "" then return end
+        if msg == "" then
+            if silent then _G._N0IR_SilentCmd = false end
+            return
+        end
         -- strip configured prefix if present (always read live from _G)
         do
             local livePrefix = tostring(_G._N0IR_CmdPrefix or prefix or ";")
@@ -5933,6 +5992,18 @@ local BUILTIN_EMOTES = {
                 notify("View", "Reset")
             end
 
+        elseif cmd == "infbaseplate" or cmd == "infbp" or cmd == "infinitebaseplate" then
+            if type(_G._N0IR_SetInfBaseplate) == "function" then
+                _G._N0IR_SetInfBaseplate(true, _G._N0IR_SilentCmd and true or false)
+            end
+            notify("Inf Baseplate", "On")
+            return
+        elseif cmd == "uninfbaseplate" or cmd == "uninfbp" then
+            if type(_G._N0IR_SetInfBaseplate) == "function" then
+                _G._N0IR_SetInfBaseplate(false, _G._N0IR_SilentCmd and true or false)
+            end
+            notify("Inf Baseplate", "Off")
+            return
         elseif cmd == "noclip" then
             N0IR.Flags.Noclip = true
             if not _G._N0IR_NoclipConn then
@@ -6660,6 +6731,8 @@ local BUILTIN_EMOTES = {
         { cmd = "unloopws",  label = "Unloop WS",     desc = "Stop loop walkspeed",         needsArg = false },
         { cmd = "loopjp",    label = "Loop JumpPower", desc = "Force JP every frame",      needsArg = true,  example = "75" },
         { cmd = "unloopjp",  label = "Unloop JP",     desc = "Stop loop jumppower",         needsArg = false },
+        { cmd = "infbaseplate", label = "Inf Baseplate", desc = "Invisible floor that follows you", needsArg = false },
+        { cmd = "uninfbaseplate", label = "Uninf Baseplate", desc = "Disable infinite baseplate", needsArg = false },
         { cmd = "power",     label = "Power boost",   desc = "WS 100 + JP 120",             needsArg = false },
         { cmd = "normal",    label = "Defaults",      desc = "Reset WS/JP/gravity",         needsArg = false },
         { cmd = "goto",      label = "Goto player",   desc = "Teleport to player",          needsArg = true,  example = "" },
@@ -7913,28 +7986,57 @@ local BUILTIN_EMOTES = {
 
     _G._N0IR_AutoExec = type(_G._N0IR_AutoExec) == "table" and _G._N0IR_AutoExec or {}
 
-    local autoExecDefs = {
-        { cmd = "ws",        label = "WalkSpeed",      needsArg = true,  example = "50" },
-        { cmd = "jp",        label = "JumpPower",      needsArg = true,  example = "75" },
-        { cmd = "hh",        label = "HipHeight",      needsArg = true,  example = "2" },
-        { cmd = "loopws",    label = "Loop WalkSpeed", needsArg = true,  example = "50" },
-        { cmd = "loopjp",    label = "Loop JumpPower", needsArg = true,  example = "75" },
-        { cmd = "power",     label = "Power boost",    needsArg = false },
-        { cmd = "noclip",    label = "Noclip",         needsArg = false },
-        { cmd = "fly",       label = "Fly",            needsArg = true,  example = "50" },
-        { cmd = "infjump",   label = "Infinite jump",  needsArg = false },
-        { cmd = "god",       label = "God mode",       needsArg = false },
-        { cmd = "antiafk",   label = "Anti AFK",       needsArg = false },
-        { cmd = "antiragdoll", label = "Anti ragdoll", needsArg = false },
-        { cmd = "esp",       label = "ESP",            needsArg = false },
-        { cmd = "fullbright",label = "Fullbright",     needsArg = false },
-        { cmd = "nofog",     label = "No fog",         needsArg = false },
-        { cmd = "fps",       label = "FPS cap",        needsArg = true,  example = "60" },
-        { cmd = "fov",       label = "FOV",            needsArg = true,  example = "90" },
-        { cmd = "gravity",   label = "Gravity",        needsArg = true,  example = "196.2" },
-        { cmd = "shiftlock", label = "Shift lock",     needsArg = false },
-        { cmd = "vcbypass",  label = "VC Bypass",      needsArg = false },
-    }
+    -- Build AutoExec list from full command catalog (+ Inf Baseplate)
+    local autoExecDefs = {}
+    do
+        local seen = {}
+        local function addDef(cmd, label, needsArg, example)
+            cmd = tostring(cmd or "")
+            if cmd == "" or seen[cmd] then return end
+            seen[cmd] = true
+            table.insert(autoExecDefs, {
+                cmd = cmd,
+                label = label or cmd,
+                needsArg = needsArg and true or false,
+                example = example or "",
+            })
+        end
+        -- Prefer Inf Baseplate near top
+        addDef("infbaseplate", "Inf Baseplate", false, "")
+        if type(catalog) == "table" then
+            for _, entry in ipairs(catalog) do
+                if type(entry) == "table" and entry.cmd and not entry.ownerOnly then
+                    addDef(entry.cmd, entry.label, entry.needsArg, entry.example)
+                end
+            end
+        end
+        -- Ensure common state cmds exist even if catalog missing
+        local fallback = {
+            { "ws", "WalkSpeed", true, "50" },
+            { "jp", "JumpPower", true, "75" },
+            { "hh", "HipHeight", true, "2" },
+            { "loopws", "Loop WalkSpeed", true, "50" },
+            { "loopjp", "Loop JumpPower", true, "75" },
+            { "power", "Power boost", false, "" },
+            { "noclip", "Noclip", false, "" },
+            { "fly", "Fly", true, "50" },
+            { "infjump", "Infinite jump", false, "" },
+            { "god", "God mode", false, "" },
+            { "antiafk", "Anti AFK", false, "" },
+            { "antiragdoll", "Anti ragdoll", false, "" },
+            { "esp", "ESP", false, "" },
+            { "fullbright", "Fullbright", false, "" },
+            { "nofog", "No fog", false, "" },
+            { "fps", "FPS cap", true, "60" },
+            { "fov", "FOV", true, "90" },
+            { "gravity", "Gravity", true, "196.2" },
+            { "shiftlock", "Shift lock", false, "" },
+            { "vcbypass", "VC Bypass", false, "" },
+        }
+        for _, f in ipairs(fallback) do
+            addDef(f[1], f[2], f[3], f[4])
+        end
+    end
 
     local function autoExecSave()
         if _G._N0IR_SaveSettings then task.defer(_G._N0IR_SaveSettings) end
@@ -7967,17 +8069,32 @@ local BUILTIN_EMOTES = {
         elseif val ~= "" then
             line = def.cmd .. " " .. val
         end
-        pcall(function() runCmd(line) end)
-        return true
+        -- Always silent when driven by AutoExec (no toasts)
+        local prev = _G._N0IR_SilentCmd
+        _G._N0IR_SilentCmd = true
+        local ok = pcall(function()
+            if def.cmd == "infbaseplate" or def.cmd == "infbp" or def.cmd == "infinitebaseplate" then
+                if type(_G._N0IR_SetInfBaseplate) == "function" then
+                    _G._N0IR_SetInfBaseplate(true, true)
+                end
+            else
+                runCmd(line, true)
+            end
+        end)
+        _G._N0IR_SilentCmd = prev and true or false
+        return ok and true or false
     end
 
     local function autoExecApplyAll(silent)
         local n = 0
+        local prev = _G._N0IR_SilentCmd
+        _G._N0IR_SilentCmd = true
         for _, def in ipairs(autoExecDefs) do
             if autoExecRunOne(def, true) then
                 n = n + 1
             end
         end
+        _G._N0IR_SilentCmd = prev and true or false
         return n
     end
     _G._N0IR_AutoExecApply = autoExecApplyAll
@@ -8091,7 +8208,8 @@ local BUILTIN_EMOTES = {
             }, 0.18)
             autoExecSave()
             if fire and state then
-                task.defer(function() autoExecRunOne(def, false) end)
+                -- silent apply when enabling from AutoExec UI
+                task.defer(function() autoExecRunOne(def, true) end)
             end
         end
 
