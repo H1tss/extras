@@ -3386,7 +3386,7 @@ function N0IR:MountUtilities(Window)
     local Home = Window:CreateTab({ Name = "Home" })
     Home:CreateSection("Welcome")
     Home:CreateParagraph({
-        Content = "NØIR Suite  ·  v" .. N0IR.Version .. "\nClean black & white hub. Modules load from the tabs below — World, Player, Commands, Map, Social.",
+        Content = "NØIR Suite  ·  v" .. N0IR.Version .. "\n400+ commands one of the best scripts out there.",
     })
 
     Home:CreateSection("Quick actions")
@@ -3674,7 +3674,7 @@ function N0IR:MountUtilities(Window)
 
     Anims:CreateSection("Animation bundles")
     Anims:CreateParagraph({
-        Content = "Official Roblox catalog packs (Creator Hub IDs). Cached to disk + preloaded for faster apply. Auto-apply on respawn optional.",
+        Content = "Official Roblox catalog packs.",
     })
 
     -- Classic default Animate IDs (blocky R15)
@@ -4065,7 +4065,7 @@ function N0IR:MountUtilities(Window)
 
     Anims:CreateSection("UGC / Brand packs")
     Anims:CreateParagraph({
-        Content = "Catwalk Glam, Bold, adidas, NFL, Wicked, No Boundaries, Oldschool — separate from classic official packs.",
+        Content = "Catwalk Glam, Bold, adidas, NFL, Wicked, No Boundaries, Oldschool.",
     })
     Anims:CreateDropdown({
         Name = "UGC bundle",
@@ -5193,7 +5193,7 @@ local BUILTIN_EMOTES = {
 
     Emotes:CreateSection("Browser")
     Emotes:CreateParagraph({
-        Content = "Standalone NØIR emote browser — built-in library (100+) plus live UGC catalog. No animation packs.",
+        Content = "Roblox & UGC Emotes.",
     })
     Emotes:CreateButton({
         Name = "Open Emote Browser",
@@ -7498,7 +7498,7 @@ local BUILTIN_EMOTES = {
     local VC = Window:CreateTab({ Name = "VC Bypass" })
     VC:CreateSection("NØIR Voice Chat Bypass")
     VC:CreateParagraph({
-        Content = "Native NØIR anti-VC protection. Unmute your mic when prompted, then the bypass hooks the topbar mute button. Muted uses the stock MicLight icon (darkened); unmuted is captured live from the real button and faded for a cleaner look.",
+        Content = "Native NØIR anti-VCB protection. Unmute your mic when prompted.",
     })
 
     local VCState = {
@@ -7686,10 +7686,6 @@ local BUILTIN_EMOTES = {
                 VCState.statusLbl:Set("Status  ·  speaking fill — coming soon")
             end
         end,
-    })
-
-    VC:CreateParagraph({
-        Content = "Muted / unmuted icons use a diagonal gradient overlay: darker bottom-left → brighter top-right (UIGradient).\nUnmuted art is captured live after you unmute. No custom asset ids required.",
     })
 
     -- also expose for commands
@@ -8159,7 +8155,7 @@ local BUILTIN_EMOTES = {
     local Settings = Window:CreateTab({ Name = "Settings" })
     Settings:CreateSection("About")
     Settings:CreateParagraph({
-        Content = "NØIR UI Library v" .. N0IR.Version .. "\nMinimal black & white suite. Mount reanim or other modules via loadstring onto this window.",
+        Content = "NØIR UI Library v" .. N0IR.Version .. "\nBest script of ALL TIME!",
     })
     Settings:CreateSection("Background")
     local bgNames = { "None" }
@@ -8513,6 +8509,5 @@ function N0IR:Init(opts)
 
     return win, modules
 end
-
 
 return N0IR
