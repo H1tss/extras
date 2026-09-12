@@ -120,9 +120,10 @@ end
 local Nametag = {
     Folder = nil,
     Tags = {},          -- [Player] = BillboardGui
-    PlayerData = {},    -- [UserId string] = { tag, rank, color }
-    MyData = nil,       -- local player's resolved data
-    ShowSelf = true,    -- see your own tag
+    PlayerData = {},    -- [UserId string] = style data
+    MyData = nil,
+    ShowSelf = true,    -- show your own tag
+    ShowOthers = true,  -- show other NØIR script users' tags
     RefreshSeconds = 12,
     _refreshing = false,
     _started = false,
@@ -336,7 +337,11 @@ end
 
 function Nametag:Create(player, data)
     if not player or not player.Parent then return end
-    if player == LocalPlayer and not self.ShowSelf then return end
+    if player == LocalPlayer then
+        if not self.ShowSelf then return end
+    else
+        if not self.ShowOthers then return end
+    end
     self:Remove(player)
 
     local char = player.Character
@@ -606,6 +611,31 @@ function Nametag:Remove(player)
     end
 end
 
+function Nametag:SetShowSelf(on)
+    self.ShowSelf = on and true or false
+    if self.ShowSelf and self.MyData then
+        self:ApplyPlayer(LocalPlayer, self.MyData)
+    else
+        self:Remove(LocalPlayer)
+    end
+end
+
+function Nametag:SetShowOthers(on)
+    self.ShowOthers = on and true or false
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer then
+            local uid = tostring(plr.UserId)
+            local d = self.PlayerData[uid]
+            if self.ShowOthers and d then
+                self:ApplyPlayer(plr, d)
+            else
+                self:Remove(plr)
+            end
+        end
+    end
+end
+
+
 function Nametag:Clear()
     for plr in pairs(self.Tags) do
         self:Remove(plr)
@@ -640,7 +670,8 @@ function Nametag:SyncFromMap(tagMap)
     for _, plr in ipairs(Players:GetPlayers()) do
         local uid = tostring(plr.UserId)
         local d = self.PlayerData[uid]
-        if d then
+        local allow = (plr == LocalPlayer and self.ShowSelf) or (plr ~= LocalPlayer and self.ShowOthers)
+        if d and allow then
             task.spawn(function()
                 self:ApplyPlayer(plr, d)
             end)
@@ -5264,6 +5295,34 @@ function N0IR:MountUtilities(Window)
             bgLbl:Set("Active  ·  None")
         end,
     })
+    Settings:CreateSection("Nametags")
+    Settings:CreateToggle({
+        Name = "Show my tag",
+        Description = "Display your own NØIR nametag above your head",
+        Flag = "NametagShowSelf",
+        Default = true,
+        Callback = function(on)
+            if Nametag and Nametag.SetShowSelf then
+                Nametag:SetShowSelf(on)
+            else
+                Nametag.ShowSelf = on and true or false
+            end
+        end,
+    })
+    Settings:CreateToggle({
+        Name = "Show other users",
+        Description = "Display nametags for other players running NØIR with a valid key",
+        Flag = "NametagShowOthers",
+        Default = true,
+        Callback = function(on)
+            if Nametag and Nametag.SetShowOthers then
+                Nametag:SetShowOthers(on)
+            else
+                Nametag.ShowOthers = on and true or false
+            end
+        end,
+    })
+
     Settings:CreateSection("Keybinds")
     local keyLbl = Settings:CreateLabel("Menu toggle  ·  " .. tostring((_G._N0IR_ToggleKey or Enum.KeyCode.M).Name))
     local cmdKeyLbl = Settings:CreateLabel("Cmd bar key  ·  " .. tostring((_G._N0IR_CmdBarKey or Enum.KeyCode.Semicolon).Name))
