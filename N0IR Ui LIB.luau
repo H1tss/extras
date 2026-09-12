@@ -5644,7 +5644,6 @@ local BUILTIN_EMOTES = {
         elseif cmd == "speed1" then cmd = "emotespeed"; args = {"1"}
         elseif cmd == "speed2" then cmd = "emotespeed"; args = {"2"}
         elseif cmd == "speed05" then cmd = "emotespeed"; args = {"0.5"}
-        else
         elseif cmd == "mega" then pcall(function() runCmd("ws 120") end) pcall(function() runCmd("jp 150") end) notify("Mega", "WS 120 JP 150") return
         elseif cmd == "tiny" then pcall(function() runCmd("ws 6") end) pcall(function() runCmd("jp 25") end) notify("Tiny", "WS 6 JP 25") return
         elseif cmd == "legit" then pcall(function() runCmd("ws 16") end) pcall(function() runCmd("jp 50") end) pcall(function() runCmd("clip") end) notify("Legit", "defaults") return
@@ -5695,12 +5694,7 @@ local BUILTIN_EMOTES = {
             local n = tonumber(args[1]) or 100
             cmd = "maxzoom"; args = {tostring(n)}
         elseif cmd == "midday" then cmd = "time"; args = {"12"}
-
-        if cmd == "safe" then
-            -- chain handled below as multi
-        end
-
-        if cmd == "safe" then
+        elseif cmd == "safe" then
             pcall(function() runCmd("normal") end)
             pcall(function() runCmd("clip") end)
             pcall(function() runCmd("unfly") end)
