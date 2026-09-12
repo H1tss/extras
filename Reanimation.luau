@@ -7,9 +7,7 @@ pcall(function()
 	end
 end)
 
--- ============================================================
 -- BRAND / LOGO / BACKGROUNDS — owned by NØIR UI Library when present
--- ============================================================
 do
 	local defaultBgs = {
 		{ Name = "Clouds With Black Sky",  Url = "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/download%20(3).jfif",  Path = "N0IR/Bg_03.jfif" },
@@ -397,9 +395,7 @@ do
 end
 
 
--- ============================================================
 -- SHADERS & LIGHTING MODULE (From Pastebin k8ifajfk)
--- ============================================================
 task.spawn(function()
     if not _G._N0IRShadersEnabled then return end
     local Lighting = game:GetService("Lighting")
@@ -635,10 +631,8 @@ pcall(function() loadstring("if getgenv().LPH_NO_VIRTUALIZE == nil then getgenv(
 pcall(function() loadstring("if getgenv().LPH_JIT == nil then getgenv().LPH_JIT = function(f) return f end end")() end)
 pcall(function() loadstring("if getgenv().LPH_JIT_MAX == nil then getgenv().LPH_JIT_MAX = function(f) return f end end")() end)
 
--- ============================================================
 -- RE-EXECUTION CLEANUP: Reset all persistent flags and destroy old UI
 -- This ensures the script works cleanly every time you rejoin or re-execute
--- ============================================================
 _G._N0IRInfBaseplateApplied = nil
 if _G._N0IRInfBPConn then _G._N0IRInfBPConn:Disconnect() _G._N0IRInfBPConn = nil end
 _G._N0IRResetLastTick = nil
@@ -1323,9 +1317,7 @@ do
 
             -- Arm Pointer: straight arm pointing at mouse target
             -- When enabled: shoulder rotates toward cursor, elbow/wrist are locked
-            -- ============================================
             -- LIMBS: Arm Pointer, Arm Stretching & Reach
-            -- ============================================
             local stretchAmt = _G._N0IRArmStretchAmount or 2.5
             local function stretchArmOnly(lowerName, handName, stretchMult)
                 if not stretchMult or stretchMult == 1.0 then return end
@@ -1472,9 +1464,7 @@ do
                 stretchArmOnly("LeftLowerArm", "LeftHand", stretchAmt)
             end
 
-            -- ============================================
             -- ARM SLIDER: Upper arm welded to hip, stretch controls angle
-            -- ============================================
             -- Unweld / restore original transforms when toggled off
             if not _G._N0IRArmSliderEnabled and _G._N0IRArmSliderPrevEnabled then
                 _G._N0IRArmSliderPrevEnabled = false
@@ -1617,9 +1607,7 @@ do
                 end
             end
 
-            -- ============================================
             -- LIMBS: UpperTorso Height + Torso Camera
-            -- ============================================
             if _G._N0IRLimbsTorsoCamControl or _G._N0IRTorsoStretcherEnabled then
                 local waistConstraint = anim.constraints["Waist"] or anim.constraints["UpperTorso"]
                 if waistConstraint then
@@ -1679,9 +1667,7 @@ do
                 end
             end
 
-            -- ============================================
             -- LIMBS: Leg Stretcher
-            -- ============================================
             if _G._N0IRLegStretcherEnabled then
                 local legScale = math.clamp(_G._N0IRLimbsLegHeight or 1.0, 0.4, 100.0)
                 if legScale ~= 1.0 then
@@ -2596,9 +2582,7 @@ do
 
             -- Arm Pointer: straight arm pointing at mouse target
             -- When enabled: shoulder rotates toward cursor, elbow/wrist are locked
-            -- ============================================
             -- LIMBS: Arm Pointer, Arm Stretching & Reach
-            -- ============================================
             local stretchAmt = _G._N0IRArmStretchAmount or 2.5
             local function stretchArmOnly(lowerName, handName, stretchMult)
                 if not stretchMult or stretchMult == 1.0 then return end
@@ -2745,9 +2729,7 @@ do
                 stretchArmOnly("LeftLowerArm", "LeftHand", stretchAmt)
             end
 
-            -- ============================================
             -- ARM SLIDER: Upper arm welded to hip, stretch controls angle
-            -- ============================================
             -- Unweld / restore original transforms when toggled off
             if not _G._N0IRArmSliderEnabled and _G._N0IRArmSliderPrevEnabled then
                 _G._N0IRArmSliderPrevEnabled = false
@@ -2890,9 +2872,7 @@ do
                 end
             end
 
-            -- ============================================
             -- LIMBS: UpperTorso Height + Torso Camera
-            -- ============================================
             if _G._N0IRLimbsTorsoCamControl or _G._N0IRTorsoStretcherEnabled then
                 local waistConstraint = anim.constraints["Waist"] or anim.constraints["UpperTorso"]
                 if waistConstraint then
@@ -2952,9 +2932,7 @@ do
                 end
             end
 
-            -- ============================================
             -- LIMBS: Leg Stretcher
-            -- ============================================
             if _G._N0IRLegStretcherEnabled then
                 local legScale = math.clamp(_G._N0IRLimbsLegHeight or 1.0, 0.4, 100.0)
                 if legScale ~= 1.0 then
@@ -4046,9 +4024,7 @@ end
 LoadData()
 
 -- Load VC Bypass saved state
--- ============================================
 -- ARM SLIDER CONFIG SAVE/LOAD
--- ============================================
 local ARM_SLIDER_CONFIG_FILE = fpath("ReanimArmSlider.json")
 
 function SaveArmSliderConfig()
@@ -4294,9 +4270,7 @@ Notify = function(msg, dur, extra)
     end)
 end
 
--- ==========================================
 -- TREEHOUSE & MAP MANAGEMENT
--- ==========================================
 local TREEHOUSE_ASSET_ID = 7860328354
 _G._N0IRTreehouseModel = nil
 
@@ -6067,11 +6041,9 @@ local function UpdateCustomTabCount()
     end
 end
 
--- ============================================
 -- TAB GRID MODE (jump to any tab without scrolling)
 -- Toggle from Settings. When ON, horizontal TabRow is hidden
 -- and a compact grid of all tabs is shown instead.
--- ============================================
 _G._N0IRTabGridMode = (_G._N0IRTabGridMode == nil) and false or _G._N0IRTabGridMode
 
 local TabGrid = Instance.new("Frame")
@@ -6434,9 +6406,7 @@ do
 end
 
 
--- ============================================
 -- ANIMATION COPIER (Testing Tab)
--- ============================================
 do
 local animCopierFrame = Instance.new("Frame"); animCopierFrame.Parent = TestingPanel
 animCopierFrame.Size = UDim2.new(1,0,0,360)
@@ -6627,9 +6597,7 @@ acNoclipLbl.Size = UDim2.new(1,-20,0,14); acNoclipLbl.Font = Enum.Font.Gotham
 acNoclipLbl.Text = "Noclip: Auto-enabled when copying"; acNoclipLbl.TextColor3 = C.green
 acNoclipLbl.TextSize = 9; acNoclipLbl.TextXAlignment = Enum.TextXAlignment.Left; acNoclipLbl.ZIndex = 33
 
--- ============================================
 -- ANIMATION COPIER LOGIC
--- ============================================
 local acEnabled = false
 local acSelectedPlayer = nil
 local acDistance = 2.0
@@ -6874,11 +6842,9 @@ local function acStartCopying()
     end)
     acFreezeClone(clone)
 
-    -- ============================================================
     -- Anim Copier:
-    --  • HumanoidRootPart: one-to-one follow (side offset) + ALWAYS grounded
-    --  • Limbs/joints: rotation-only extract (keeps YOUR body proportions)
-    -- ============================================================
+    -- • HumanoidRootPart: one-to-one follow (side offset) + ALWAYS grounded
+    -- • Limbs/joints: rotation-only extract (keeps YOUR body proportions)
     local PART_ALIASES = {
         Torso = {"UpperTorso", "LowerTorso", "Torso"},
         UpperTorso = {"UpperTorso", "Torso"},
@@ -7173,9 +7139,7 @@ acUpdatePlayerList("")
 end
 
 
--- ============================================
 -- LIMBS PANEL
--- ============================================
 do
 LimbsPanel = Instance.new("ScrollingFrame"); LimbsPanel.Parent = body
 LimbsPanel.Name = "LimbsPanel"
@@ -8107,9 +8071,7 @@ _G._N0IRUpdateRightArmPointerUI = function()
     end
 end
 
--- ============================================
 -- FUN TRACKING: Stare / Wobble / Spin Head / T-Pose
--- ============================================
 _G._N0IRStareEnabled = _G._N0IRStareEnabled or false
 _G._N0IRIdleWobbleEnabled = _G._N0IRIdleWobbleEnabled or false
 _G._N0IRIdleWobbleSpeed = _G._N0IRIdleWobbleSpeed or 1.0
@@ -8367,9 +8329,7 @@ buildToggle(LimbsTabPanel, "T-Pose", "Force a full T-pose on the clone. Instant 
     if Notify then Notify("T-Pose: " .. (state and "ON" or "OFF"), 1.5) end
 end)
 
--- ============================================
 -- HEAD ATTACH (player picker like anim copier)
--- ============================================
 do
     local haFrame = Instance.new("Frame")
     haFrame.Parent = LimbsPanel
@@ -8480,9 +8440,7 @@ do
     end)
 end
 
--- ============================================
 -- FIXED POLES (limb select + place + length)
--- ============================================
 do
     local poleFrame = Instance.new("Frame")
     poleFrame.Parent = ExtrasPanel
@@ -9630,14 +9588,10 @@ _G._N0IRResetArmStretch = function()
 end
 
 task.spawn(function()
--- ============================================
 -- Arm Stretcher (Pointers) — isolated scope (register limit)
 -- Only while a pointer is on; Ctrl + Mouse Wheel / slider
--- ============================================
--- ============================================
 -- Arm Stretcher (Pointers) — only while a pointer is on
 -- Adjust with Ctrl + Mouse Wheel (or slider below)
--- ============================================
 _G._N0IRPointerStretchAmount = _G._N0IRPointerStretchAmount or 1.0
 local ptrStretchFrame = Instance.new("Frame"); ptrStretchFrame.Parent = StretchingPanel
 ptrStretchFrame.Size = UDim2.new(1, 0, 0, 110)
@@ -9855,9 +9809,7 @@ _G._N0IRReanimConns.StretchCtrlEnded = UserInputService.InputEnded:Connect(funct
     end
 end)
 
--- ============================================
--- LIMBS CONTROL LOGIC  (Optimized v2)
--- ============================================
+-- LIMBS CONTROL LOGIC (Optimized v2)
 local limbsConn = nil
 
 -- Fast O(1) limb cache: direct child lookup, no descendant scans
@@ -10241,9 +10193,7 @@ local function startLimbsSystem()
                 end
             end
 
-            -- ============================================
             -- ARM SLIDER: Upper arm welded to hip, stretch controls angle
-            -- ============================================
             -- Unweld / restore original transforms when toggled off
             if not _G._N0IRArmSliderEnabled and _G._N0IRArmSliderPrevEnabled then
                 _G._N0IRArmSliderPrevEnabled = false
@@ -10498,9 +10448,7 @@ local function startLimbsSystem()
             end
         end
 
-        -- ============================================
         -- LEG STRETCHER (Independent of Torso)
-        -- ============================================
         local doLegs = _G._N0IRLegStretcherEnabled
         if doLegs then
             local legScale = math.clamp(_G._N0IRLimbsLegHeight or 1.0, 0.4, 100.0)
@@ -10783,7 +10731,6 @@ end
 -- ANIMATION MAKER — Moon Animator style (FK only, N0IR theme)
 -- Hierarchy + multi-track timeline + 3D rotation handles
 -- Isolated task.spawn to avoid register limit
--- ============================================
 task.spawn(function()
     -- Cleanup previous
     pcall(function()
@@ -11000,7 +10947,7 @@ task.spawn(function()
         if AM.refreshTimeline then AM.refreshTimeline() end
     end
 
-    -- ===================== GIZMO (3-axis rotation handles) =====================
+    -- GIZMO (3-axis rotation handles)
     local function destroyGizmo()
         if AM.gizmoConn then AM.gizmoConn:Disconnect(); AM.gizmoConn = nil end
         if AM.holdConn then AM.holdConn:Disconnect(); AM.holdConn = nil end
@@ -11268,7 +11215,7 @@ task.spawn(function()
         end)
     end
 
-    -- ===================== PLAYBACK =====================
+    -- PLAYBACK
     local function stopPlay()
         AM.playing = false
         if AM.playConn then AM.playConn:Disconnect(); AM.playConn = nil end
@@ -11305,7 +11252,7 @@ task.spawn(function()
         end)
     end
 
-    -- ===================== EXPORT =====================
+    -- EXPORT
     local function exportToCustoms(animName)
         animName = tostring(animName or ""):gsub("^%s+", ""):gsub("%s+$", "")
         if animName == "" then notify("Name required", 2); return end
@@ -11369,7 +11316,7 @@ task.spawn(function()
         notify("Exported \"" .. animName .. "\" → Customs", 3)
     end
 
-    -- ===================== UI =====================
+    -- UI
     local function closeMaker()
         stopPlay()
         destroyGizmo()
@@ -11442,7 +11389,7 @@ task.spawn(function()
             return
         end
 
-        -- ===== Build Moon-style UI =====
+        -- Build Moon-style UI
         local gui = Instance.new("Frame")
         gui.Name = "AnimMakerOverlay"
         gui.Parent = ScreenGui
@@ -12003,7 +11950,6 @@ task.spawn(function()
 end)
 
 -- HITS TOOLKIT: Profiles, Poses, Packs, Hop, Anti-void, Preview
--- ============================================
 do
     local HttpService = game:GetService("HttpService")
     local TeleportService = game:GetService("TeleportService")
@@ -12718,10 +12664,8 @@ revFrame.Size = UDim2.new(1,0,0,90)
 revFrame.BackgroundColor3 = C.bg1; revFrame.BackgroundTransparency = 0.4; revFrame.BorderSizePixel = 0
 revFrame.LayoutOrder = 3
 
--- ============================================================
 -- 4. HIDE BODY PARTS — categorized multi-select dropdown
 -- Parks selected real-body parts ~500 studs underground
--- ============================================================
 do
     _G._N0IRHiddenParts = _G._N0IRHiddenParts or {}
 
@@ -18200,11 +18144,9 @@ end
 _G._N0IRReanimShowMenu = _runEmbeddedReanimation
 
 
--- ============================================================
 -- AUTO NOCLIP (Active ONLY when animations are playing)
 -- Keeps collisions normal when idle, and enables noclip only
 -- during animation playback or copier activity.
--- ============================================================
 local AutoNoclipEnabled = true
 local AutoNoclipConn = nil
 local AutoNoclipParts = {}
@@ -18298,12 +18240,10 @@ _G._N0IRToggleAutoNoclip = function()
     end
 end
 
--- ============================================================
 -- COMMAND SYSTEM (? prefix)
 -- ?rj = rejoin server
 -- ?permhide <name> = hide + mute + block a player (partial match)
 -- ?unpermhide <name> = unhide a player
--- ============================================================
 local PermHiddenPlayers = _G._N0IRPermHiddenPlayers or {}
 _G._N0IRPermHiddenPlayers = PermHiddenPlayers
 
@@ -18539,10 +18479,8 @@ plr.PlayerGui.DescendantAdded:Connect(function(desc)
 end)
 
 
--- ============================================
 -- STANDALONE ARM/LEG/TORSO + HEAD + FUN TRACKING
 -- Isolated task.spawn — avoids 200 local-register limit
--- ============================================
 task.spawn(function()
 local standalonePointerConn = nil
 local standalonePointerCache = nil
@@ -18818,10 +18756,8 @@ plr.CharacterAdded:Connect(function()
     end
 end)
 
--- ============================================
 -- STANDALONE HEAD TRACKER SYSTEM
 -- Works even when no custom animation is playing
--- ============================================
 local standaloneHeadConn = nil
 local standaloneHeadCache = nil
 local standaloneHeadBind = nil
@@ -18923,10 +18859,8 @@ local function stopStandaloneHeadTracker()
     if standaloneHeadConn then standaloneHeadConn:Disconnect(); standaloneHeadConn = nil end
 end
 
--- ============================================
 -- FUN TRACKING RUNTIME (Stare / Wobble / Spin / T-Pose)
 -- Works with or without a playing custom animation.
--- ============================================
 local _Fun = _G._N0IRFunTrack or { conn = nil, spin = 0, cache = nil, binds = nil, headSmooth = nil }
 _G._N0IRFunTrack = _Fun
 
@@ -19184,7 +19118,7 @@ local function doFunTracking(dt)
     local armPoseTaken = false
     local headTaken = false
 
-    -- ===== ARMS (priority order) =====
+    -- ARMS (priority order)
     if _G._N0IRHeliArmsEnabled then
         armPoseTaken = true
         _Fun.heli = (_Fun.heli or 0) + dt * 8
@@ -19216,7 +19150,7 @@ local function doFunTracking(dt)
         applyTPose()
     end
 
-    -- ===== HEAD =====
+    -- HEAD
     if _G._N0IRSpinHeadEnabled and head and headBind then
         headTaken = true
         local spd = tonumber(_G._N0IRSpinHeadSpeed) or 1.5
@@ -19272,7 +19206,7 @@ local function doFunTracking(dt)
         headTaken = true
     end
 
-    -- ===== TORSO =====
+    -- TORSO
     if waist then
         local base = waist.Transform
         if _G._N0IRTorsoFaceNearest then
@@ -19304,7 +19238,7 @@ local function doFunTracking(dt)
         end
     end
 
-    -- ===== TWITCH =====
+    -- TWITCH
     if _G._N0IRTwitchEnabled then
         _Fun.twitchT = (_Fun.twitchT or 0) - dt
         if _Fun.twitchT <= 0 then
@@ -19328,7 +19262,7 @@ local function doFunTracking(dt)
         end
     end
 
-    -- ===== IDLE WOBBLE / IDLE GLITCH (lowest priority) =====
+    -- IDLE WOBBLE / IDLE GLITCH (lowest priority)
     -- Only when truly idle AND no custom/state animation is playing.
     if _G._N0IRIdleWobbleEnabled or _G._N0IRIdleGlitchEnabled then
         local animPlaying = false
@@ -19420,10 +19354,8 @@ plr.CharacterAdded:Connect(function()
 end)
 end) -- end standalone/fun isolation (register limit)
 
--- ============================================================
 -- EXTRA LIMB TOOLS RUNTIME (Gun Aim / Wave / Headbang / Floppy)
 -- Isolated IIFE — keeps locals out of the main register pool
--- ============================================================
 task.spawn(function()
     local _Extra = _G._N0IRExtraLimbs or { conn = nil, t = 0, cache = nil, binds = nil, floppy = nil }
     _G._N0IRExtraLimbs = _Extra
@@ -19735,11 +19667,9 @@ task.spawn(function()
     end)
 end)
 
--- ============================================================
 -- FIXED POLES RUNTIME
 -- Limb is detached from the body (joint disabled) then CFramed to a
 -- fixed world point. Body/HRP is never written — poles cannot drag you.
--- ============================================================
 task.spawn(function()
     local ZERO = Vector3.zero
 
