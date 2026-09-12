@@ -2635,6 +2635,20 @@ function N0IR:MountUtilities(Window)
 
     -- ---------- Player tab ----------
     local Player = Window:CreateTab({ Name = "Player" })
+    Player:CreateSection("Scripts")
+    Player:CreateButton({
+        Name = "Free Gamepass (FGP)",
+        Callback = function()
+            if type(runCmd) == "function" then runCmd("freegamepass") end
+        end,
+    })
+    Player:CreateButton({
+        Name = "Drop Kick Fling (DKF)",
+        Callback = function()
+            if type(runCmd) == "function" then runCmd("dropkick") end
+        end,
+    })
+
     Player:CreateSection("Movement")
 
     Player:CreateSlider({
@@ -4471,6 +4485,162 @@ local BUILTIN_EMOTES = {
         local cmd = args[1]
 
 
+
+        if cmd == "freegamepass" or cmd == "fgp" then
+            if _G._N0IR_FreeGamepassLoaded then
+                notify("FGP", "Already loaded")
+                return
+            end
+            notify("FGP", "Loading free gamepass…")
+            task.spawn(function()
+                local src
+                local urls = {
+                    "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/freegamepass.luau",
+                    "https://raw.githubusercontent.com/H1tss/extras/main/freegamepass.luau",
+                }
+                -- prefer embedded runtime if present
+                if type(_G._N0IR_FreeGamepassSource) == "string" and #_G._N0IR_FreeGamepassSource > 500 then
+                    src = _G._N0IR_FreeGamepassSource
+                end
+                if not src then
+                    pcall(function()
+                        if isfile and isfile("N0IR/freegamepass.luau") then
+                            src = readfile("N0IR/freegamepass.luau")
+                        elseif isfile and isfile("freegamepass.luau") then
+                            src = readfile("freegamepass.luau")
+                        end
+                    end)
+                end
+                if not src then
+                    for _, u in ipairs(urls) do
+                        local ok, body = pcall(function() return game:HttpGet(u) end)
+                        if ok and type(body) == "string" and #body > 500 and not body:find("^404") then
+                            src = body
+                            break
+                        end
+                    end
+                end
+                if not src then
+                    -- fallback: inline minimal loader notice
+                    notify("FGP", "Host freegamepass.luau on GitHub raw or set _G._N0IR_FreeGamepassSource")
+                    return
+                end
+                pcall(function()
+                    if getgenv then
+                        getgenv().Settings = getgenv().Settings or {
+                            CopyButton = false,
+                            AutoButton = false,
+                            AutoInterval = 0.3,
+                            InstantPurchase = false,
+                            AutoMassPurchase = false,
+                            Debug = false,
+                        }
+                    end
+                end)
+                local ok, err = pcall(function()
+                    local fn = loadstring(src)
+                    if not fn then error("loadstring failed") end
+                    fn()
+                end)
+                if ok then
+                    _G._N0IR_FreeGamepassLoaded = true
+                    notify("FGP", "Loaded — open a gamepass prompt for Free button")
+                else
+                    notify("FGP", "Error: " .. tostring(err):sub(1, 80))
+                end
+            end)
+            return
+        elseif cmd == "dropkick" or cmd == "dkf" then
+            if _G._N0IR_DropkickLoaded then
+                notify("DropKick", "Already loaded — check UI")
+                return
+            end
+            notify("DropKick", "Loading…")
+            task.spawn(function()
+                local url = "https://raw.githubusercontent.com/yes-d3v-scripts/drop-kick-fling/refs/heads/main/script"
+                local ok, src = pcall(function() return game:HttpGet(url) end)
+                if not ok or type(src) ~= "string" or #src < 100 then
+                    notify("DropKick", "Failed to download script")
+                    return
+                end
+                -- NØIR-ify common GUI colors in source before run (best-effort)
+                local themed = src
+                pcall(function()
+                    themed = themed
+                        :gsub("Color3%.fromRGB%(%s*255%s*,%s*%d+%s*,%s*%d+%s*%)", "Color3.fromRGB(255, 255, 255)")
+                        :gsub("Color3%.fromRGB%(%s*%d+%s*,%s*%d+%s*,%s*255%s*%)", "Color3.fromRGB(240, 240, 240)")
+                        :gsub('Font%s*=%s*Enum%.Font%.[A-Za-z]+', "Font = Enum.Font.GothamBold", 20)
+                end)
+                -- wrap with NØIR chrome after load
+                local ok2, err = pcall(function()
+                    local fn = loadstring(themed)
+                    if not fn then error("loadstring failed") end
+                    fn()
+                end)
+                if not ok2 then
+                    -- try original if theme break
+                    ok2, err = pcall(function()
+                        local fn = loadstring(src)
+                        if not fn then error("loadstring failed") end
+                        fn()
+                    end)
+                end
+                if ok2 then
+                    _G._N0IR_DropkickLoaded = true
+                    -- try restyle existing ScreenGuis added recently
+                    task.defer(function()
+                        task.wait(0.5)
+                        local host = LocalPlayer:FindFirstChildOfClass("PlayerGui") or CoreGui
+                        for _, gui in ipairs(host:GetChildren()) do
+                            if gui:IsA("ScreenGui") and gui ~= (Nametag and Nametag.Folder) then
+                                local name = string.lower(gui.Name)
+                                if name:find("drop") or name:find("kick") or name:find("fling") or name:find("dk") then
+                                    for _, d in ipairs(gui:GetDescendants()) do
+                                        if d:IsA("Frame") or d:IsA("TextButton") or d:IsA("ImageButton") then
+                                            pcall(function()
+                                                if d.BackgroundColor3 then
+                                                    local c = d.BackgroundColor3
+                                                    -- darken colorful panels toward NØIR black/white
+                                                    if c.R > 0.3 or c.G > 0.3 or c.B > 0.3 then
+                                                        if c.R + c.G + c.B > 1.5 then
+                                                            d.BackgroundColor3 = Color3.fromRGB(245, 245, 245)
+                                                        else
+                                                            d.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+                                                        end
+                                                    end
+                                                end
+                                            end)
+                                        end
+                                        if d:IsA("TextLabel") or d:IsA("TextButton") then
+                                            pcall(function()
+                                                d.Font = Enum.Font.GothamMedium
+                                                if d.TextColor3 and d.TextColor3.R < 0.2 and d.TextColor3.G < 0.2 and d.TextColor3.B < 0.2 then
+                                                    -- keep dark text on light
+                                                elseif d.TextColor3 then
+                                                    local c = d.TextColor3
+                                                    if math.abs(c.R - c.G) > 0.15 or math.abs(c.G - c.B) > 0.15 then
+                                                        d.TextColor3 = Color3.fromRGB(240, 240, 240)
+                                                    end
+                                                end
+                                            end)
+                                        end
+                                        if d:IsA("UIStroke") then
+                                            pcall(function() d.Color = Color3.fromRGB(60, 60, 60) end)
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end)
+                    notify("DropKick", "Loaded · NØIR theme applied when possible")
+                else
+                    notify("DropKick", "Error: " .. tostring(err):sub(1, 80))
+                end
+            end)
+            return
+        end
+
+
         -- bulk alias / shortcut router (300+ catalog support)
         do
             local aliasMap = {
@@ -4517,7 +4687,7 @@ local BUILTIN_EMOTES = {
                 vc="vcbypass", antivc="vcbypass", vcon="vcbypass", bypassvc="vcbypass", voicebypass="vcbypass",
                 playemote="emote", playanim="emote", emotestop="stopemote", stopanim="stopemote", stopemotes="stopemote", emotestopall="stopemote", stopdance="stopemote",
                 espeed="emotespeed", animspeed="emotespeed",
-                emotebrowser="afem", openemotes="afem", browseemotes="afem", emotelib="afem", elist="afem", emotegui="afem", emotemenu="afem",
+                emotebrowser="afem", fgp="freegamepass", dkf="dropkick", openemotes="afem", browseemotes="afem", emotelib="afem", elist="afem", emotegui="afem", emotemenu="afem",
                 commands="cmds", help="cmds", cmd="cmds", ["?"]="cmds", cmdlist="cmds", commandlist="cmds", helpcmds="cmds",
                 leave="exit", quit="exit", leavegame="exit", exitgame="exit", disconnect="exit", ragequit="exit",
                 unbang="stopadult", unfuck="stopadult", rpstop="stopadult", stoprp="stopadult", adultstop="stopadult", rpend="stopadult", stopallrp="stopadult", stopadult2="stopadult", headbangstop="stopadult",
@@ -5664,6 +5834,10 @@ local BUILTIN_EMOTES = {
         { cmd = "peg",       label = "Peg",           desc = "RP · target player",          needsArg = true,  example = "username" },
         { cmd = "stopadult", label = "Stop adult",    desc = "Cancel RP attach / anim",     needsArg = false },
     
+        { cmd = "freegamepass", label = "Free Gamepass", desc = "Load free gamepass helper", needsArg = false },
+        { cmd = "fgp", label = "FGP", desc = "Alias freegamepass", needsArg = false },
+        { cmd = "dropkick", label = "Drop Kick Fling", desc = "Load dropkick fling (NØIR UI)", needsArg = false },
+        { cmd = "dkf", label = "DKF", desc = "Alias dropkick", needsArg = false },
         -- expanded command catalog (300+ with aliases)
         { cmd = "speed", label = "WalkSpeed alias", desc = "Alias of ws", needsArg = true, example = "50" },
         { cmd = "walkspeed", label = "WalkSpeed alias", desc = "Alias of ws", needsArg = true, example = "50" },
