@@ -4494,11 +4494,6 @@ local BUILTIN_EMOTES = {
             notify("FGP", "Loading free gamepass…")
             task.spawn(function()
                 local src
-                local urls = {
-                    "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/freegamepass.luau",
-                    "https://raw.githubusercontent.com/H1tss/extras/main/freegamepass.luau",
-                }
-                -- prefer embedded runtime if present
                 if type(_G._N0IR_FreeGamepassSource) == "string" and #_G._N0IR_FreeGamepassSource > 500 then
                     src = _G._N0IR_FreeGamepassSource
                 end
@@ -4512,6 +4507,10 @@ local BUILTIN_EMOTES = {
                     end)
                 end
                 if not src then
+                    local urls = {
+                        "https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/freegamepass.luau",
+                        "https://raw.githubusercontent.com/H1tss/extras/main/freegamepass.luau",
+                    }
                     for _, u in ipairs(urls) do
                         local ok, body = pcall(function() return game:HttpGet(u) end)
                         if ok and type(body) == "string" and #body > 500 and not body:find("^404") then
@@ -4521,8 +4520,7 @@ local BUILTIN_EMOTES = {
                     end
                 end
                 if not src then
-                    -- fallback: inline minimal loader notice
-                    notify("FGP", "Host freegamepass.luau on GitHub raw or set _G._N0IR_FreeGamepassSource")
+                    notify("FGP", "Host freegamepass.luau or set _G._N0IR_FreeGamepassSource")
                     return
                 end
                 pcall(function()
@@ -4552,94 +4550,37 @@ local BUILTIN_EMOTES = {
             return
         elseif cmd == "dropkick" or cmd == "dkf" then
             if _G._N0IR_DropkickLoaded then
-                notify("DropKick", "Already loaded — check UI")
+                notify("DropKick", "Already loaded")
                 return
             end
-            notify("DropKick", "Loading…")
+            notify("DropKick", "Loading NØIR Drop Kick…")
             task.spawn(function()
-                local url = "https://raw.githubusercontent.com/yes-d3v-scripts/drop-kick-fling/refs/heads/main/script"
-                local ok, src = pcall(function() return game:HttpGet(url) end)
-                if not ok or type(src) ~= "string" or #src < 100 then
-                    notify("DropKick", "Failed to download script")
+                local src = _G._N0IR_DropkickSource
+                if type(src) ~= "string" or #src < 500 then
+                    pcall(function()
+                        if isfile and isfile("N0IR/dropkick.luau") then
+                            src = readfile("N0IR/dropkick.luau")
+                        end
+                    end)
+                end
+                if type(src) ~= "string" or #src < 500 then
+                    notify("DropKick", "Missing source")
                     return
                 end
-                -- NØIR-ify common GUI colors in source before run (best-effort)
-                local themed = src
-                pcall(function()
-                    themed = themed
-                        :gsub("Color3%.fromRGB%(%s*255%s*,%s*%d+%s*,%s*%d+%s*%)", "Color3.fromRGB(255, 255, 255)")
-                        :gsub("Color3%.fromRGB%(%s*%d+%s*,%s*%d+%s*,%s*255%s*%)", "Color3.fromRGB(240, 240, 240)")
-                        :gsub('Font%s*=%s*Enum%.Font%.[A-Za-z]+', "Font = Enum.Font.GothamBold", 20)
-                end)
-                -- wrap with NØIR chrome after load
-                local ok2, err = pcall(function()
-                    local fn = loadstring(themed)
+                local ok, err = pcall(function()
+                    local fn = loadstring(src)
                     if not fn then error("loadstring failed") end
                     fn()
                 end)
-                if not ok2 then
-                    -- try original if theme break
-                    ok2, err = pcall(function()
-                        local fn = loadstring(src)
-                        if not fn then error("loadstring failed") end
-                        fn()
-                    end)
-                end
-                if ok2 then
+                if ok then
                     _G._N0IR_DropkickLoaded = true
-                    -- try restyle existing ScreenGuis added recently
-                    task.defer(function()
-                        task.wait(0.5)
-                        local host = LocalPlayer:FindFirstChildOfClass("PlayerGui") or CoreGui
-                        for _, gui in ipairs(host:GetChildren()) do
-                            if gui:IsA("ScreenGui") and gui ~= (Nametag and Nametag.Folder) then
-                                local name = string.lower(gui.Name)
-                                if name:find("drop") or name:find("kick") or name:find("fling") or name:find("dk") then
-                                    for _, d in ipairs(gui:GetDescendants()) do
-                                        if d:IsA("Frame") or d:IsA("TextButton") or d:IsA("ImageButton") then
-                                            pcall(function()
-                                                if d.BackgroundColor3 then
-                                                    local c = d.BackgroundColor3
-                                                    -- darken colorful panels toward NØIR black/white
-                                                    if c.R > 0.3 or c.G > 0.3 or c.B > 0.3 then
-                                                        if c.R + c.G + c.B > 1.5 then
-                                                            d.BackgroundColor3 = Color3.fromRGB(245, 245, 245)
-                                                        else
-                                                            d.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
-                                                        end
-                                                    end
-                                                end
-                                            end)
-                                        end
-                                        if d:IsA("TextLabel") or d:IsA("TextButton") then
-                                            pcall(function()
-                                                d.Font = Enum.Font.GothamMedium
-                                                if d.TextColor3 and d.TextColor3.R < 0.2 and d.TextColor3.G < 0.2 and d.TextColor3.B < 0.2 then
-                                                    -- keep dark text on light
-                                                elseif d.TextColor3 then
-                                                    local c = d.TextColor3
-                                                    if math.abs(c.R - c.G) > 0.15 or math.abs(c.G - c.B) > 0.15 then
-                                                        d.TextColor3 = Color3.fromRGB(240, 240, 240)
-                                                    end
-                                                end
-                                            end)
-                                        end
-                                        if d:IsA("UIStroke") then
-                                            pcall(function() d.Color = Color3.fromRGB(60, 60, 60) end)
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                    end)
-                    notify("DropKick", "Loaded · NØIR theme applied when possible")
+                    notify("DropKick", "Ready · gear menu / Left Ctrl")
                 else
-                    notify("DropKick", "Error: " .. tostring(err):sub(1, 80))
+                    notify("DropKick", "Error: " .. tostring(err):sub(1, 90))
                 end
             end)
             return
         end
-
 
         -- bulk alias / shortcut router (300+ catalog support)
         do
@@ -7424,5 +7365,903 @@ function N0IR:Init(opts)
 
     return win, modules
 end
+
+
+-- NØIR Drop Kick source (NØIR UI)
+_G._N0IR_DropkickSource = [====[
+-- NØIR Drop Kick (based on yes.dev dropkick)
+local utility = {
+    dropkick = Instance.new("Animation"),
+    Players = game:GetService("Players"),
+    RunService = game:GetService("RunService"),
+    UserInputService = game:GetService("UserInputService"),
+    TweenService = game:GetService("TweenService"),
+    Debris = game:GetService("Debris"),
+    HttpService = game:GetService("HttpService"),
+    StarterGui = game:GetService("StarterGui"),
+    conns = {}
+}
+
+utility.dropkick.AnimationId = "rbxassetid://133566007754001"
+
+-- NØIR palette
+local N = {
+    bg = Color3.fromRGB(10, 10, 10),
+    bg2 = Color3.fromRGB(16, 16, 16),
+    bg3 = Color3.fromRGB(22, 22, 22),
+    bg4 = Color3.fromRGB(30, 30, 30),
+    stroke = Color3.fromRGB(48, 48, 48),
+    text = Color3.fromRGB(245, 245, 245),
+    text2 = Color3.fromRGB(160, 160, 160),
+    text3 = Color3.fromRGB(110, 110, 110),
+    white = Color3.fromRGB(255, 255, 255),
+    active = Color3.fromRGB(255, 255, 255),
+    activeText = Color3.fromRGB(10, 10, 10),
+}
+
+task.spawn(function()
+    local instancesToLoad = { utility.dropkick }
+    local gearPreload = Instance.new("ImageLabel")
+    gearPreload.Image = "rbxthumb://type=Asset&id=7059346386&w=420&h=420"
+    table.insert(instancesToLoad, gearPreload)
+    pcall(function()
+        game:GetService("ContentProvider"):PreloadAsync(instancesToLoad)
+    end)
+end)
+
+utility.selectedMethod = "Click"
+utility.selectedKey = Enum.KeyCode.F
+utility.flingForce = 5000
+utility.keyListening = false
+utility.recordingKey = false
+utility.actionRunning = false
+utility.menuOpen = false
+utility.uiReady = false
+utility.actionId = 0
+utility.currentTrack = nil
+utility.AnimationCutTime = 0.3
+utility.savedWalkSpeed = nil
+utility.savedAutoRotate = true
+utility.walkflinging = false
+utility.cacheFolder = "N0IR"
+utility.cacheFile = utility.cacheFolder .. "/dropkick.json"
+utility.noClipConnections = {}
+utility.noClipNotificationSent = false
+utility.noCollisionConstraints = {}
+
+function utility:CheckValidRigType(h)
+    local s, r = pcall(function()
+        return h.RigType == Enum.HumanoidRigType.R15
+    end)
+    return s and r
+end
+
+function utility:LoadSettings()
+    local success, content = pcall(function()
+        return readfile(self.cacheFile)
+    end)
+    if success and content then
+        local ok, data = pcall(function()
+            return self.HttpService:JSONDecode(content)
+        end)
+        if ok and data then
+            if data.selectedMethod then self.selectedMethod = data.selectedMethod end
+            if data.selectedKey then
+                local key = Enum.KeyCode[data.selectedKey]
+                if key then self.selectedKey = key end
+            end
+            if data.flingForce then
+                self.flingForce = math.clamp(tonumber(data.flingForce) or 5000, 500, 25000)
+            end
+        end
+    end
+end
+
+function utility:SaveSettings()
+    local data = {
+        selectedMethod = self.selectedMethod,
+        selectedKey = self.selectedKey.Name,
+        flingForce = self.flingForce
+    }
+    pcall(function()
+        if isfolder and not isfolder(self.cacheFolder) then makefolder(self.cacheFolder) end
+        writefile(self.cacheFile, self.HttpService:JSONEncode(data))
+    end)
+end
+
+function utility:Notify(title, text)
+    pcall(function()
+        self.StarterGui:SetCore("SendNotification", {
+            Title = title,
+            Text = text,
+            Duration = 4
+        })
+    end)
+end
+
+function utility:CleanupPlayerNoCollision(player)
+    local data = self.noCollisionConstraints[player]
+    if not data then return end
+    for _, connection in pairs(data.connections or {}) do
+        pcall(function() connection:Disconnect() end)
+    end
+    for _, constraint in pairs(data.constraints or {}) do
+        pcall(function() constraint:Destroy() end)
+    end
+    self.noCollisionConstraints[player] = nil
+end
+
+function utility:SetupPlayerNoCollision(player)
+    if not player or player == self.LocalPlayer then return end
+    self:CleanupPlayerNoCollision(player)
+    local localCharacter = self.LocalPlayer.Character
+    local targetCharacter = player.Character
+    if not localCharacter or not targetCharacter then return end
+    local data = { constraints = {}, connections = {} }
+    self.noCollisionConstraints[player] = data
+    local function createConstraint(localPart, targetPart)
+        if not localPart:IsA("BasePart") or not targetPart:IsA("BasePart") then return end
+        if not localPart.Parent or not targetPart.Parent then return end
+        local constraint = Instance.new("NoCollisionConstraint")
+        constraint.Part0 = localPart
+        constraint.Part1 = targetPart
+        constraint.Parent = localCharacter
+        table.insert(data.constraints, constraint)
+    end
+    local localParts = {}
+    for _, part in ipairs(localCharacter:GetDescendants()) do
+        if part:IsA("BasePart") then table.insert(localParts, part) end
+    end
+    local function addTargetPart(targetPart)
+        if not targetPart:IsA("BasePart") then return end
+        for _, localPart in ipairs(localParts) do
+            createConstraint(localPart, targetPart)
+        end
+    end
+    for _, targetPart in ipairs(targetCharacter:GetDescendants()) do
+        addTargetPart(targetPart)
+    end
+    data.connections.targetAdded = targetCharacter.DescendantAdded:Connect(function(descendant)
+        addTargetPart(descendant)
+    end)
+    data.connections.localAdded = localCharacter.DescendantAdded:Connect(function(descendant)
+        if not descendant:IsA("BasePart") then return end
+        for _, targetPart in ipairs(targetCharacter:GetDescendants()) do
+            createConstraint(descendant, targetPart)
+        end
+    end)
+end
+
+function utility:SetupGlobalNoClip()
+    local function setupPlayer(player)
+        if player == self.LocalPlayer then return end
+        local function setupCharacter(character)
+            task.defer(function()
+                if player ~= self.LocalPlayer and character == player.Character then
+                    self:SetupPlayerNoCollision(player)
+                end
+            end)
+        end
+        if player.Character then setupCharacter(player.Character) end
+        self.noClipConnections[player] = self.noClipConnections[player] or {}
+        if self.noClipConnections[player].characterAdded then
+            self.noClipConnections[player].characterAdded:Disconnect()
+        end
+        self.noClipConnections[player].characterAdded = player.CharacterAdded:Connect(setupCharacter)
+        if self.noClipConnections[player].characterRemoving then
+            self.noClipConnections[player].characterRemoving:Disconnect()
+        end
+        self.noClipConnections[player].characterRemoving = player.CharacterRemoving:Connect(function()
+            self:CleanupPlayerNoCollision(player)
+        end)
+    end
+    for _, player in ipairs(self.Players:GetPlayers()) do setupPlayer(player) end
+    if self.noClipPlayerAdded then self.noClipPlayerAdded:Disconnect() end
+    self.noClipPlayerAdded = self.Players.PlayerAdded:Connect(setupPlayer)
+    if self.noClipPlayerRemoving then self.noClipPlayerRemoving:Disconnect() end
+    self.noClipPlayerRemoving = self.Players.PlayerRemoving:Connect(function(player)
+        self:CleanupPlayerNoCollision(player)
+        local connections = self.noClipConnections[player]
+        if connections then
+            for _, connection in pairs(connections) do
+                pcall(function() connection:Disconnect() end)
+            end
+            self.noClipConnections[player] = nil
+        end
+    end)
+    if self.noClipLocalCharacterAdded then self.noClipLocalCharacterAdded:Disconnect() end
+    self.noClipLocalCharacterAdded = self.LocalPlayer.CharacterAdded:Connect(function()
+        task.defer(function()
+            for _, player in ipairs(self.Players:GetPlayers()) do
+                if player ~= self.LocalPlayer and player.Character then
+                    self:SetupPlayerNoCollision(player)
+                end
+            end
+        end)
+    end)
+end
+
+function utility:ShowStartup()
+    local playerGui = self.LocalPlayer:WaitForChild("PlayerGui")
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "N0IR_DropkickStartup"
+    gui.IgnoreGuiInset = true
+    gui.ResetOnSpawn = false
+    gui.DisplayOrder = 999999
+    gui.Parent = playerGui
+
+    local overlay = Instance.new("Frame")
+    overlay.Size = UDim2.fromScale(1, 1)
+    overlay.BackgroundColor3 = N.bg
+    overlay.BackgroundTransparency = 0.35
+    overlay.BorderSizePixel = 0
+    overlay.Parent = gui
+
+    local container = Instance.new("Frame")
+    container.AnchorPoint = Vector2.new(0.5, 0.5)
+    container.Position = UDim2.fromScale(0.5, 0.5)
+    container.Size = UDim2.fromOffset(190, 88)
+    container.BackgroundColor3 = N.bg
+    container.BackgroundTransparency = 0.02
+    container.BorderSizePixel = 0
+    container.Parent = overlay
+    Instance.new("UICorner", container).CornerRadius = UDim.new(0, 10)
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = N.stroke
+    stroke.Thickness = 1
+    stroke.Parent = container
+
+    local title = Instance.new("TextLabel")
+    title.AnchorPoint = Vector2.new(0.5, 0.5)
+    title.Position = UDim2.new(0.5, 0, 0.38, 0)
+    title.Size = UDim2.new(1, -16, 0, 28)
+    title.BackgroundTransparency = 1
+    title.Text = "NØIR  ·  Drop Kick"
+    title.TextColor3 = N.text
+    title.TextSize = 16
+    title.Font = Enum.Font.GothamBold
+    title.Parent = container
+
+    local credit = Instance.new("TextLabel")
+    credit.AnchorPoint = Vector2.new(0.5, 0.5)
+    credit.Position = UDim2.new(0.5, 0, 0.68, 0)
+    credit.Size = UDim2.new(1, -16, 0, 18)
+    credit.BackgroundTransparency = 1
+    credit.Text = "ready"
+    credit.TextColor3 = N.text3
+    credit.TextSize = 12
+    credit.Font = Enum.Font.GothamMedium
+    credit.Parent = container
+
+    container.BackgroundTransparency = 1
+    stroke.Transparency = 1
+    title.TextTransparency = 1
+    credit.TextTransparency = 1
+    self.TweenService:Create(container, TweenInfo.new(0.3, Enum.EasingStyle.Quint), { BackgroundTransparency = 0.02 }):Play()
+    self.TweenService:Create(stroke, TweenInfo.new(0.3), { Transparency = 0 }):Play()
+    self.TweenService:Create(title, TweenInfo.new(0.3), { TextTransparency = 0 }):Play()
+    self.TweenService:Create(credit, TweenInfo.new(0.35), { TextTransparency = 0 }):Play()
+    task.wait(2.2)
+    local fadeInfo = TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+    self.TweenService:Create(overlay, fadeInfo, { BackgroundTransparency = 1 }):Play()
+    self.TweenService:Create(container, fadeInfo, { BackgroundTransparency = 1 }):Play()
+    self.TweenService:Create(stroke, fadeInfo, { Transparency = 1 }):Play()
+    self.TweenService:Create(title, fadeInfo, { TextTransparency = 1 }):Play()
+    self.TweenService:Create(credit, fadeInfo, { TextTransparency = 1 }):Play()
+    task.wait(0.45)
+    gui:Destroy()
+end
+
+function utility:StartWalkFling(character)
+    if self.walkflinging then return end
+    local root = character:WaitForChild("HumanoidRootPart")
+    local humanoid = character:WaitForChild("Humanoid")
+    humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+    humanoid.BreakJointsOnDeath = false
+    self.walkflinging = true
+    task.spawn(function()
+        while self.walkflinging and root and root.Parent do
+            self.RunService.Heartbeat:Wait()
+            if not self.walkflinging then break end
+            local originalVel = root.Velocity
+            root.Velocity = originalVel * 999999 + Vector3.new(0, 999999, 0)
+            self.RunService.RenderStepped:Wait()
+            if not self.walkflinging then break end
+            root.Velocity = originalVel
+            self.RunService.Stepped:Wait()
+            if not self.walkflinging then break end
+            root.Velocity = originalVel + Vector3.new(0, 0.1, 0)
+        end
+    end)
+end
+
+function utility:StopWalkFling()
+    self.walkflinging = false
+    local character = self.LocalPlayer.Character
+    if character and character:FindFirstChild("Humanoid") then
+        local humanoid = character.Humanoid
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, true)
+        humanoid.BreakJointsOnDeath = true
+        local root = character:FindFirstChild("HumanoidRootPart")
+        if root then
+            root.Velocity = Vector3.zero
+            root.AssemblyLinearVelocity = Vector3.zero
+            root.AssemblyAngularVelocity = Vector3.zero
+        end
+        humanoid.PlatformStand = false
+    end
+end
+
+function utility:FlingNearbyPlayers(userRoot, radius)
+    local camera = workspace.CurrentCamera
+    if not camera then return end
+    local userLook = camera.CFrame.LookVector
+    userLook = Vector3.new(userLook.X, 0, userLook.Z).Unit
+    local flingDir = (userLook * 3 + Vector3.new(0, 0.4, 0)).Unit
+    local force = self.flingForce
+    local upForce = force * 0.0833
+    for _, player in ipairs(self.Players:GetPlayers()) do
+        if player ~= self.LocalPlayer and player.Character then
+            local targetChar = player.Character
+            local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
+            local targetHum = targetChar:FindFirstChild("Humanoid")
+            if targetRoot and targetHum and targetHum.Health > 0 then
+                local distance = (targetRoot.Position - userRoot.Position).Magnitude
+                if distance <= radius then
+                    pcall(function()
+                        targetHum:ChangeState(Enum.HumanoidStateType.Physics)
+                        targetHum.PlatformStand = true
+                        for _ = 1, 5 do
+                            targetRoot:RequestNetworkOwnership()
+                            task.wait(0.01)
+                        end
+                        local finalVel = flingDir * force + Vector3.new(0, upForce, 0)
+                        for _, part in ipairs(targetChar:GetDescendants()) do
+                            if part:IsA("BasePart") and part.AssemblyLinearVelocity then
+                                part.AssemblyLinearVelocity = finalVel
+                            end
+                        end
+                        local bv = Instance.new("BodyVelocity")
+                        bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                        bv.Velocity = finalVel
+                        bv.Parent = targetRoot
+                        self.Debris:AddItem(bv, 0.5)
+                        targetRoot.AssemblyAngularVelocity = Vector3.new(
+                            math.random(-20, 20), math.random(-20, 20), math.random(-20, 20)
+                        )
+                    end)
+                end
+            end
+        end
+    end
+end
+
+function utility:PerformDropkick()
+    if self.keyListening or self.recordingKey then return end
+    if self.selectedMethod == "None" then return end
+    local character = self.LocalPlayer.Character
+    if not character then return end
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not humanoid then return end
+    local animator = humanoid:FindFirstChild("Animator")
+    if not animator then return end
+    local leg = character:FindFirstChild("LeftLowerLeg")
+    if not leg then return end
+    self.actionId += 1
+    local thisActionId = self.actionId
+    if self.currentTrack then
+        pcall(function() self.currentTrack:Stop(0); self.currentTrack:Destroy() end)
+        self.currentTrack = nil
+    end
+    self.actionRunning = true
+    local originalWalkSpeed = humanoid.WalkSpeed
+    local originalAutoRotate = humanoid.AutoRotate
+    self.savedWalkSpeed = originalWalkSpeed
+    self.savedAutoRotate = originalAutoRotate
+    humanoid.AutoRotate = true
+    humanoid.WalkSpeed = originalWalkSpeed
+    local track
+    local success = pcall(function() track = animator:LoadAnimation(self.dropkick) end)
+    if not success or not track then
+        if self.actionId == thisActionId then
+            humanoid.WalkSpeed = originalWalkSpeed
+            humanoid.AutoRotate = originalAutoRotate
+            self.actionRunning = false
+        end
+        return
+    end
+    if self.actionId ~= thisActionId then
+        pcall(function() track:Stop(0); track:Destroy() end)
+        return
+    end
+    self.currentTrack = track
+    track.Priority = Enum.AnimationPriority.Action
+    track:Play(0)
+    self:StartWalkFling(character)
+    task.wait()
+    if self.actionId ~= thisActionId then
+        pcall(function() track:Stop(0); track:Destroy() end)
+        self:StopWalkFling()
+        return
+    end
+    local animationLength = track.Length
+    if animationLength <= 0 then animationLength = 1 end
+    local playTime = math.max(0.05, animationLength - self.AnimationCutTime)
+    local startTime = os.clock()
+    while track.IsPlaying and os.clock() - startTime < playTime do
+        if self.actionId ~= thisActionId then
+            if leg and leg.Parent then
+                leg.AssemblyLinearVelocity = Vector3.zero
+                leg.AssemblyAngularVelocity = Vector3.zero
+            end
+            pcall(function() track:Stop(0); track:Destroy() end)
+            self:StopWalkFling()
+            return
+        end
+        if not character.Parent then break end
+        if humanoid and humanoid.Parent then
+            humanoid.WalkSpeed = originalWalkSpeed
+            humanoid.AutoRotate = true
+        end
+        self.RunService.Heartbeat:Wait()
+        if self.actionId ~= thisActionId then
+            if leg and leg.Parent then
+                leg.AssemblyLinearVelocity = Vector3.zero
+                leg.AssemblyAngularVelocity = Vector3.zero
+            end
+            self:StopWalkFling()
+            return
+        end
+        leg = character:FindFirstChild("LeftLowerLeg")
+        if not leg then break end
+        local moveDirection = humanoid.MoveDirection
+        local currentY = leg.AssemblyLinearVelocity.Y
+        if moveDirection.Magnitude > 0.001 then
+            local desiredHorizontal = moveDirection.Unit * originalWalkSpeed
+            leg.AssemblyLinearVelocity = Vector3.new(desiredHorizontal.X, currentY, desiredHorizontal.Z)
+        else
+            leg.AssemblyLinearVelocity = Vector3.new(0, currentY, 0)
+        end
+        leg.AssemblyAngularVelocity = Vector3.zero
+        self:FlingNearbyPlayers(character.HumanoidRootPart, 10)
+        self.RunService.RenderStepped:Wait()
+        if self.actionId ~= thisActionId then
+            if leg and leg.Parent then
+                leg.AssemblyLinearVelocity = Vector3.zero
+                leg.AssemblyAngularVelocity = Vector3.zero
+            end
+            self:StopWalkFling()
+            return
+        end
+        if leg and leg.Parent then
+            local direction = humanoid.MoveDirection
+            if direction.Magnitude > 0.001 then
+                local desiredHorizontal = direction.Unit * originalWalkSpeed
+                leg.AssemblyLinearVelocity = Vector3.new(desiredHorizontal.X, leg.AssemblyLinearVelocity.Y, desiredHorizontal.Z)
+            else
+                leg.AssemblyLinearVelocity = Vector3.new(0, leg.AssemblyLinearVelocity.Y, 0)
+            end
+            leg.AssemblyAngularVelocity = Vector3.zero
+        end
+        self.RunService.Stepped:Wait()
+        if self.actionId ~= thisActionId then
+            if leg and leg.Parent then
+                leg.AssemblyLinearVelocity = Vector3.zero
+                leg.AssemblyAngularVelocity = Vector3.zero
+            end
+            self:StopWalkFling()
+            return
+        end
+        if humanoid and humanoid.Parent then
+            humanoid.WalkSpeed = originalWalkSpeed
+            humanoid.AutoRotate = true
+        end
+    end
+    if self.actionId ~= thisActionId then
+        pcall(function() track:Stop(0); track:Destroy() end)
+        self:StopWalkFling()
+        return
+    end
+    if track.IsPlaying then track:Stop(0) end
+    if humanoid and humanoid.Parent then
+        humanoid.WalkSpeed = originalWalkSpeed
+        humanoid.AutoRotate = originalAutoRotate
+    end
+    leg = character:FindFirstChild("LeftLowerLeg")
+    if leg and leg.Parent then
+        leg.AssemblyLinearVelocity = Vector3.zero
+        leg.AssemblyAngularVelocity = Vector3.zero
+    end
+    if self.currentTrack == track then self.currentTrack = nil end
+    self.actionRunning = false
+    self:StopWalkFling()
+    pcall(function() track:Destroy() end)
+end
+
+function utility:MouseDetection()
+    local mouse = self.LocalPlayer:GetMouse()
+    if self.conns.mouse then self.conns.mouse:Disconnect() end
+    self.conns.mouse = mouse.Button1Down:Connect(function()
+        if self.selectedMethod ~= "Click" then return end
+        if self.keyListening or self.recordingKey then return end
+        local position = self.UserInputService:GetMouseLocation()
+        local objects = self.LocalPlayer.PlayerGui:GetGuiObjectsAtPosition(position.X, position.Y)
+        for _, object in ipairs(objects) do
+            if object:IsDescendantOf(self.MainUI) then return end
+        end
+        self:PerformDropkick()
+    end)
+end
+
+function utility:StartKeyDetection()
+    if self.conns.key then self.conns.key:Disconnect() end
+    self.conns.key = self.UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        if self.keyListening or self.recordingKey then return end
+        if self.selectedMethod ~= "Key" then return end
+        if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == self.selectedKey then
+            self:PerformDropkick()
+        end
+    end)
+end
+
+function utility:CreateButton(parent, text)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(1, 0, 0, 34)
+    button.BackgroundColor3 = N.bg3
+    button.BorderSizePixel = 0
+    button.Text = text
+    button.TextColor3 = N.text
+    button.TextSize = 13
+    button.Font = Enum.Font.GothamMedium
+    button.AutoButtonColor = false
+    button.Parent = parent
+    Instance.new("UICorner", button).CornerRadius = UDim.new(0, 7)
+    return button
+end
+
+function utility:UpdateUI()
+    local idle, active = N.bg3, N.active
+    local idleT, activeT = N.text, N.activeText
+    self.ClickButton.BackgroundColor3 = self.selectedMethod == "Click" and active or idle
+    self.ClickButton.TextColor3 = self.selectedMethod == "Click" and activeT or idleT
+    self.KeyButton.BackgroundColor3 = self.selectedMethod == "Key" and active or idle
+    self.KeyButton.TextColor3 = self.selectedMethod == "Key" and activeT or idleT
+    self.UIButton.BackgroundColor3 = self.selectedMethod == "UI Button" and active or idle
+    self.UIButton.TextColor3 = self.selectedMethod == "UI Button" and activeT or idleT
+    self.KeyConfig.Visible = self.selectedMethod == "Key"
+    self.ActionButton.Visible = self.uiReady and self.selectedMethod == "UI Button"
+    if self.selectedMethod == "Key" and not self.keyListening then
+        self.KeyBox.Text = self.selectedKey.Name
+    end
+    self:ResizePanel()
+end
+
+function utility:ResizePanel()
+    if not self.menuOpen then return end
+    local height = 158
+    if self.selectedMethod == "Key" then height += 40 end
+    self.Panel:TweenSize(UDim2.fromOffset(188, height), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.15, true)
+end
+
+function utility:CreateUI()
+    local playerGui = self.LocalPlayer:WaitForChild("PlayerGui")
+    pcall(function()
+        local old = playerGui:FindFirstChild("N0IR_Dropkick")
+        if old then old:Destroy() end
+        old = playerGui:FindFirstChild("DropkickController")
+        if old then old:Destroy() end
+    end)
+
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "N0IR_Dropkick"
+    gui.ResetOnSpawn = false
+    gui.IgnoreGuiInset = true
+    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    gui.DisplayOrder = 50
+    gui.Parent = playerGui
+    self.MainUI = gui
+
+    local main = Instance.new("Frame")
+    main.Name = "Main"
+    main.Size = UDim2.fromOffset(48, 48)
+    main.Position = UDim2.new(0.28, 0, 0.35, 0)
+    main.BackgroundTransparency = 1
+    main.Parent = gui
+    self.Main = main
+
+    local gear = Instance.new("ImageButton")
+    gear.Name = "Gear"
+    gear.Size = UDim2.fromOffset(48, 48)
+    gear.BackgroundColor3 = N.bg
+    gear.BorderSizePixel = 0
+    gear.Image = ""
+    gear.AutoButtonColor = false
+    gear.Parent = main
+    Instance.new("UICorner", gear).CornerRadius = UDim.new(0, 10)
+    local gearStroke = Instance.new("UIStroke")
+    gearStroke.Color = N.stroke
+    gearStroke.Parent = gear
+    local gearImage = Instance.new("ImageLabel")
+    gearImage.Size = UDim2.fromOffset(28, 28)
+    gearImage.AnchorPoint = Vector2.new(0.5, 0.5)
+    gearImage.Position = UDim2.fromScale(0.5, 0.5)
+    gearImage.BackgroundTransparency = 1
+    gearImage.Image = "rbxthumb://type=Asset&id=7059346386&w=420&h=420"
+    gearImage.ImageColor3 = N.white
+    gearImage.ScaleType = Enum.ScaleType.Fit
+    gearImage.Parent = gear
+    self.GearButton = gear
+
+    local panel = Instance.new("Frame")
+    panel.Name = "Panel"
+    panel.Size = UDim2.fromOffset(188, 0)
+    panel.Position = UDim2.new(0, 0, 1, 8)
+    panel.BackgroundColor3 = N.bg
+    panel.BorderSizePixel = 0
+    panel.ClipsDescendants = true
+    panel.Visible = false
+    panel.Parent = main
+    Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 10)
+    local panelStroke = Instance.new("UIStroke")
+    panelStroke.Color = N.stroke
+    panelStroke.Parent = panel
+    local padding = Instance.new("UIPadding")
+    padding.PaddingTop = UDim.new(0, 8)
+    padding.PaddingBottom = UDim.new(0, 8)
+    padding.PaddingLeft = UDim.new(0, 8)
+    padding.PaddingRight = UDim.new(0, 8)
+    padding.Parent = panel
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, 6)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Parent = panel
+    self.Panel = panel
+
+    local hdr = Instance.new("TextLabel")
+    hdr.Size = UDim2.new(1, 0, 0, 16)
+    hdr.BackgroundTransparency = 1
+    hdr.Text = "NØIR  ·  DROP KICK"
+    hdr.TextColor3 = N.text2
+    hdr.TextSize = 11
+    hdr.Font = Enum.Font.GothamBold
+    hdr.LayoutOrder = 0
+    hdr.Parent = panel
+
+    local click = self:CreateButton(panel, "Click")
+    click.LayoutOrder = 1
+    local key = self:CreateButton(panel, "Key")
+    key.LayoutOrder = 2
+    local uiButton = self:CreateButton(panel, "UI Button")
+    uiButton.LayoutOrder = 3
+    self.ClickButton = click
+    self.KeyButton = key
+    self.UIButton = uiButton
+
+    local keyConfig = Instance.new("Frame")
+    keyConfig.Name = "KeyConfig"
+    keyConfig.Size = UDim2.new(1, 0, 0, 34)
+    keyConfig.BackgroundColor3 = N.bg2
+    keyConfig.BorderSizePixel = 0
+    keyConfig.Visible = false
+    keyConfig.LayoutOrder = 4
+    keyConfig.Parent = panel
+    Instance.new("UICorner", keyConfig).CornerRadius = UDim.new(0, 7)
+    local keyLabel = Instance.new("TextLabel")
+    keyLabel.Size = UDim2.new(0.4, 0, 1, 0)
+    keyLabel.BackgroundTransparency = 1
+    keyLabel.Text = "  Key"
+    keyLabel.TextColor3 = N.text2
+    keyLabel.TextSize = 12
+    keyLabel.Font = Enum.Font.GothamMedium
+    keyLabel.TextXAlignment = Enum.TextXAlignment.Left
+    keyLabel.Parent = keyConfig
+    local keyBox = Instance.new("TextButton")
+    keyBox.Size = UDim2.new(0.52, 0, 0, 24)
+    keyBox.Position = UDim2.new(0.44, 0, 0.5, -12)
+    keyBox.BackgroundColor3 = N.bg4
+    keyBox.BorderSizePixel = 0
+    keyBox.Text = self.selectedKey.Name
+    keyBox.TextColor3 = N.text
+    keyBox.TextSize = 12
+    keyBox.Font = Enum.Font.GothamMedium
+    keyBox.AutoButtonColor = false
+    keyBox.Parent = keyConfig
+    Instance.new("UICorner", keyBox).CornerRadius = UDim.new(0, 6)
+    self.KeyConfig = keyConfig
+    self.KeyBox = keyBox
+
+    local separator = Instance.new("Frame")
+    separator.Size = UDim2.new(1, 0, 0, 1)
+    separator.BackgroundColor3 = N.stroke
+    separator.BorderSizePixel = 0
+    separator.LayoutOrder = 100
+    separator.Parent = panel
+
+    local credit = Instance.new("TextLabel")
+    credit.Size = UDim2.new(1, 0, 0, 14)
+    credit.BackgroundTransparency = 1
+    credit.Text = "NØIR suite"
+    credit.TextColor3 = N.text3
+    credit.TextSize = 10
+    credit.Font = Enum.Font.GothamMedium
+    credit.LayoutOrder = 101
+    credit.Parent = panel
+
+    local action = Instance.new("TextButton")
+    action.Name = "ActionButton"
+    action.AnchorPoint = Vector2.new(0.5, 1)
+    action.Size = UDim2.fromOffset(128, 40)
+    action.Position = UDim2.new(0.5, 0, 1, -28)
+    action.BackgroundColor3 = N.bg
+    action.BorderSizePixel = 0
+    action.Text = "Drop Kick"
+    action.TextColor3 = N.text
+    action.TextSize = 13
+    action.Font = Enum.Font.GothamBold
+    action.AutoButtonColor = false
+    action.Visible = false
+    action.Parent = gui
+    Instance.new("UICorner", action).CornerRadius = UDim.new(0, 9)
+    local actionStroke = Instance.new("UIStroke")
+    actionStroke.Color = N.stroke
+    actionStroke.Parent = action
+    self.ActionButton = action
+
+    local gearDragging, gearDragStart, gearStartPosition, gearDragDistance = false, nil, nil, 0
+    gear.InputBegan:Connect(function(input)
+        if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then return end
+        gearDragging = true
+        gearDragStart = input.Position
+        gearStartPosition = main.Position
+        gearDragDistance = 0
+    end)
+    self.conns.gearMove = self.UserInputService.InputChanged:Connect(function(input)
+        if not gearDragging then return end
+        if input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch then return end
+        local delta = input.Position - gearDragStart
+        gearDragDistance = math.max(gearDragDistance, math.abs(delta.X) + math.abs(delta.Y))
+        main.Position = UDim2.new(gearStartPosition.X.Scale, gearStartPosition.X.Offset + delta.X, gearStartPosition.Y.Scale, gearStartPosition.Y.Offset + delta.Y)
+    end)
+    self.UserInputService.InputEnded:Connect(function(input)
+        if not gearDragging then return end
+        if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then return end
+        gearDragging = false
+        if gearDragDistance >= 8 then return end
+        self.menuOpen = not self.menuOpen
+        if self.menuOpen then
+            panel.Visible = true
+            panel.Size = UDim2.fromOffset(188, 0)
+            self:ResizePanel()
+        else
+            panel:TweenSize(UDim2.fromOffset(188, 0), Enum.EasingDirection.In, Enum.EasingStyle.Quad, 0.15, true)
+            task.delay(0.16, function()
+                if not self.menuOpen then panel.Visible = false end
+            end)
+        end
+    end)
+
+    click.MouseButton1Click:Connect(function()
+        self.selectedMethod = (self.selectedMethod == "Click") and "None" or "Click"
+        self:UpdateUI(); self:SaveSettings()
+    end)
+    key.MouseButton1Click:Connect(function()
+        if self.selectedMethod == "Key" then
+            self.selectedMethod = "None"
+            self.keyListening = false
+            self.recordingKey = false
+            if self.conns.keyRecord then self.conns.keyRecord:Disconnect(); self.conns.keyRecord = nil end
+        else
+            self.selectedMethod = "Key"
+        end
+        self:UpdateUI(); self:SaveSettings()
+    end)
+    uiButton.MouseButton1Click:Connect(function()
+        self.selectedMethod = (self.selectedMethod == "UI Button") and "None" or "UI Button"
+        self:UpdateUI(); self:SaveSettings()
+    end)
+    keyBox.MouseButton1Click:Connect(function()
+        if self.selectedMethod ~= "Key" then return end
+        if self.keyListening or self.recordingKey then return end
+        self.keyListening = true
+        self.recordingKey = true
+        keyBox.Text = "..."
+        if self.conns.keyRecord then self.conns.keyRecord:Disconnect(); self.conns.keyRecord = nil end
+        self.conns.keyRecord = self.UserInputService.InputBegan:Connect(function(input)
+            if not self.keyListening then return end
+            if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+            if input.KeyCode == Enum.KeyCode.Unknown then return end
+            self.selectedKey = input.KeyCode
+            self.keyListening = false
+            keyBox.Text = self.selectedKey.Name
+            if self.conns.keyRecord then self.conns.keyRecord:Disconnect(); self.conns.keyRecord = nil end
+            task.delay(0.1, function() self.recordingKey = false end)
+            self:SaveSettings()
+        end)
+    end)
+
+    local dragging, dragStart, startPosition, dragDistance = false, nil, nil, 0
+    action.InputBegan:Connect(function(input)
+        if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then return end
+        dragging = true
+        dragStart = input.Position
+        startPosition = action.Position
+        dragDistance = 0
+        local changed
+        changed = input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+                if changed then changed:Disconnect() end
+                if dragDistance < 8 and self.selectedMethod == "UI Button" and not self.keyListening and not self.recordingKey then
+                    self:PerformDropkick()
+                end
+            end
+        end)
+    end)
+    self.conns.actionMove = self.UserInputService.InputChanged:Connect(function(input)
+        if not dragging then return end
+        if input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch then return end
+        local delta = input.Position - dragStart
+        dragDistance = math.max(dragDistance, math.abs(delta.X) + math.abs(delta.Y))
+        action.Position = UDim2.new(startPosition.X.Scale, startPosition.X.Offset + delta.X, startPosition.Y.Scale, startPosition.Y.Offset + delta.Y)
+    end)
+
+    self.uiReady = true
+    self:UpdateUI()
+    self.conns.toggleMenu = self.UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.LeftControl then
+            if not self.keyListening and not self.recordingKey then
+                self.menuOpen = not self.menuOpen
+                if self.menuOpen then
+                    panel.Visible = true
+                    panel.Size = UDim2.fromOffset(188, 0)
+                    self:ResizePanel()
+                else
+                    panel:TweenSize(UDim2.fromOffset(188, 0), Enum.EasingDirection.In, Enum.EasingStyle.Quad, 0.15, true)
+                    task.delay(0.16, function()
+                        if not self.menuOpen then panel.Visible = false end
+                    end)
+                end
+            end
+        end
+    end)
+end
+
+function utility:BeginDropkickHook(char)
+    if not char then return warn("[NØIR DK] no character") end
+    local hum = char:WaitForChild("Humanoid", 1)
+    if not hum then return warn("[NØIR DK] no humanoid") end
+    if not self:CheckValidRigType(hum) then
+        self:Notify("NØIR Drop Kick", "R15 required")
+        return
+    end
+    if not hum:WaitForChild("Animator", 1) then return warn("[NØIR DK] no animator") end
+    return "success"
+end
+
+function utility:Initialize()
+    self.LocalPlayer = self.Players.LocalPlayer
+    if not self.LocalPlayer then return warn("[NØIR DK] no localplayer") end
+    pcall(function()
+        if isfolder and not isfolder(self.cacheFolder) then makefolder(self.cacheFolder) end
+    end)
+    self:LoadSettings()
+    self.character = self.LocalPlayer.Character or self.LocalPlayer.CharacterAdded:Wait()
+    self:ShowStartup()
+    if self:BeginDropkickHook(self.character) ~= "success" then return end
+    self.charadded = self.LocalPlayer.CharacterAdded:Connect(function(character)
+        self:BeginDropkickHook(character)
+    end)
+    self:CreateUI()
+    self:MouseDetection()
+    self:StartKeyDetection()
+    task.defer(function() self:SetupGlobalNoClip() end)
+    return true
+end
+
+return utility:Initialize()
+
+]====]
 
 return N0IR
