@@ -1,32 +1,398 @@
 --[[
-    NØIR UI Library
-    Clean · Minimal · Black & White
-    Designed to host modules (utility, cmds, reanim via loadstring, etc.)
+    NØIR UI Library + Key System + Nametag
+    Connected to: https://n0ir.pages.dev
 
     Usage:
-        local N0IR = loadstring(game:HttpGet("..."))()  -- or readfile
-        local Window = N0IR:CreateWindow({ Title = "NØIR", SubTitle = "Suite" })
-        local Tab = Window:CreateTab({ Name = "Main" })
-        Tab:CreateToggle({ Name = "Example", Flag = "ex", Callback = function(v) end })
+        KEY = "N0IR-XXXXXXXXXXXXXXXX"
+        local N0IR = loadstring(game:HttpGet("https://raw.githubusercontent.com/H1tss/extras/refs/heads/main/N0IR%20Ui%20LIB.luau"))()
+        local Window = N0IR:Init({ Title = "NØIR", SubTitle = "GUI" })
 ]]
 
-local N0IR = {
-    Version = "1.0.0",
-    Flags = {},
-    _windows = {},
-}
-
+local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local HttpService = game:GetService("HttpService")
 local MarketplaceService = game:GetService("MarketplaceService")
 local TeleportService = game:GetService("TeleportService")
 local CoreGui = game:GetService("CoreGui")
 
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
+
+-- ============================================================
+-- KEY SYSTEM  (https://n0ir.pages.dev)
+-- ============================================================
+local API_URL = "https://n0ir.pages.dev"
+local KEY_FILE = "N0IR/key.txt"
+
+local function getHWID()
+    local raw = ""
+    pcall(function()
+        if gethwid then
+            raw = tostring(gethwid())
+        elseif getexecutorname then
+            raw = tostring(getexecutorname()) .. tostring(LocalPlayer.UserId)
+        else
+            raw = tostring(LocalPlayer.UserId) .. tostring(game.PlaceId)
+        end
+    end)
+    local h = 0
+    for i = 1, #raw do
+        h = (h * 31 + string.byte(raw, i)) % 2147483647
+    end
+    return tostring(h) .. "_" .. tostring(LocalPlayer.UserId)
+end
+
+local function httpPost(url, bodyTable)
+    local body = HttpService:JSONEncode(bodyTable)
+    local ok, result = pcall(function()
+        if request then
+            local res = request({
+                Url = url,
+                Method = "POST",
+                Headers = { ["Content-Type"] = "application/json" },
+                Body = body,
+            })
+            if res and res.Body then
+                return HttpService:JSONDecode(res.Body)
+            end
+        elseif syn and syn.request then
+            local res = syn.request({
+                Url = url,
+                Method = "POST",
+                Headers = { ["Content-Type"] = "application/json" },
+                Body = body,
+            })
+            if res and res.Body then
+                return HttpService:JSONDecode(res.Body)
+            end
+        else
+            local res = game:HttpPost(url, body, false, "application/json")
+            return HttpService:JSONDecode(res)
+        end
+        return nil
+    end)
+    if ok and type(result) == "table" then
+        return result
+    end
+    return { success = false, message = "Request failed" }
+end
+
+local function saveKey(key)
+    pcall(function()
+        if isfolder and not isfolder("N0IR") then makefolder("N0IR") end
+        if writefile then writefile(KEY_FILE, key) end
+    end)
+    _G._N0IR_SavedKey = key
+end
+
+local function loadSavedKey()
+    local key = _G._N0IR_SavedKey
+    pcall(function()
+        if isfile and isfile(KEY_FILE) then
+            key = readfile(KEY_FILE)
+        end
+    end)
+    if type(key) == "string" and key ~= "" then
+        return key:gsub("%s+", "")
+    end
+    return nil
+end
+
+local function validateKey(key)
+    if not key or key == "" then
+        return { success = false, message = "No key" }
+    end
+    return httpPost(API_URL .. "/api/validate", {
+        key = key,
+        hwid = getHWID(),
+    }) or { success = false, message = "Server error" }
+end
+
+-- Nametag
+local Nametag = { Folder = nil, Tags = {}, MyData = nil }
+
+local function getHost()
+    local pg = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+    return pg or CoreGui
+end
+
+local function hexToColor3(hex)
+    hex = tostring(hex or "#FFFFFF"):gsub("#", "")
+    if #hex ~= 6 then return Color3.new(1, 1, 1) end
+    local r = tonumber(hex:sub(1, 2), 16) or 255
+    local g = tonumber(hex:sub(3, 4), 16) or 255
+    local b = tonumber(hex:sub(5, 6), 16) or 255
+    return Color3.fromRGB(r, g, b)
+end
+
+function Nametag:Create(player, data)
+    if not player or player == LocalPlayer then return end
+    self:Remove(player)
+    local char = player.Character
+    if not char then return end
+    local head = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
+    if not head then return end
+    if not self.Folder or not self.Folder.Parent then
+        self.Folder = Instance.new("Folder")
+        self.Folder.Name = "N0IR_Nametags"
+        self.Folder.Parent = getHost()
+    end
+    local tagText = (data and data.tag) or "NØIR"
+    local rank = (data and data.rank) or "User"
+    local color = hexToColor3(data and data.color or "#FFFFFF")
+    local bb = Instance.new("BillboardGui")
+    bb.Name = "N0IR_Tag_" .. player.Name
+    bb.Adornee = head
+    bb.AlwaysOnTop = true
+    bb.Size = UDim2.fromOffset(160, 40)
+    bb.StudsOffset = Vector3.new(0, 2.8, 0)
+    bb.MaxDistance = 120
+    bb.Parent = self.Folder
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.fromScale(1, 1)
+    frame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+    frame.BackgroundTransparency = 0.25
+    frame.BorderSizePixel = 0
+    frame.Parent = bb
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = frame
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = color
+    stroke.Thickness = 1
+    stroke.Transparency = 0.4
+    stroke.Parent = frame
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.fromScale(1, 1)
+    label.BackgroundTransparency = 1
+    label.Font = Enum.Font.GothamBold
+    label.TextSize = 12
+    label.TextColor3 = color
+    label.Text = tagText
+    label.TextStrokeTransparency = 0.6
+    label.Parent = frame
+    local rankLbl = Instance.new("TextLabel")
+    rankLbl.Size = UDim2.new(1, 0, 0, 12)
+    rankLbl.Position = UDim2.new(0, 0, 1, 2)
+    rankLbl.BackgroundTransparency = 1
+    rankLbl.Font = Enum.Font.Gotham
+    rankLbl.TextSize = 9
+    rankLbl.TextColor3 = Color3.fromRGB(160, 160, 160)
+    rankLbl.Text = rank
+    rankLbl.Parent = bb
+    self.Tags[player] = bb
+    player.CharacterRemoving:Connect(function() self:Remove(player) end)
+end
+
+function Nametag:Remove(player)
+    local t = self.Tags[player]
+    if t then pcall(function() t:Destroy() end); self.Tags[player] = nil end
+end
+
+function Nametag:ApplyToAll(data)
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer then
+            task.spawn(function() self:Create(plr, data) end)
+        end
+    end
+end
+
+Players.PlayerAdded:Connect(function(plr)
+    plr.CharacterAdded:Connect(function()
+        task.wait(1)
+        if Nametag.MyData then Nametag:Create(plr, Nametag.MyData) end
+    end)
+end)
+Players.PlayerRemoving:Connect(function(plr) Nametag:Remove(plr) end)
+
+local function showKeyUI(onSuccess)
+    local host = getHost()
+    local old = host:FindFirstChild("N0IR_KeyUI")
+    if old then old:Destroy() end
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "N0IR_KeyUI"
+    gui.IgnoreGuiInset = true
+    gui.ResetOnSpawn = false
+    gui.DisplayOrder = 999999
+    gui.Parent = host
+    local veil = Instance.new("Frame")
+    veil.Size = UDim2.fromScale(1, 1)
+    veil.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    veil.BackgroundTransparency = 0.35
+    veil.BorderSizePixel = 0
+    veil.Parent = gui
+    local card = Instance.new("Frame")
+    card.AnchorPoint = Vector2.new(0.5, 0.5)
+    card.Position = UDim2.fromScale(0.5, 0.5)
+    card.Size = UDim2.fromOffset(340, 220)
+    card.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+    card.BorderSizePixel = 0
+    card.Parent = gui
+    Instance.new("UICorner", card).CornerRadius = UDim.new(0, 14)
+    local s = Instance.new("UIStroke", card)
+    s.Color = Color3.fromRGB(45, 45, 45)
+    s.Thickness = 1
+    local title = Instance.new("TextLabel")
+    title.BackgroundTransparency = 1
+    title.Position = UDim2.fromOffset(0, 24)
+    title.Size = UDim2.new(1, 0, 0, 28)
+    title.Font = Enum.Font.GothamBold
+    title.Text = "NØIR"
+    title.TextSize = 22
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.Parent = card
+    local sub = Instance.new("TextLabel")
+    sub.BackgroundTransparency = 1
+    sub.Position = UDim2.fromOffset(0, 54)
+    sub.Size = UDim2.new(1, 0, 0, 18)
+    sub.Font = Enum.Font.Gotham
+    sub.Text = "Enter your key to continue"
+    sub.TextSize = 12
+    sub.TextColor3 = Color3.fromRGB(140, 140, 140)
+    sub.Parent = card
+    local box = Instance.new("TextBox")
+    box.Position = UDim2.fromOffset(28, 90)
+    box.Size = UDim2.new(1, -56, 0, 36)
+    box.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
+    box.BorderSizePixel = 0
+    box.Font = Enum.Font.Gotham
+    box.PlaceholderText = "N0IR-XXXXXXXXXXXXXXXX"
+    box.PlaceholderColor3 = Color3.fromRGB(90, 90, 90)
+    box.Text = ""
+    box.TextSize = 13
+    box.TextColor3 = Color3.fromRGB(240, 240, 240)
+    box.ClearTextOnFocus = false
+    box.Parent = card
+    Instance.new("UICorner", box).CornerRadius = UDim.new(0, 8)
+    local status = Instance.new("TextLabel")
+    status.BackgroundTransparency = 1
+    status.Position = UDim2.fromOffset(28, 132)
+    status.Size = UDim2.new(1, -56, 0, 16)
+    status.Font = Enum.Font.Gotham
+    status.Text = ""
+    status.TextSize = 11
+    status.TextColor3 = Color3.fromRGB(180, 180, 180)
+    status.Parent = card
+    local btn = Instance.new("TextButton")
+    btn.Position = UDim2.fromOffset(28, 160)
+    btn.Size = UDim2.new(1, -56, 0, 36)
+    btn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    btn.BorderSizePixel = 0
+    btn.Font = Enum.Font.GothamBold
+    btn.Text = "Unlock"
+    btn.TextSize = 13
+    btn.TextColor3 = Color3.fromRGB(10, 10, 10)
+    btn.AutoButtonColor = false
+    btn.Parent = card
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+    local function setStatus(text, isError)
+        status.Text = text
+        status.TextColor3 = isError and Color3.fromRGB(200, 80, 80) or Color3.fromRGB(80, 200, 120)
+    end
+    local busy = false
+    local function tryUnlock()
+        if busy then return end
+        local key = box.Text:gsub("%s+", "")
+        if key == "" then setStatus("Enter a key", true) return end
+        busy = true
+        btn.Text = "Checking..."
+        setStatus("Validating with server...", false)
+        task.spawn(function()
+            local result = validateKey(key)
+            if result.success then
+                saveKey(key)
+                Nametag.MyData = {
+                    tag = result.tag or result.rank or "NØIR",
+                    rank = result.rank or "User",
+                    color = result.tagColor or "#FFFFFF",
+                }
+                setStatus("✓ Welcome · " .. (result.rank or "User"), false)
+                btn.Text = "Unlocked"
+                task.wait(0.55)
+                gui:Destroy()
+                if onSuccess then onSuccess(result) end
+            else
+                setStatus("✗ " .. (result.message or "Invalid key"), true)
+                btn.Text = "Unlock"
+                busy = false
+            end
+        end)
+    end
+    btn.MouseButton1Click:Connect(tryUnlock)
+    box.FocusLost:Connect(function(enter) if enter then tryUnlock() end end)
+    local saved = loadSavedKey()
+    if saved then box.Text = saved end
+    return gui
+end
+
+local function requireKey(opts)
+    opts = opts or {}
+
+    -- 1) KEY set by user before execute:
+    --    KEY = "N0IR-XXXX"
+    --    local N0IR = loadstring(...)()
+    --    N0IR:Init(...)
+    local fromScript = rawget(_G, "KEY") or rawget(_G, "N0IR_KEY")
+    if type(fromScript) == "string" and fromScript ~= "" then
+        fromScript = fromScript:gsub("%s+", "")
+        -- strip optional KEY:"..." / KEY = "..." leftovers
+        fromScript = fromScript:gsub('^[Kk][Ee][Yy]%s*[:=]%s*"?', ""):gsub('"$', "")
+        local result = validateKey(fromScript)
+        if result.success then
+            saveKey(fromScript)
+            Nametag.MyData = {
+                tag = result.tag or result.rank or "NØIR",
+                rank = result.rank or "User",
+                color = result.tagColor or "#FFFFFF",
+            }
+            task.defer(function() Nametag:ApplyToAll(Nametag.MyData) end)
+            return true, result
+        else
+            warn("[NØIR] KEY invalid: " .. tostring(result.message))
+            -- fall through to saved / UI
+        end
+    end
+
+    -- 2) previously saved key on disk
+    local saved = loadSavedKey()
+    if saved then
+        local result = validateKey(saved)
+        if result.success then
+            Nametag.MyData = {
+                tag = result.tag or result.rank or "NØIR",
+                rank = result.rank or "User",
+                color = result.tagColor or "#FFFFFF",
+            }
+            task.defer(function() Nametag:ApplyToAll(Nametag.MyData) end)
+            return true, result
+        end
+    end
+
+    -- 3) popup UI fallback
+    local done, finalResult = false, nil
+    showKeyUI(function(result)
+        finalResult = result
+        done = true
+        task.defer(function() Nametag:ApplyToAll(Nametag.MyData) end)
+    end)
+    while not done do task.wait(0.1) end
+    return true, finalResult
+end
+
+_G.N0IR_Nametag = Nametag
+_G.N0IR_RequireKey = requireKey
+
+-- ============================================================
+-- NØIR UI LIBRARY
+-- ============================================================
+local N0IR = {
+    Version = "1.0.0",
+    Flags = {},
+    _windows = {},
+}
+
 
 -- ============================================================
 -- THEME
@@ -4611,17 +4977,39 @@ end
 -- ============================================================
 function N0IR:Init(opts)
     opts = opts or {}
+
+    -- Key gate (https://n0ir.pages.dev)
+    local ok, keyData = requireKey()
+    if not ok then
+        warn("[NØIR] Key validation failed")
+        return nil, nil
+    end
+
+    local sub = opts.SubTitle or "Suite"
+    if keyData and keyData.rank then
+        sub = sub .. " · " .. keyData.rank
+    end
+
     local win = self:CreateWindow({
         Title = opts.Title or "NØIR",
-        SubTitle = opts.SubTitle or "Suite",
+        SubTitle = sub,
         Width = opts.Width or 520,
         Height = opts.Height or 440,
         Loading = opts.Loading ~= false,
         LoadingText = opts.LoadingText or "loading modules",
         LoadingDuration = opts.LoadingDuration or 2.2,
-        ToggleKey = opts.ToggleKey, -- nil → CreateWindow uses saved _G._N0IR_ToggleKey
+        ToggleKey = opts.ToggleKey,
     })
     local modules = self:MountUtilities(win)
+
+    -- Show rank on Home if available
+    if modules and modules.Home and keyData then
+        pcall(function()
+            modules.Home:CreateLabel("Key Rank  ·  " .. (keyData.rank or "User"))
+            modules.Home:CreateLabel("Nametag  ·  " .. (keyData.tag or "NØIR"))
+        end)
+    end
+
     return win, modules
 end
 
