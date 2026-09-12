@@ -130,10 +130,11 @@ local Nametag = {
 
 -- Default when key has no custom nametag: always "NØIR" (white).
 -- Full style from website /admin/nametagsys (colors, PFP, image/GIF, bg).
+-- Disk cache ONLY for LocalPlayer media (avoids filling storage with others).
 local DEFAULT_TAG = "NØIR"
 local DEFAULT_COLOR = "#FFFFFF"
 
-local _N0IR_ImgCache = _G._N0IR_ImgCache or {}
+local _N0IR_ImgCache = _G._N0IR_ImgCache or {} -- memory only for remote players
 _G._N0IR_ImgCache = _N0IR_ImgCache
 
 local function getHost()
@@ -150,51 +151,106 @@ local function hexToColor3(hex)
     return Color3.fromRGB(r, g, b)
 end
 
--- Resolve http image → getcustomasset when possible (executor), else raw URL
-local function resolveImageAsset(url)
+-- allowDiskCache: true only for LocalPlayer's own assets
+local function resolveImageAsset(url, allowDiskCache)
     if type(url) ~= "string" or url == "" then return nil end
     url = url:gsub("^%s+", ""):gsub("%s+$", "")
     if url == "" then return nil end
     if url:find("^rbxasset") or url:find("^rbxthumb") then
         return url
     end
+
+    -- memory cache (no disk) for everyone
     if _N0IR_ImgCache[url] then
         return _N0IR_ImgCache[url]
     end
-    local pathHash = 0
-    for i = 1, #url do
-        pathHash = (pathHash * 31 + string.byte(url, i)) % 2147483647
-    end
-    local path = "N0IR/TagImg_" .. tostring(pathHash) .. ".img"
-    local asset = nil
-    pcall(function()
-        if isfolder and not isfolder("N0IR") then makefolder("N0IR") end
-        local onDisk = isfile and isfile(path)
-        if not onDisk then
-            local ok, data = pcall(function() return game:HttpGet(url) end)
-            if ok and data and #data > 32 and writefile then
-                writefile(path, data)
-                onDisk = true
-            end
+
+    -- Only LocalPlayer: optional disk + getcustomasset (persistent, faster next time)
+    if allowDiskCache then
+        local pathHash = 0
+        for i = 1, #url do
+            pathHash = (pathHash * 31 + string.byte(url, i)) % 2147483647
         end
-        if onDisk and getcustomasset then
-            local ok2, a = pcall(getcustomasset, path)
-            if ok2 and type(a) == "string" and a ~= "" then
-                asset = a
+        local path = "N0IR/MyTagImg_" .. tostring(pathHash) .. ".img"
+        local asset = nil
+        pcall(function()
+            if isfolder and not isfolder("N0IR") then makefolder("N0IR") end
+            local onDisk = isfile and isfile(path)
+            if not onDisk then
+                local ok, data = pcall(function() return game:HttpGet(url) end)
+                if ok and data and #data > 32 and writefile then
+                    writefile(path, data)
+                    onDisk = true
+                end
             end
+            if onDisk and getcustomasset then
+                local ok2, a = pcall(getcustomasset, path)
+                if ok2 and type(a) == "string" and a ~= "" then
+                    asset = a
+                end
+            end
+        end)
+        if asset then
+            _N0IR_ImgCache[url] = asset
+            return asset
         end
-    end)
-    if not asset then
-        asset = url -- fallback: some executors accept https ImageLabel.Image
     end
-    _N0IR_ImgCache[url] = asset
-    return asset
+
+    -- Others (and fallback): use URL directly — no disk write
+    _N0IR_ImgCache[url] = url
+    return url
 end
 
-local function pfpThumb(userId)
+-- PFP: try rbxthumb first, then classic headshot URL (no disk cache — Roblox hosts these)
+local function pfpSources(userId)
     userId = tonumber(userId) or 0
-    if userId <= 0 then return nil end
-    return string.format("rbxthumb://type=AvatarHeadShot&id=%d&w=150&h=150", userId)
+    if userId <= 0 then return {} end
+    return {
+        string.format("rbxthumb://type=AvatarHeadShot&id=%d&w=150&h=150", userId),
+        string.format(
+            "https://www.roblox.com/headshot-thumbnail/image?userId=%d&width=150&height=150&format=png",
+            userId
+        ),
+        string.format(
+            "https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=%d&size=150x150&format=Png&isCircular=false",
+            userId
+        ),
+    }
+end
+
+-- Apply PFP to ImageLabel: rbxthumb → http fallback → optional API imageUrl
+local function applyPfpToImage(imageLabel, userId)
+    if not imageLabel or not imageLabel.Parent then return end
+    userId = tonumber(userId) or 0
+    if userId <= 0 then return end
+
+    local sources = pfpSources(userId)
+    -- 1) rbxthumb (works on most clients without download)
+    imageLabel.Image = sources[1]
+
+    -- 2) If still empty after a moment, try http headshot
+    task.delay(0.35, function()
+        if not imageLabel or not imageLabel.Parent then return end
+        -- IsLoaded is not always reliable; always set http fallback as secondary attempt
+        if imageLabel.Image == "" or imageLabel.Image == sources[1] then
+            -- keep rbxthumb; also try raw headshot URL as many executors accept it
+            imageLabel.Image = sources[2]
+        end
+    end)
+
+    -- 3) Fetch official thumbnail JSON → imageUrl (no disk cache)
+    task.spawn(function()
+        local ok, body = pcall(function()
+            return game:HttpGet(sources[3])
+        end)
+        if not ok or type(body) ~= "string" then return end
+        local imageUrl = body:match('"imageUrl"%s*:%s*"(.-)"')
+        if not imageUrl or imageUrl == "" then return end
+        imageUrl = imageUrl:gsub("\\u0026", "&"):gsub("\\/", "/")
+        if imageLabel and imageLabel.Parent then
+            imageLabel.Image = imageUrl
+        end
+    end)
 end
 
 local function resolveStyle(data)
@@ -262,6 +318,7 @@ function Nametag:Create(player, data)
     end
 
     local style = resolveStyle(data)
+    local isSelf = player == LocalPlayer
     local h = 34
     if style.showName then h = h + 16 end
     if style.showRank then h = h + 14 end
@@ -276,7 +333,7 @@ function Nametag:Create(player, data)
     bb.MaxDistance = style.maxDistance
     bb.Parent = self.Folder
 
-    -- optional full background image / gif plate
+    -- optional background (disk cache only for self)
     if style.bgImageUrl ~= "" then
         local bg = Instance.new("ImageLabel")
         bg.Name = "Bg"
@@ -292,7 +349,7 @@ function Nametag:Create(player, data)
         bgC.CornerRadius = UDim.new(0, 10)
         bgC.Parent = bg
         task.spawn(function()
-            local asset = resolveImageAsset(style.bgImageUrl)
+            local asset = resolveImageAsset(style.bgImageUrl, isSelf)
             if asset and bg.Parent then
                 bg.Image = asset
             end
@@ -344,14 +401,11 @@ function Nametag:Create(player, data)
     layout.Padding = UDim.new(0, 6)
     layout.Parent = pill
 
-    -- media: pfp / custom image / gif
     local showMedia = false
     local mediaSize = style.iconSize
-    local mediaSrc = nil
     if style.iconType == "pfp" then
-        mediaSrc = pfpThumb(player.UserId)
         mediaSize = style.pfpSize
-        showMedia = mediaSrc ~= nil
+        showMedia = true
     elseif (style.iconType == "custom" or style.iconType == "gif") and style.iconUrl ~= "" then
         mediaSize = style.iconSize
         showMedia = true
@@ -362,19 +416,26 @@ function Nametag:Create(player, data)
         icon.Name = "Icon"
         icon.Size = UDim2.fromOffset(mediaSize, mediaSize)
         icon.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-        icon.BackgroundTransparency = 0.3
+        icon.BackgroundTransparency = 0.25
         icon.BorderSizePixel = 0
         icon.ScaleType = Enum.ScaleType.Crop
         icon.ZIndex = 3
+        icon.Image = ""
         icon.Parent = pill
         local ic = Instance.new("UICorner")
-        ic.CornerRadius = UDim.new(style.iconType == "gif" and 0 or 1, style.iconType == "gif" and 4 or 0)
-        ic.Parent = icon
         if style.iconType == "pfp" then
-            icon.Image = mediaSrc
+            ic.CornerRadius = UDim.new(1, 0) -- circle
+        else
+            ic.CornerRadius = UDim.new(0, style.iconType == "gif" and 4 or 6)
+        end
+        ic.Parent = icon
+
+        if style.iconType == "pfp" then
+            -- fetch headshot (no disk) — works for you and others
+            applyPfpToImage(icon, player.UserId)
         else
             task.spawn(function()
-                local asset = resolveImageAsset(style.iconUrl)
+                local asset = resolveImageAsset(style.iconUrl, isSelf)
                 if asset and icon.Parent then
                     icon.Image = asset
                 end
