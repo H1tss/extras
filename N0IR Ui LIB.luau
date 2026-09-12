@@ -107,11 +107,31 @@ local function validateKey(key)
     return httpPost(API_URL .. "/api/validate", {
         key = key,
         hwid = getHWID(),
+        userId = LocalPlayer.UserId,
     }) or { success = false, message = "Server error" }
 end
 
--- Nametag
-local Nametag = { Folder = nil, Tags = {}, MyData = nil }
+-- ============================================================
+-- NAMETAG SYSTEM  (multi-user)
+-- On key validate the API stores userId → tag/rank/color.
+-- Clients poll /api/nametags with server UserIds and only show
+-- tags for real NØIR key users (each with their own custom tag).
+-- ============================================================
+local Nametag = {
+    Folder = nil,
+    Tags = {},          -- [Player] = BillboardGui
+    PlayerData = {},    -- [UserId string] = { tag, rank, color }
+    MyData = nil,       -- local player's resolved data
+    ShowSelf = true,    -- see your own tag
+    RefreshSeconds = 12,
+    _refreshing = false,
+    _started = false,
+}
+
+-- Default when key has no custom nametag: always "NØIR" (white).
+-- Rank presets removed — custom tag/color only come from the website key.
+local DEFAULT_TAG = "NØIR"
+local DEFAULT_COLOR = "#FFFFFF"
 
 local function getHost()
     local pg = LocalPlayer:FindFirstChildOfClass("PlayerGui")
@@ -127,85 +147,296 @@ local function hexToColor3(hex)
     return Color3.fromRGB(r, g, b)
 end
 
+local function resolveStyle(data)
+    data = data or {}
+    local rank = tostring(data.rank or "User")
+
+    -- Custom nametag from website only; otherwise always NØIR
+    local tag = data.tag
+    if not tag or tag == "" or tag == rank then
+        tag = DEFAULT_TAG
+    end
+
+    -- Custom color from website only when a real custom tag is set
+    local colorHex = data.color or data.tagColor
+    local hasCustomTag = data.tag and data.tag ~= "" and data.tag ~= rank and data.tag ~= DEFAULT_TAG
+    if not hasCustomTag then
+        -- no custom tag → always default white NØIR
+        tag = DEFAULT_TAG
+        colorHex = DEFAULT_COLOR
+    elseif not colorHex or colorHex == "" then
+        colorHex = DEFAULT_COLOR
+    end
+
+    return {
+        tag = tag,
+        rank = rank,
+        color = hexToColor3(colorHex),
+        colorHex = colorHex,
+    }
+end
+
 function Nametag:Create(player, data)
-    if not player or player == LocalPlayer then return end
+    if not player or not player.Parent then return end
+    if player == LocalPlayer and not self.ShowSelf then return end
     self:Remove(player)
+
     local char = player.Character
     if not char then return end
     local head = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
     if not head then return end
+
     if not self.Folder or not self.Folder.Parent then
         self.Folder = Instance.new("Folder")
         self.Folder.Name = "N0IR_Nametags"
         self.Folder.Parent = getHost()
     end
-    local tagText = (data and data.tag) or "NØIR"
-    local rank = (data and data.rank) or "User"
-    local color = hexToColor3(data and data.color or "#FFFFFF")
+
+    local style = resolveStyle(data)
+
     local bb = Instance.new("BillboardGui")
     bb.Name = "N0IR_Tag_" .. player.Name
     bb.Adornee = head
     bb.AlwaysOnTop = true
-    bb.Size = UDim2.fromOffset(160, 40)
-    bb.StudsOffset = Vector3.new(0, 2.8, 0)
-    bb.MaxDistance = 120
+    bb.Size = UDim2.fromOffset(200, 56)
+    bb.StudsOffset = Vector3.new(0, 3.15, 0)
+    bb.MaxDistance = 180
     bb.Parent = self.Folder
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.fromScale(1, 1)
-    frame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
-    frame.BackgroundTransparency = 0.25
-    frame.BorderSizePixel = 0
-    frame.Parent = bb
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 6)
-    corner.Parent = frame
-    local stroke = Instance.new("UIStroke")
-    stroke.Color = color
-    stroke.Thickness = 1
-    stroke.Transparency = 0.4
-    stroke.Parent = frame
+
+    -- main pill
+    local pill = Instance.new("Frame")
+    pill.Name = "Pill"
+    pill.AnchorPoint = Vector2.new(0.5, 0)
+    pill.Position = UDim2.new(0.5, 0, 0, 0)
+    pill.Size = UDim2.fromOffset(0, 28)
+    pill.AutomaticSize = Enum.AutomaticSize.X
+    pill.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+    pill.BackgroundTransparency = 0.12
+    pill.BorderSizePixel = 0
+    pill.Parent = bb
+
+    local pillCorner = Instance.new("UICorner")
+    pillCorner.CornerRadius = UDim.new(0, 9)
+    pillCorner.Parent = pill
+
+    local pillStroke = Instance.new("UIStroke")
+    pillStroke.Color = style.color
+    pillStroke.Thickness = 1.4
+    pillStroke.Transparency = 0.15
+    pillStroke.Parent = pill
+
+    local pad = Instance.new("UIPadding")
+    pad.PaddingLeft = UDim.new(0, 10)
+    pad.PaddingRight = UDim.new(0, 10)
+    pad.PaddingTop = UDim.new(0, 4)
+    pad.PaddingBottom = UDim.new(0, 4)
+    pad.Parent = pill
+
+    local layout = Instance.new("UIListLayout")
+    layout.FillDirection = Enum.FillDirection.Horizontal
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    layout.VerticalAlignment = Enum.VerticalAlignment.Center
+    layout.Padding = UDim.new(0, 6)
+    layout.Parent = pill
+
+    -- accent dot
+    local dot = Instance.new("Frame")
+    dot.Size = UDim2.fromOffset(7, 7)
+    dot.BackgroundColor3 = style.color
+    dot.BorderSizePixel = 0
+    dot.Parent = pill
+    local dotC = Instance.new("UICorner")
+    dotC.CornerRadius = UDim.new(1, 0)
+    dotC.Parent = dot
+
+    -- tag text
     local label = Instance.new("TextLabel")
-    label.Size = UDim2.fromScale(1, 1)
     label.BackgroundTransparency = 1
+    label.AutomaticSize = Enum.AutomaticSize.X
+    label.Size = UDim2.fromOffset(0, 20)
     label.Font = Enum.Font.GothamBold
     label.TextSize = 12
-    label.TextColor3 = color
-    label.Text = tagText
-    label.TextStrokeTransparency = 0.6
-    label.Parent = frame
-    local rankLbl = Instance.new("TextLabel")
-    rankLbl.Size = UDim2.new(1, 0, 0, 12)
-    rankLbl.Position = UDim2.new(0, 0, 1, 2)
-    rankLbl.BackgroundTransparency = 1
-    rankLbl.Font = Enum.Font.Gotham
-    rankLbl.TextSize = 9
-    rankLbl.TextColor3 = Color3.fromRGB(160, 160, 160)
-    rankLbl.Text = rank
-    rankLbl.Parent = bb
+    label.TextColor3 = style.color
+    label.Text = style.tag
+    label.TextStrokeTransparency = 0.65
+    label.Parent = pill
+
+    -- display name
+    local nameLbl = Instance.new("TextLabel")
+    nameLbl.BackgroundTransparency = 1
+    nameLbl.Position = UDim2.new(0, 0, 0, 30)
+    nameLbl.Size = UDim2.new(1, 0, 0, 16)
+    nameLbl.Font = Enum.Font.GothamMedium
+    nameLbl.TextSize = 11
+    nameLbl.TextColor3 = Color3.fromRGB(220, 220, 220)
+    nameLbl.TextStrokeTransparency = 0.45
+    nameLbl.Text = player.DisplayName
+    nameLbl.TextTruncate = Enum.TextTruncate.AtEnd
+    nameLbl.Parent = bb
+
+    if style.rank and style.rank ~= "User" then
+        local rankLbl = Instance.new("TextLabel")
+        rankLbl.BackgroundTransparency = 1
+        rankLbl.Position = UDim2.new(0, 0, 0, 44)
+        rankLbl.Size = UDim2.new(1, 0, 0, 12)
+        rankLbl.Font = Enum.Font.Gotham
+        rankLbl.TextSize = 9
+        rankLbl.TextColor3 = Color3.fromRGB(140, 140, 140)
+        rankLbl.Text = style.rank
+        rankLbl.Parent = bb
+        bb.Size = UDim2.fromOffset(200, 60)
+    end
+
     self.Tags[player] = bb
-    player.CharacterRemoving:Connect(function() self:Remove(player) end)
+
+    -- reconnect on character change without stacking
+    if not player:GetAttribute("N0IR_TagHooked") then
+        player:SetAttribute("N0IR_TagHooked", true)
+        player.CharacterRemoving:Connect(function()
+            self:Remove(player)
+        end)
+        player.CharacterAdded:Connect(function()
+            task.wait(0.8)
+            local uid = tostring(player.UserId)
+            local d = self.PlayerData[uid]
+            if d then
+                self:Create(player, d)
+            end
+        end)
+    end
 end
 
 function Nametag:Remove(player)
     local t = self.Tags[player]
-    if t then pcall(function() t:Destroy() end); self.Tags[player] = nil end
+    if t then
+        pcall(function() t:Destroy() end)
+        self.Tags[player] = nil
+    end
 end
 
-function Nametag:ApplyToAll(data)
+function Nametag:Clear()
+    for plr in pairs(self.Tags) do
+        self:Remove(plr)
+    end
+    if self.Folder then
+        pcall(function() self.Folder:Destroy() end)
+        self.Folder = nil
+    end
+end
+
+function Nametag:ApplyPlayer(player, data)
+    if not player then return end
+    if not data then
+        self:Remove(player)
+        return
+    end
+    self:Create(player, data)
+end
+
+function Nametag:SyncFromMap(tagMap)
+    tagMap = tagMap or {}
+    -- merge into cache
+    for uid, data in pairs(tagMap) do
+        self.PlayerData[tostring(uid)] = {
+            tag = data.tag,
+            rank = data.rank,
+            color = data.color or data.tagColor,
+        }
+    end
+    -- apply / remove for everyone in server
     for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer then
-            task.spawn(function() self:Create(plr, data) end)
+        local uid = tostring(plr.UserId)
+        local d = self.PlayerData[uid]
+        if d then
+            task.spawn(function()
+                self:ApplyPlayer(plr, d)
+            end)
+        else
+            self:Remove(plr)
         end
     end
 end
 
-Players.PlayerAdded:Connect(function(plr)
-    plr.CharacterAdded:Connect(function()
-        task.wait(1)
-        if Nametag.MyData then Nametag:Create(plr, Nametag.MyData) end
+function Nametag:FetchAndSync()
+    if self._refreshing then return end
+    self._refreshing = true
+    task.spawn(function()
+        local ids = {}
+        for _, plr in ipairs(Players:GetPlayers()) do
+            table.insert(ids, plr.UserId)
+        end
+        if #ids == 0 then
+            self._refreshing = false
+            return
+        end
+
+        local result = httpPost(API_URL .. "/api/nametags", { userIds = ids })
+        if result and result.success and type(result.tags) == "table" then
+            -- ensure we always have ourselves if MyData exists (offline edge)
+            local map = {}
+            for uid, d in pairs(result.tags) do
+                map[tostring(uid)] = d
+            end
+            if self.MyData then
+                local me = tostring(LocalPlayer.UserId)
+                if not map[me] then
+                    map[me] = self.MyData
+                end
+            end
+            self:SyncFromMap(map)
+        elseif self.MyData then
+            -- API fail → at least show own tag
+            self.PlayerData[tostring(LocalPlayer.UserId)] = self.MyData
+            self:ApplyPlayer(LocalPlayer, self.MyData)
+        end
+        self._refreshing = false
     end)
-end)
-Players.PlayerRemoving:Connect(function(plr) Nametag:Remove(plr) end)
+end
+
+function Nametag:SetMyData(data)
+    self.MyData = data
+    if data then
+        self.PlayerData[tostring(LocalPlayer.UserId)] = data
+    end
+    self:FetchAndSync()
+end
+
+function Nametag:Start()
+    if self._started then return end
+    self._started = true
+
+    Players.PlayerAdded:Connect(function(plr)
+        task.delay(1.5, function()
+            self:FetchAndSync()
+        end)
+    end)
+
+    Players.PlayerRemoving:Connect(function(plr)
+        self:Remove(plr)
+        self.PlayerData[tostring(plr.UserId)] = nil
+    end)
+
+    LocalPlayer.CharacterAdded:Connect(function()
+        task.wait(1)
+        if self.MyData and self.ShowSelf then
+            self:ApplyPlayer(LocalPlayer, self.MyData)
+        end
+    end)
+
+    -- periodic refresh so tag edits on the website appear in-game
+    task.spawn(function()
+        while self._started do
+            task.wait(self.RefreshSeconds)
+            if self.MyData then
+                self:FetchAndSync()
+            end
+        end
+    end)
+
+    task.defer(function()
+        self:FetchAndSync()
+    end)
+end
 
 local function showKeyUI(onSuccess)
     local host = getHost()
@@ -303,11 +534,7 @@ local function showKeyUI(onSuccess)
             local result = validateKey(key)
             if result.success then
                 saveKey(key)
-                Nametag.MyData = {
-                    tag = result.tag or result.rank or "NØIR",
-                    rank = result.rank or "User",
-                    color = result.tagColor or "#FFFFFF",
-                }
+                applyAuthData(result)
                 setStatus("✓ Welcome · " .. (result.rank or "User"), false)
                 btn.Text = "Unlocked"
                 task.wait(0.55)
@@ -327,6 +554,23 @@ local function showKeyUI(onSuccess)
     return gui
 end
 
+
+local function applyAuthData(result)
+    if not result or not result.success then return end
+    local rank = result.rank or "User"
+    local tag = result.tag
+    local color = result.tagColor or result.color
+    -- empty / same-as-rank → let resolveStyle use rank preset
+    if tag == rank or tag == "" then tag = nil end
+    local data = {
+        tag = tag,
+        rank = rank,
+        color = color,
+    }
+    Nametag:Start()
+    Nametag:SetMyData(data)
+end
+
 local function requireKey(opts)
     opts = opts or {}
 
@@ -342,12 +586,7 @@ local function requireKey(opts)
         local result = validateKey(fromScript)
         if result.success then
             saveKey(fromScript)
-            Nametag.MyData = {
-                tag = result.tag or result.rank or "NØIR",
-                rank = result.rank or "User",
-                color = result.tagColor or "#FFFFFF",
-            }
-            task.defer(function() Nametag:ApplyToAll(Nametag.MyData) end)
+            applyAuthData(result)
             return true, result
         else
             warn("[NØIR] KEY invalid: " .. tostring(result.message))
@@ -360,12 +599,7 @@ local function requireKey(opts)
     if saved then
         local result = validateKey(saved)
         if result.success then
-            Nametag.MyData = {
-                tag = result.tag or result.rank or "NØIR",
-                rank = result.rank or "User",
-                color = result.tagColor or "#FFFFFF",
-            }
-            task.defer(function() Nametag:ApplyToAll(Nametag.MyData) end)
+            applyAuthData(result)
             return true, result
         end
     end
@@ -375,7 +609,7 @@ local function requireKey(opts)
     showKeyUI(function(result)
         finalResult = result
         done = true
-        task.defer(function() Nametag:ApplyToAll(Nametag.MyData) end)
+        task.defer(function() if Nametag.MyData then Nametag:FetchAndSync() end end)
     end)
     while not done do task.wait(0.1) end
     return true, finalResult
