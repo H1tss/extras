@@ -1021,30 +1021,51 @@ local _N0IR_ImgCache = _G._N0IR_ImgCache or {}
 _G._N0IR_ImgCache = _N0IR_ImgCache
 
 local FONT_MAP = {
-	Gotham = Enum.Font.Gotham, GothamMedium = Enum.Font.GothamMedium,
-	GothamBold = Enum.Font.GothamBold, GothamBlack = Enum.Font.GothamBlack,
-	GothamSemibold = Enum.Font.GothamSemibold,
+	-- Core / UI
+	Legacy = Enum.Font.Legacy, Arial = Enum.Font.Legacy, ArialBold = Enum.Font.Legacy,
 	SourceSans = Enum.Font.SourceSans, SourceSansBold = Enum.Font.SourceSansBold,
 	SourceSansSemibold = Enum.Font.SourceSansSemibold, SourceSansLight = Enum.Font.SourceSansLight,
 	SourceSansItalic = Enum.Font.SourceSansItalic,
-	Roboto = Enum.Font.Roboto, RobotoCondensed = Enum.Font.RobotoCondensed,
-	RobotoMono = Enum.Font.RobotoMono, Arcade = Enum.Font.Arcade, Bodoni = Enum.Font.Bodoni,
-	Garamond = Enum.Font.Garamond, Cartoon = Enum.Font.Cartoon, Code = Enum.Font.Code,
-	Highway = Enum.Font.Highway, SciFi = Enum.Font.SciFi, Fantasy = Enum.Font.Fantasy,
-	Antique = Enum.Font.Antique, Legacy = Enum.Font.Legacy, AmaticSC = Enum.Font.AmaticSC,
-	Bangers = Enum.Font.Bangers, Creepster = Enum.Font.Creepster, DenkOne = Enum.Font.DenkOne,
-	Fondamento = Enum.Font.Fondamento, FredokaOne = Enum.Font.FredokaOne,
+	Gotham = Enum.Font.Gotham, GothamMedium = Enum.Font.GothamMedium,
+	GothamBold = Enum.Font.GothamBold, GothamBlack = Enum.Font.GothamBlack,
+	GothamSemibold = Enum.Font.GothamSemibold,
+	-- Body / display
+	Bodoni = Enum.Font.Bodoni, Garamond = Enum.Font.Garamond, Cartoon = Enum.Font.Cartoon,
+	Code = Enum.Font.Code, Highway = Enum.Font.Highway, SciFi = Enum.Font.SciFi,
+	Arcade = Enum.Font.Arcade, Fantasy = Enum.Font.Fantasy, Antique = Enum.Font.Antique,
+	-- Google-style set (available as Enum.Font on modern clients)
+	AmaticSC = Enum.Font.AmaticSC, Bangers = Enum.Font.Bangers, Creepster = Enum.Font.Creepster,
+	DenkOne = Enum.Font.DenkOne, Fondamento = Enum.Font.Fondamento, FredokaOne = Enum.Font.FredokaOne,
 	GrenzeGotisch = Enum.Font.GrenzeGotisch, IndieFlower = Enum.Font.IndieFlower,
 	JosefinSans = Enum.Font.JosefinSans, Jura = Enum.Font.Jura, Kalam = Enum.Font.Kalam,
 	LuckiestGuy = Enum.Font.LuckiestGuy, Merriweather = Enum.Font.Merriweather,
 	Michroma = Enum.Font.Michroma, Nunito = Enum.Font.Nunito, Oswald = Enum.Font.Oswald,
 	PatrickHand = Enum.Font.PatrickHand, PermanentMarker = Enum.Font.PermanentMarker,
-	Sarpanch = Enum.Font.Sarpanch, SpecialElite = Enum.Font.SpecialElite,
-	TitilliumWeb = Enum.Font.TitilliumWeb, Ubuntu = Enum.Font.Ubuntu,
+	Roboto = Enum.Font.Roboto, RobotoCondensed = Enum.Font.RobotoCondensed,
+	RobotoMono = Enum.Font.RobotoMono, Sarpanch = Enum.Font.Sarpanch,
+	SpecialElite = Enum.Font.SpecialElite, TitilliumWeb = Enum.Font.TitilliumWeb,
+	Ubuntu = Enum.Font.Ubuntu,
+	-- Builder / misc aliases people type in studio
+	BuilderSans = Enum.Font.Gotham, BuilderSansBold = Enum.Font.GothamBold,
+	BuilderSansMedium = Enum.Font.GothamMedium, BuilderSansExtraBold = Enum.Font.GothamBlack,
+	Arimo = Enum.Font.SourceSans, ArimoBold = Enum.Font.SourceSansBold,
+	Unknown = Enum.Font.GothamBold,
 }
 
 local function fontOf(n, fb)
-	return FONT_MAP[tostring(n or "")] or fb or Enum.Font.GothamBold
+	local key = tostring(n or ""):gsub("%s+", "")
+	if key == "" then return fb or Enum.Font.GothamBold end
+	-- direct
+	if FONT_MAP[key] then return FONT_MAP[key] end
+	-- case-insensitive
+	local lower = key:lower()
+	for k, v in pairs(FONT_MAP) do
+		if type(k) == "string" and k:lower() == lower then return v end
+	end
+	-- try Enum.Font[name] directly so new fonts still work
+	local ok, enumFont = pcall(function() return Enum.Font[key] end)
+	if ok and enumFont then return enumFont end
+	return fb or Enum.Font.GothamBold
 end
 
 local function getHost()
@@ -1085,7 +1106,20 @@ local function resolveImageAsset(url, allowDisk)
 	if type(url) ~= "string" or url == "" then return nil end
 	url = url:gsub("^%s+", ""):gsub("%s+$", "")
 	if url == "" then return nil end
-	if url:find("^rbxasset") or url:find("^rbxthumb") or url:find("^http://www.roblox.com/asset") then
+	-- bare numeric asset id
+	if url:match("^%d+$") then
+		return "rbxassetid://" .. url
+	end
+	-- rbxassetid without scheme cleanup
+	if url:find("rbxassetid://") or url:find("^rbxasset") or url:find("^rbxthumb") then
+		return url
+	end
+	if url:find("roblox.com/asset") or url:find("roblox.com/asset/%?id=") then
+		local id = url:match("id=(%d+)") or url:match("(%d+)")
+		if id then return "rbxassetid://" .. id end
+		return url
+	end
+	if url:find("^http://www.roblox.com/asset") then
 		return url
 	end
 	if _N0IR_ImgCache[url] then return _N0IR_ImgCache[url] end
@@ -1165,11 +1199,10 @@ local function resolveStyle(data)
 		return def
 	end
 
-	-- legacy API uses nameColor/strokeColor/iconUrl — map both
-	local textColor = hexToColor3(pick("textColor", pick("nameColor", pick("color", DEFAULT_COLOR))))
+	local textColor = hexToColor3(pick("textColor", pick("color", DEFAULT_COLOR)))
 	local tagColor = hexToColor3(pick("tagColor", "#A0A0A0"))
-	local outlineColor = hexToColor3(pick("outlineColor", pick("strokeColor", pick("stroke", "#E8E8E8"))))
-	local textOutlineColor = hexToColor3(pick("textOutlineColor", pick("textStrokeColor", "#000000")))
+	local outlineColor = hexToColor3(pick("outlineColor", pick("stroke", "#FF0000")))
+	local textOutlineColor = hexToColor3(pick("textOutlineColor", "#000000"))
 
 	return {
 		tag = tostring(pick("tag", data.tag or DEFAULT_TAG)),
@@ -1180,13 +1213,12 @@ local function resolveStyle(data)
 		textOutlineColor = textOutlineColor,
 		font = fontOf(pick("font", "GothamBold"), Enum.Font.GothamBold),
 		nameFont = fontOf(pick("nameFont", "GothamBold"), Enum.Font.GothamBold),
-		tagWidth = math.clamp(tonumber(pick("tagWidth", pick("width", 220))) or 220, 140, 420),
-		pillHeight = math.clamp(tonumber(pick("pillHeight", 36)) or 36, 22, 72),
+		tagWidth = math.clamp(tonumber(pick("tagWidth", pick("width", 280))) or 280, 120, 500),
+		pillHeight = math.clamp(tonumber(pick("pillHeight", 44)) or 44, 22, 72),
 		cornerRadius = math.clamp(tonumber(pick("cornerRadius", 12)) or 12, 0, 50),
-		strokeThickness = math.clamp(tonumber(pick("strokeThickness", 2)) or 2, 0, 6),
-		pfpSize = math.clamp(tonumber(pick("pfpSize", 28)) or 28, 12, 48),
+		strokeThickness = tonumber(pick("strokeThickness", 2.5)) or 2.5,
+		pfpSize = math.clamp(tonumber(pick("pfpSize", 32)) or 32, 16, 48),
 		pfpUrl = tostring(pick("pfpUrl", pick("iconUrl", "")) or ""),
-		iconType = tostring(pick("iconType", "pfp") or "pfp"):lower(),
 		bgUrl = tostring(pick("bgUrl", pick("bgImageUrl", "")) or ""),
 		brandUrl = tostring(pick("brandUrl", pick("farUrl", "")) or ""),
 		customText = tostring(pick("customText", pick("subtitle", "")) or ""),
@@ -1195,10 +1227,10 @@ local function resolveStyle(data)
 		scale = math.clamp(tonumber(pick("scale", 1)) or 1, 0.7, 1.6),
 		offsetY = tonumber(pick("offsetY", 3.4)) or 3.4,
 		nearMaxDistance = tonumber(pick("nearMaxDistance", 45)) or 45,
-		farMaxDistance = tonumber(pick("farMaxDistance", pick("maxDistance", 200))) or 200,
+		farMaxDistance = tonumber(pick("farMaxDistance", 200)) or 200,
 		alwaysOnTop = pick("alwaysOnTop", true) ~= false,
 		-- media
-		pfpIsGif = (pick("pfpIsGif", false) == true) or (tostring(pick("iconType", "")):lower() == "gif"),
+		pfpIsGif = pick("pfpIsGif", false) == true,
 		brandIsGif = pick("brandIsGif", false) == true,
 		pfpFrames = tonumber(pick("pfpFrames", 0)) or 0,
 		pfpCols = tonumber(pick("pfpCols", 0)) or 0,
@@ -1245,10 +1277,7 @@ function Nametag:Create(player, data)
 	local isSelf = player == LocalPlayer
 	local sc = S.scale
 
-	-- Prefer explicit overrides from studio, then tag (e.g. "HITS | OWNER"), then live player name
-	local displayName = S.displayName ~= "" and S.displayName
-		or (S.tag ~= "" and S.tag ~= "NØIR" and S.tag)
-		or player.DisplayName
+	local displayName = S.displayName ~= "" and S.displayName or player.DisplayName
 	local username = S.username ~= "" and S.username or ("@" .. player.Name)
 	local customText = S.customText
 
@@ -1257,7 +1286,7 @@ function Nametag:Create(player, data)
 	bb.Name = "N0IR_Tag_" .. player.Name
 	bb.Adornee = head
 	bb.AlwaysOnTop = S.alwaysOnTop
-	bb.Size = UDim2.fromOffset(math.floor(math.max(S.tagWidth, 200) * sc + 24), math.floor(90 * sc))
+	bb.Size = UDim2.fromOffset(math.floor(S.tagWidth * sc + 40), math.floor(120 * sc))
 	bb.StudsOffset = Vector3.new(0, S.offsetY, 0)
 	bb.MaxDistance = S.farMaxDistance
 	bb.Parent = self.Folder
@@ -1273,20 +1302,17 @@ function Nametag:Create(player, data)
 	uiScale.Parent = root
 
 	-- ========== NEAR MODE (pill) ==========
-	-- 1:1 from nametagsys style — do NOT hardcode look, use S.* from website
 	local near = Instance.new("Frame")
 	near.Name = "Near"
 	near.AnchorPoint = Vector2.new(0.5, 0.5)
 	near.Position = UDim2.fromScale(0.5, 0.5)
-	near.AutomaticSize = Enum.AutomaticSize.None
 	near.Size = UDim2.fromOffset(S.tagWidth, S.pillHeight)
-	near.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
-	near.BackgroundTransparency = 0.05
+	near.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
+	near.BackgroundTransparency = 0.08
 	near.BorderSizePixel = 0
 	near.Visible = true
 	near.Parent = root
-	-- corner radius FROM WEBSITE (not forced capsule)
-	Instance.new("UICorner", near).CornerRadius = UDim.new(0, math.clamp(S.cornerRadius or 12, 0, 50))
+	Instance.new("UICorner", near).CornerRadius = UDim.new(0, S.cornerRadius)
 
 	local nearStroke = Instance.new("UIStroke")
 	nearStroke.Name = "Outline"
@@ -1295,6 +1321,7 @@ function Nametag:Create(player, data)
 	nearStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	nearStroke.Parent = near
 
+	-- optional background image inside pill
 	if S.bgUrl ~= "" then
 		local bg = Instance.new("ImageLabel")
 		bg.Name = "Bg"
@@ -1304,62 +1331,58 @@ function Nametag:Create(player, data)
 		bg.ScaleType = Enum.ScaleType.Crop
 		bg.ZIndex = 0
 		bg.Parent = near
-		Instance.new("UICorner", bg).CornerRadius = UDim.new(0, math.clamp(S.cornerRadius or 12, 0, 50))
+		Instance.new("UICorner", bg).CornerRadius = UDim.new(0, S.cornerRadius)
 		task.spawn(function()
-			local a = resolveImageAsset(S.bgUrl, isSelf)
+			local a = resolveImageAsset(S.bgUrl, true)
 			if a and bg.Parent then bg.Image = a end
 		end)
 	end
 
 	local pad = Instance.new("UIPadding")
-	pad.PaddingLeft = UDim.new(0, 6)
+	pad.PaddingLeft = UDim.new(0, 8)
 	pad.PaddingRight = UDim.new(0, 12)
-	pad.PaddingTop = UDim.new(0, 4)
-	pad.PaddingBottom = UDim.new(0, 4)
+	pad.PaddingTop = UDim.new(0, 6)
+	pad.PaddingBottom = UDim.new(0, 6)
 	pad.Parent = near
 
 	local hlist = Instance.new("UIListLayout")
 	hlist.FillDirection = Enum.FillDirection.Horizontal
 	hlist.VerticalAlignment = Enum.VerticalAlignment.Center
-	hlist.HorizontalAlignment = Enum.HorizontalAlignment.Left
-	hlist.Padding = UDim.new(0, 8)
-	hlist.SortOrder = Enum.SortOrder.LayoutOrder
+	hlist.Padding = UDim.new(0, 10)
 	hlist.Parent = near
 
-	-- PFP from website (or headshot fallback)
-	local pfpSize = math.clamp(tonumber(S.pfpSize) or 32, 16, 64)
+	-- PFP (circular)
 	local pfpHolder = Instance.new("Frame")
 	pfpHolder.Name = "PfpHolder"
-	pfpHolder.Size = UDim2.fromOffset(pfpSize, pfpSize)
-	pfpHolder.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-	pfpHolder.BorderSizePixel = 0
+	pfpHolder.Size = UDim2.fromOffset(S.pfpSize, S.pfpSize)
+	pfpHolder.BackgroundTransparency = 1
 	pfpHolder.LayoutOrder = 1
-	pfpHolder.ZIndex = 3
 	pfpHolder.Parent = near
-	Instance.new("UICorner", pfpHolder).CornerRadius = UDim.new(1, 0)
 
 	local pfp = Instance.new("ImageLabel")
 	pfp.Name = "Pfp"
-	pfp.BackgroundTransparency = 1
 	pfp.Size = UDim2.fromScale(1, 1)
+	pfp.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 	pfp.BorderSizePixel = 0
 	pfp.ScaleType = Enum.ScaleType.Crop
-	pfp.ZIndex = 4
 	pfp.Parent = pfpHolder
 	Instance.new("UICorner", pfp).CornerRadius = UDim.new(1, 0)
+	Instance.new("UIStroke", pfp).Color = Color3.fromRGB(40, 40, 40)
+	Instance.new("UIStroke", pfp).Thickness = 1
 
+	-- default headshot
 	local thumb = string.format("rbxthumb://type=AvatarHeadShot&id=%d&w=150&h=150", player.UserId)
 	pfp.Image = thumb
-	if type(S.pfpUrl) == "string" and S.pfpUrl ~= "" then
+	if S.pfpUrl ~= "" then
 		task.spawn(function()
-			local a = resolveImageAsset(S.pfpUrl, isSelf)
+			local a = resolveImageAsset(S.pfpUrl, true) -- always try disk/customasset so pfp shows
 			if a and pfp.Parent then
 				pfp.Image = a
-				if S.pfpIsGif or (S.pfpFrames and S.pfpFrames > 1) then
+				if S.pfpIsGif or S.pfpFrames > 1 then
 					startFlipbook(pfp, {
-						frames = math.max(S.pfpFrames or 1, 1),
-						cols = (S.pfpCols and S.pfpCols > 0) and S.pfpCols or math.max(S.pfpFrames or 1, 1),
-						fps = S.pfpFps or 12,
+						frames = math.max(S.pfpFrames, 1),
+						cols = S.pfpCols > 0 and S.pfpCols or math.max(S.pfpFrames, 1),
+						fps = S.pfpFps,
 						frameW = 150, frameH = 150,
 					})
 				end
@@ -1367,65 +1390,60 @@ function Nametag:Create(player, data)
 		end)
 	end
 
+	-- Text stack
 	local textCol = Instance.new("Frame")
 	textCol.Name = "TextCol"
 	textCol.BackgroundTransparency = 1
-	textCol.AutomaticSize = Enum.AutomaticSize.XY
-	textCol.Size = UDim2.fromOffset(0, 0)
+	textCol.Size = UDim2.new(1, -S.pfpSize - 20, 1, 0)
 	textCol.LayoutOrder = 2
 	textCol.Parent = near
 
 	local vlist = Instance.new("UIListLayout")
 	vlist.FillDirection = Enum.FillDirection.Vertical
 	vlist.VerticalAlignment = Enum.VerticalAlignment.Center
-	vlist.HorizontalAlignment = Enum.HorizontalAlignment.Left
 	vlist.Padding = UDim.new(0, 1)
-	vlist.SortOrder = Enum.SortOrder.LayoutOrder
 	vlist.Parent = textCol
 
 	local nameLbl = Instance.new("TextLabel")
 	nameLbl.Name = "DisplayName"
 	nameLbl.BackgroundTransparency = 1
-	nameLbl.AutomaticSize = Enum.AutomaticSize.X
-	nameLbl.Size = UDim2.fromOffset(0, 16)
+	nameLbl.Size = UDim2.new(1, 0, 0, 18)
 	nameLbl.Font = S.nameFont
-	nameLbl.TextSize = 14
+	nameLbl.TextSize = 15
 	nameLbl.TextColor3 = S.textColor
 	nameLbl.TextXAlignment = Enum.TextXAlignment.Left
-	nameLbl.TextYAlignment = Enum.TextYAlignment.Center
-	nameLbl.Text = tostring(displayName)
-	nameLbl.LayoutOrder = 1
+	nameLbl.TextTruncate = Enum.TextTruncate.AtEnd
+	nameLbl.Text = string.upper(displayName)
 	nameLbl.Parent = textCol
-	nameLbl.TextStrokeColor3 = S.textOutlineColor
-	nameLbl.TextStrokeTransparency = 0.55
+	if S.textOutlineColor then
+		nameLbl.TextStrokeColor3 = S.textOutlineColor
+		nameLbl.TextStrokeTransparency = 0.35
+	end
 
 	local userLbl = Instance.new("TextLabel")
 	userLbl.Name = "Username"
 	userLbl.BackgroundTransparency = 1
-	userLbl.AutomaticSize = Enum.AutomaticSize.X
-	userLbl.Size = UDim2.fromOffset(0, 13)
+	userLbl.Size = UDim2.new(1, 0, 0, 14)
 	userLbl.Font = Enum.Font.Gotham
 	userLbl.TextSize = 11
 	userLbl.TextColor3 = S.tagColor
 	userLbl.TextXAlignment = Enum.TextXAlignment.Left
-	userLbl.TextYAlignment = Enum.TextYAlignment.Center
-	userLbl.Text = tostring(username)
-	userLbl.Visible = S.showUsername ~= false
-	userLbl.LayoutOrder = 2
+	userLbl.TextTruncate = Enum.TextTruncate.AtEnd
+	userLbl.Text = username
+	userLbl.Visible = S.showUsername
 	userLbl.Parent = textCol
 
-	if customText ~= "" and S.showCustomText ~= false then
+	if customText ~= "" and S.showCustomText then
 		local sub = Instance.new("TextLabel")
 		sub.Name = "CustomText"
 		sub.BackgroundTransparency = 1
-		sub.AutomaticSize = Enum.AutomaticSize.X
-		sub.Size = UDim2.fromOffset(0, 11)
+		sub.Size = UDim2.new(1, 0, 0, 12)
 		sub.Font = Enum.Font.Gotham
 		sub.TextSize = 10
-		sub.TextColor3 = Color3.fromRGB(140, 140, 140)
+		sub.TextColor3 = Color3.fromRGB(160, 160, 160)
 		sub.TextXAlignment = Enum.TextXAlignment.Left
+		sub.TextTruncate = Enum.TextTruncate.AtEnd
 		sub.Text = customText
-		sub.LayoutOrder = 3
 		sub.Parent = textCol
 	end
 
@@ -1458,7 +1476,7 @@ function Nametag:Create(player, data)
 	local brandSrc = S.brandUrl ~= "" and S.brandUrl or S.pfpUrl
 	if brandSrc ~= "" then
 		task.spawn(function()
-			local a = resolveImageAsset(brandSrc, isSelf)
+			local a = resolveImageAsset(brandSrc, true)
 			if a and farCircle.Parent then
 				farCircle.Image = a
 				if S.brandIsGif or S.brandFrames > 1 then
@@ -1872,12 +1890,7 @@ local T = {
 }
 
 local function tween(obj, props, dur, style, dir)
-    -- softer default motion (keep theme untouched)
-    local info = TweenInfo.new(
-        dur or 0.32,
-        style or Enum.EasingStyle.Quart,
-        dir or Enum.EasingDirection.Out
-    )
+    local info = TweenInfo.new(dur or 0.25, style or Enum.EasingStyle.Quint, dir or Enum.EasingDirection.Out)
     local t = TweenService:Create(obj, info, props)
     t:Play()
     return t
@@ -1885,7 +1898,7 @@ end
 
 local function corner(parent, r)
     local c = Instance.new("UICorner")
-    c.CornerRadius = UDim.new(0, r or 9)
+    c.CornerRadius = UDim.new(0, r or 8)
     c.Parent = parent
     return c
 end
@@ -1894,7 +1907,7 @@ local function stroke(parent, color, thickness, trans)
     local s = Instance.new("UIStroke")
     s.Color = color or T.border
     s.Thickness = thickness or 1
-    s.Transparency = trans or 0.4
+    s.Transparency = trans or 0.35
     s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     s.Parent = parent
     return s
@@ -2373,36 +2386,35 @@ function N0IR:LoadingScreen(opts)
     pct.TextTransparency = 1
     pct.Parent = stack
 
-    -- Fade in (staggered, soft)
-    tween(veil, { BackgroundTransparency = 0.48 }, 0.45, Enum.EasingStyle.Quart)
-    tween(logo, { ImageTransparency = 0 }, 0.5, Enum.EasingStyle.Quart)
-    tween(sub, { TextTransparency = 0 }, 0.55, Enum.EasingStyle.Quart)
-    tween(place, { TextTransparency = 0 }, 0.6, Enum.EasingStyle.Quart)
-    tween(track, { BackgroundTransparency = 0 }, 0.55, Enum.EasingStyle.Quart)
-    tween(fill, { BackgroundTransparency = 0 }, 0.55, Enum.EasingStyle.Quart)
-    tween(pct, { TextTransparency = 0 }, 0.55, Enum.EasingStyle.Quart)
+    -- Fade in
+    tween(veil, { BackgroundTransparency = 0.45 }, 0.4)
+    tween(logo, { ImageTransparency = 0 }, 0.4)
+    tween(sub, { TextTransparency = 0 }, 0.5)
+    tween(place, { TextTransparency = 0 }, 0.55)
+    tween(track, { BackgroundTransparency = 0 }, 0.5)
+    tween(fill, { BackgroundTransparency = 0 }, 0.5)
+    tween(pct, { TextTransparency = 0 }, 0.5)
 
     local done = false
     local t0 = tick()
     local conn
     conn = RunService.RenderStepped:Connect(function()
         local p = math.clamp((tick() - t0) / duration, 0, 1)
-        -- gentle ease-out progress instead of linear+jagged
-        local eased = 1 - (1 - p) * (1 - p)
-        fill.Size = UDim2.fromScale(eased, 1)
-        pct.Text = string.format("%d%%", math.floor(eased * 100))
+        local jagged = math.clamp(p + math.sin(p * 9) * 0.01, 0, 1)
+        fill.Size = UDim2.fromScale(jagged, 1)
+        pct.Text = string.format("%d%%", math.floor(jagged * 100))
         if p >= 1 and not done then
             done = true
             conn:Disconnect()
-            task.delay(0.12, function()
-                tween(veil, { BackgroundTransparency = 1 }, 0.42, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
-                tween(logo, { ImageTransparency = 1 }, 0.36, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
-                tween(sub, { TextTransparency = 1 }, 0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
-                tween(place, { TextTransparency = 1 }, 0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
-                tween(track, { BackgroundTransparency = 1 }, 0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
-                tween(fill, { BackgroundTransparency = 1 }, 0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
-                tween(pct, { TextTransparency = 1 }, 0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
-                task.delay(0.48, function()
+            task.delay(0.15, function()
+                tween(veil, { BackgroundTransparency = 1 }, 0.4)
+                tween(logo, { ImageTransparency = 1 }, 0.35)
+                tween(sub, { TextTransparency = 1 }, 0.3)
+                tween(place, { TextTransparency = 1 }, 0.3)
+                tween(track, { BackgroundTransparency = 1 }, 0.3)
+                tween(fill, { BackgroundTransparency = 1 }, 0.3)
+                tween(pct, { TextTransparency = 1 }, 0.3)
+                task.delay(0.45, function()
                     if gui then gui:Destroy() end
                 end)
             end)
@@ -2484,13 +2496,12 @@ function N0IR:Notify(opts)
             yOff = yOff + ch.AbsoluteSize.Y + 8
         end
     end
-    n.Position = UDim2.new(1, 24, 0, yOff)
-    n.BackgroundTransparency = 1
-    -- slide + fade in
-    tween(n, { Position = UDim2.new(1, -304, 0, yOff), BackgroundTransparency = 0.05 }, 0.38, Enum.EasingStyle.Quart)
+    n.Position = UDim2.new(1, 20, 0, yOff)
+    tween(n, { Position = UDim2.new(1, -300, 0, yOff) }, 0.4)
+
     task.delay(dur, function()
-        tween(n, { Position = UDim2.new(1, 24, 0, yOff), BackgroundTransparency = 1 }, 0.28, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
-        task.delay(0.32, function()
+        tween(n, { Position = UDim2.new(1, 20, 0, yOff), BackgroundTransparency = 1 }, 0.3)
+        task.delay(0.35, function()
             if n then n:Destroy() end
         end)
     end)
@@ -2539,13 +2550,9 @@ function N0IR:CreateWindow(opts)
     stroke(win, T.border, 1, 0.25)
     attachWindowBackground(win, 12)
 
-    -- Entrance — mild grow + fade (matches keybind open)
-    win.Size = UDim2.fromOffset(math.floor(width * 0.97), math.floor(height * 0.96))
-    win.BackgroundTransparency = 0.55
-    tween(win, {
-        Size = UDim2.fromOffset(width, height),
-        BackgroundTransparency = 0.04,
-    }, 0.34, Enum.EasingStyle.Quart)
+    -- Instant show (no open animation)
+    win.Size = UDim2.fromOffset(width, height)
+    win.BackgroundTransparency = 0.04
 
     -- Title bar
     local titleBar = Instance.new("Frame")
@@ -2596,8 +2603,8 @@ function N0IR:CreateWindow(opts)
     local closeBtn = Instance.new("TextButton")
     closeBtn.AnchorPoint = Vector2.new(1, 0.5)
     closeBtn.Position = UDim2.new(1, -14, 0.5, 0)
-    closeBtn.Size = UDim2.fromOffset(11, 11)
-    closeBtn.BackgroundColor3 = Color3.fromRGB(150, 150, 150)
+    closeBtn.Size = UDim2.fromOffset(12, 12)
+    closeBtn.BackgroundColor3 = Color3.fromRGB(160, 160, 160)
     closeBtn.BorderSizePixel = 0
     closeBtn.Text = ""
     closeBtn.AutoButtonColor = false
@@ -2606,34 +2613,14 @@ function N0IR:CreateWindow(opts)
 
     local minBtn = Instance.new("TextButton")
     minBtn.AnchorPoint = Vector2.new(1, 0.5)
-    minBtn.Position = UDim2.new(1, -32, 0.5, 0)
-    minBtn.Size = UDim2.fromOffset(11, 11)
-    minBtn.BackgroundColor3 = Color3.fromRGB(190, 190, 190)
+    minBtn.Position = UDim2.new(1, -34, 0.5, 0)
+    minBtn.Size = UDim2.fromOffset(12, 12)
+    minBtn.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
     minBtn.BorderSizePixel = 0
     minBtn.Text = ""
     minBtn.AutoButtonColor = false
     minBtn.Parent = titleBar
     corner(minBtn, 99)
-
-    -- traffic-light style hover (subtle, not flashy)
-    do
-        local closeIdle = Color3.fromRGB(150, 150, 150)
-        local closeHover = Color3.fromRGB(220, 85, 85)
-        local minIdle = Color3.fromRGB(190, 190, 190)
-        local minHover = Color3.fromRGB(210, 175, 70)
-        closeBtn.MouseEnter:Connect(function()
-            tween(closeBtn, { BackgroundColor3 = closeHover }, 0.15)
-        end)
-        closeBtn.MouseLeave:Connect(function()
-            tween(closeBtn, { BackgroundColor3 = closeIdle }, 0.18)
-        end)
-        minBtn.MouseEnter:Connect(function()
-            tween(minBtn, { BackgroundColor3 = minHover }, 0.15)
-        end)
-        minBtn.MouseLeave:Connect(function()
-            tween(minBtn, { BackgroundColor3 = minIdle }, 0.18)
-        end)
-    end
 
     -- thin accent line under title
     local accentLine = Instance.new("Frame")
@@ -2707,37 +2694,21 @@ function N0IR:CreateWindow(opts)
     contentHost.ClipsDescendants = true
     contentHost.Parent = win
 
-    local _closing = false
     closeBtn.MouseButton1Click:Connect(function()
-        if _closing then return end
-        _closing = true
-        -- slight drop + fade (feels like dismissing, not a template scale-out)
-        local cur = win.Position
-        tween(win, {
-            Size = UDim2.fromOffset(math.floor(width * 0.98), math.floor(height * 0.96)),
-            Position = UDim2.new(cur.X.Scale, cur.X.Offset, cur.Y.Scale, cur.Y.Offset + 8),
-            BackgroundTransparency = 1,
-        }, 0.24, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
-        task.delay(0.26, function()
-            if screen then screen:Destroy() end
-        end)
+        -- instant destroy (no close animation)
+        screen:Destroy()
     end)
 
     minBtn.MouseButton1Click:Connect(function()
-        if _closing then return end
         isMin = not isMin
         if isMin then
             tabStrip.Visible = false
             contentHost.Visible = false
-            tween(win, { Size = UDim2.fromOffset(width, 48) }, 0.28, Enum.EasingStyle.Quart)
+            win.Size = UDim2.fromOffset(width, 48)
         else
-            tween(win, { Size = fullSize }, 0.32, Enum.EasingStyle.Quart)
-            task.delay(0.16, function()
-                if not isMin then
-                    tabStrip.Visible = true
-                    contentHost.Visible = true
-                end
-            end)
+            win.Size = fullSize
+            tabStrip.Visible = true
+            contentHost.Visible = true
         end
     end)
 
@@ -2934,10 +2905,10 @@ function N0IR:CreateWindow(opts)
             corner(b, 8)
             stroke(b, T.border, 1, 0.55)
             b.MouseEnter:Connect(function()
-                tween(b, { BackgroundColor3 = T.bg3 }, 0.18)
+                tween(b, { BackgroundColor3 = T.bg3 }, 0.12)
             end)
             b.MouseLeave:Connect(function()
-                tween(b, { BackgroundColor3 = T.bg2 }, 0.18)
+                tween(b, { BackgroundColor3 = T.bg2 }, 0.12)
             end)
             b.MouseButton1Click:Connect(function()
                 if btnOpts.Callback then
@@ -3363,47 +3334,21 @@ function N0IR:CreateWindow(opts)
         Window.ToggleKey = toggleKey
     end
 
-    local _winAnimToken = 0
-    local _winShown = true
-
     local function setWindowVisible(vis)
-        if vis == _winShown and win.Visible == vis then return end
-        _winAnimToken += 1
-        local token = _winAnimToken
-        _winShown = vis and true or false
-
+        -- instant poof open/close
         if vis then
             screen.Enabled = true
+            win.Size = UDim2.fromOffset(width, height)
+            win.BackgroundTransparency = 0.04
             win.Visible = true
-            -- start slightly smaller + faded, ease out (not a perfect centered scale)
-            local startW = math.floor(width * 0.97)
-            local startH = math.floor(height * 0.96)
-            win.Size = UDim2.fromOffset(startW, startH)
-            win.BackgroundTransparency = 0.55
-            tween(win, {
-                Size = UDim2.fromOffset(width, height),
-                BackgroundTransparency = 0.04,
-            }, 0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
         else
-            -- close: mild shrink + fade, no dramatic center-pop
-            local endW = math.floor(width * 0.97)
-            local endH = math.floor(height * 0.97)
-            tween(win, {
-                Size = UDim2.fromOffset(endW, endH),
-                BackgroundTransparency = 1,
-            }, 0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
-            task.delay(0.24, function()
-                if token ~= _winAnimToken then return end
-                if not _winShown then
-                    win.Visible = false
-                end
-            end)
+            win.Visible = false
         end
     end
 
     Window.SetVisible = setWindowVisible
     Window.Toggle = function()
-        setWindowVisible(not _winShown)
+        setWindowVisible(not win.Visible)
     end
 
     UserInputService.InputBegan:Connect(function(input, gp)
@@ -3429,6 +3374,12 @@ function N0IR:MountUtilities(Window)
     })
 
     Home:CreateSection("Quick actions")
+    Home:CreateButton({
+        Name = "Notify test",
+        Callback = function()
+            N0IR:Notify({ Title = "NØIR", Content = "Everything is running.", Duration = 2 })
+        end,
+    })
     Home:CreateButton({
         Name = "Rejoin server",
         Callback = function()
@@ -3615,144 +3566,6 @@ function N0IR:MountUtilities(Window)
                 pcall(_G._N0IR_SetInfBaseplate, true, true)
             end
         end)
-    end
-
-    -- Persistent map / anti-stream unload (client-side best effort)
-    World:CreateSection("Map streaming")
-    World:CreateParagraph({
-        Content = "Keeps already-loaded map chunks in memory and continuously requests the area around you so the client is less likely to freeze/pause when the network stutters.",
-    })
-
-    if not _G._N0IR_StreamState then
-        _G._N0IR_StreamState = { on = false, conn = nil, last = 0 }
-    end
-
-    local function applyStreamSettings()
-        -- push radii as high as the client will allow
-        pcall(function()
-            if typeof(workspace.StreamingMinRadius) == "number" then
-                workspace.StreamingMinRadius = math.max(workspace.StreamingMinRadius or 0, 2048)
-            end
-        end)
-        pcall(function()
-            if typeof(workspace.StreamingTargetRadius) == "number" then
-                workspace.StreamingTargetRadius = math.max(workspace.StreamingTargetRadius or 0, 4096)
-            end
-        end)
-        -- try disable streaming (usually server-locked; ignore failure)
-        pcall(function()
-            workspace.StreamingEnabled = false
-        end)
-        -- prefer higher integrity mode when available
-        pcall(function()
-            if workspace.ModelStreamingMode ~= nil then
-                workspace.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
-            end
-        end)
-    end
-
-    local function requestAround(pos)
-        if not pos then return end
-        pcall(function()
-            if LocalPlayer.RequestStreamAroundAsync then
-                LocalPlayer:RequestStreamAroundAsync(pos)
-            end
-        end)
-    end
-
-    local function setPersistentMap(on, silent)
-        local st = _G._N0IR_StreamState
-        on = on and true or false
-        st.on = on
-        N0IR.Flags = N0IR.Flags or {}
-        N0IR.Flags.PersistentMap = on
-        if st.conn then
-            pcall(function() st.conn:Disconnect() end)
-            st.conn = nil
-        end
-        if not on then
-            if not silent and not _G._N0IR_SilentCmd then
-                N0IR:Notify({ Title = "Persistent Map", Content = "Off", Duration = 1.2 })
-            end
-            return
-        end
-
-        applyStreamSettings()
-
-        -- one-shot load around current position + a small ring so more stays warm
-        task.spawn(function()
-            local char = LocalPlayer.Character
-            local hrp = char and char:FindFirstChild("HumanoidRootPart")
-            local origin = hrp and hrp.Position or Vector3.zero
-            requestAround(origin)
-            local offsets = {
-                Vector3.new(256, 0, 0), Vector3.new(-256, 0, 0),
-                Vector3.new(0, 0, 256), Vector3.new(0, 0, -256),
-                Vector3.new(512, 0, 0), Vector3.new(-512, 0, 0),
-                Vector3.new(0, 0, 512), Vector3.new(0, 0, -512),
-            }
-            for _, off in ipairs(offsets) do
-                if not st.on then break end
-                requestAround(origin + off)
-                task.wait(0.08)
-            end
-        end)
-
-        st.last = 0
-        st.conn = RunService.Heartbeat:Connect(function()
-            if not st.on then return end
-            local now = os.clock()
-            if now - (st.last or 0) < 0.75 then return end
-            st.last = now
-            applyStreamSettings()
-            local char = LocalPlayer.Character
-            local hrp = char and char:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                requestAround(hrp.Position)
-            end
-        end)
-
-        if not silent and not _G._N0IR_SilentCmd then
-            N0IR:Notify({ Title = "Persistent Map", Content = "On · keeping map loaded", Duration = 1.6 })
-        end
-    end
-    _G._N0IR_SetPersistentMap = setPersistentMap
-
-    World:CreateToggle({
-        Name = "Persistent Map",
-        Description = "Keep streamed map loaded · reduce freeze when network dips",
-        Flag = "PersistentMap",
-        Default = false,
-        Callback = function(on)
-            setPersistentMap(on, false)
-        end,
-    })
-    World:CreateButton({
-        Name = "Force load around me now",
-        Callback = function()
-            applyStreamSettings()
-            local char = LocalPlayer.Character
-            local hrp = char and char:FindFirstChild("HumanoidRootPart")
-            local origin = hrp and hrp.Position or Vector3.zero
-            requestAround(origin)
-            task.spawn(function()
-                for _, off in ipairs({
-                    Vector3.new(300, 0, 0), Vector3.new(-300, 0, 0),
-                    Vector3.new(0, 0, 300), Vector3.new(0, 0, -300),
-                    Vector3.new(600, 0, 0), Vector3.new(-600, 0, 0),
-                    Vector3.new(0, 0, 600), Vector3.new(0, 0, -600),
-                    Vector3.new(300, 0, 300), Vector3.new(-300, 0, -300),
-                }) do
-                    requestAround(origin + off)
-                    task.wait(0.06)
-                end
-                N0IR:Notify({ Title = "Persistent Map", Content = "Forced load around you", Duration = 1.4 })
-            end)
-        end,
-    })
-
-    if N0IR.Flags and N0IR.Flags.PersistentMap then
-        task.defer(function() setPersistentMap(true, true) end)
     end
 
     -- player tab
@@ -6173,37 +5986,6 @@ local BUILTIN_EMOTES = {
             end
             notify("Inf Baseplate", "Off")
             return
-        elseif cmd == "persistentmap" or cmd == "keepmap" or cmd == "fullmap" or cmd == "antistream" then
-            if type(_G._N0IR_SetPersistentMap) == "function" then
-                _G._N0IR_SetPersistentMap(true, _G._N0IR_SilentCmd and true or false)
-            end
-            notify("Persistent Map", "On")
-            return
-        elseif cmd == "unpersistentmap" or cmd == "unkeepmap" or cmd == "unfullmap" or cmd == "unantistream" then
-            if type(_G._N0IR_SetPersistentMap) == "function" then
-                _G._N0IR_SetPersistentMap(false, _G._N0IR_SilentCmd and true or false)
-            end
-            notify("Persistent Map", "Off")
-            return
-        elseif cmd == "forcemap" or cmd == "loadmap" then
-            pcall(function()
-                if typeof(workspace.StreamingMinRadius) == "number" then
-                    workspace.StreamingMinRadius = math.max(workspace.StreamingMinRadius or 0, 2048)
-                end
-                if typeof(workspace.StreamingTargetRadius) == "number" then
-                    workspace.StreamingTargetRadius = math.max(workspace.StreamingTargetRadius or 0, 4096)
-                end
-            end)
-            local char = LocalPlayer.Character
-            local hrp = char and char:FindFirstChild("HumanoidRootPart")
-            local origin = hrp and hrp.Position or Vector3.zero
-            pcall(function()
-                if LocalPlayer.RequestStreamAroundAsync then
-                    LocalPlayer:RequestStreamAroundAsync(origin)
-                end
-            end)
-            notify("Persistent Map", "Forced load")
-            return
         elseif cmd == "noclip" then
             N0IR.Flags.Noclip = true
             if not _G._N0IR_NoclipConn then
@@ -7640,10 +7422,10 @@ local BUILTIN_EMOTES = {
         corner(run, 6)
 
         run.MouseEnter:Connect(function()
-            tween(run, { BackgroundTransparency = 0.15 }, 0.16)
+            tween(run, { BackgroundTransparency = 0.15 }, 0.12)
         end)
         run.MouseLeave:Connect(function()
-            tween(run, { BackgroundTransparency = 0 }, 0.16)
+            tween(run, { BackgroundTransparency = 0 }, 0.12)
         end)
         run.MouseButton1Click:Connect(function()
             local arg = ""
@@ -8178,6 +7960,133 @@ local BUILTIN_EMOTES = {
     startFriendLeft()
 
     -- autoexec
+    -- ========== NØIR Chat (users only — no message filter; wire your own) ==========
+    local ChatTab = Window:CreateTab({ Name = "Chat" })
+    ChatTab:CreateSection("NØIR users")
+    ChatTab:CreateParagraph({
+        Content = "Chat with other people running NØIR. Messages are not filtered here — add your own filter if you want.",
+    })
+
+    local chatLogBox = Instance.new("ScrollingFrame")
+    -- Use library rows for controls; keep a simple live log via labels + input
+    local chatStatus = ChatTab:CreateLabel("Status  ·  idle")
+    local chatFeed = ChatTab:CreateParagraph({ Content = "(no messages yet)" })
+
+    _G._N0IR_Chat = _G._N0IR_Chat or {
+        enabled = true,
+        lastId = 0,
+        lines = {},
+        maxLines = 40,
+    }
+
+    local function chatAppend(line)
+        local st = _G._N0IR_Chat
+        table.insert(st.lines, line)
+        while #st.lines > (st.maxLines or 40) do
+            table.remove(st.lines, 1)
+        end
+        local body = table.concat(st.lines, "\n")
+        if chatFeed and chatFeed.Set then
+            chatFeed:Set(body)
+        elseif chatFeed and chatFeed.Text then
+            chatFeed.Text = body
+        end
+    end
+    _G._N0IR_ChatAppend = chatAppend
+
+    local function chatSend(msg)
+        msg = tostring(msg or ""):gsub("^%s+", ""):gsub("%s+$", "")
+        if msg == "" then return end
+        -- NO FILTER — intentional
+        local payload = {
+            message = msg,
+            userId = LocalPlayer.UserId,
+            username = LocalPlayer.Name,
+            displayName = LocalPlayer.DisplayName,
+            placeId = game.PlaceId,
+            jobId = game.JobId,
+            rank = (_G._N0IR_AuthRank or nil),
+        }
+        task.spawn(function()
+            local result = httpPost(API_URL .. "/api/chat/send", payload)
+            if result and result.success then
+                chatAppend(string.format("[%s] %s: %s", os.date("%H:%M:%S"), LocalPlayer.DisplayName, msg))
+            else
+                -- still show locally so the UI feels responsive even if API is offline
+                chatAppend(string.format("[%s] %s: %s", os.date("%H:%M:%S"), LocalPlayer.DisplayName, msg))
+                if chatStatus and chatStatus.Set then
+                    chatStatus:Set("Status  ·  sent (local) · " .. tostring(result and result.message or "no server"))
+                end
+            end
+        end)
+    end
+    _G._N0IR_ChatSend = chatSend
+
+    ChatTab:CreateInput({
+        Name = "Message",
+        Placeholder = "type a message…",
+        Default = "",
+        Callback = function(text)
+            -- send on enter/apply from input widget
+            if text and tostring(text) ~= "" then
+                chatSend(text)
+            end
+        end,
+    })
+    ChatTab:CreateButton({
+        Name = "Send",
+        Callback = function()
+            -- some CreateInput widgets expose :Get
+            N0IR:Notify({ Title = "Chat", Content = "Type in the Message box then press Send / apply", Duration = 2 })
+        end,
+    })
+
+    -- poll other NØIR users
+    local _chatDraft = ""
+    ChatTab:CreateInput({
+        Name = "Compose",
+        Placeholder = "message (no filter)",
+        Default = "",
+        Callback = function(t)
+            _chatDraft = tostring(t or "")
+        end,
+    })
+    ChatTab:CreateButton({
+        Name = "Send message",
+        Callback = function()
+            if _chatDraft and _chatDraft ~= "" then
+                chatSend(_chatDraft)
+                _chatDraft = ""
+            end
+        end,
+    })
+
+    task.spawn(function()
+        while true do
+            task.wait(4)
+            if _G._N0IR_Chat and _G._N0IR_Chat.enabled then
+                local result = httpPost(API_URL .. "/api/chat/poll", {
+                    since = _G._N0IR_Chat.lastId or 0,
+                    userId = LocalPlayer.UserId,
+                    placeId = game.PlaceId,
+                })
+                if result and result.success and type(result.messages) == "table" then
+                    for _, m in ipairs(result.messages) do
+                        local id = tonumber(m.id) or 0
+                        if id > (_G._N0IR_Chat.lastId or 0) then
+                            _G._N0IR_Chat.lastId = id
+                        end
+                        local who = m.displayName or m.username or "?"
+                        local body = m.message or m.text or ""
+                        if body ~= "" then
+                            chatAppend(string.format("[%s] %s: %s", m.time or os.date("%H:%M:%S"), who, body))
+                        end
+                    end
+                end
+            end
+        end
+    end)
+
     local AutoExec = Window:CreateTab({ Name = "AutoExec" })
     AutoExec:CreateSection("Auto-execute on load / respawn")
     AutoExec:CreateParagraph({
@@ -8549,6 +8458,209 @@ local BUILTIN_EMOTES = {
         end,
     })
 
+    Settings:CreateSection("Chat webhook (Roblox chat log)")
+    Settings:CreateParagraph({
+        Content = "When enabled, every message from the in-game Roblox chat is forwarded to your webhook (proof / reports). Paste a Discord webhook URL.",
+    })
+    local _webhookUrl = tostring(_G._N0IR_ChatWebhook or "")
+    Settings:CreateInput({
+        Name = "Webhook URL",
+        Placeholder = "https://discord.com/api/webhooks/…",
+        Default = _webhookUrl,
+        Callback = function(t)
+            _G._N0IR_ChatWebhook = tostring(t or ""):gsub("^%s+", ""):gsub("%s+$", "")
+            if _G._N0IR_SaveSettings then task.defer(_G._N0IR_SaveSettings) end
+        end,
+    })
+    local function postWebhook(content)
+        local url = tostring(_G._N0IR_ChatWebhook or "")
+        if url == "" then return end
+        local body = HttpService:JSONEncode({
+            username = "NØIR Chat Log",
+            content = content:sub(1, 1900),
+        })
+        pcall(function()
+            if request then
+                request({
+                    Url = url,
+                    Method = "POST",
+                    Headers = { ["Content-Type"] = "application/json" },
+                    Body = body,
+                })
+            elseif syn and syn.request then
+                syn.request({
+                    Url = url,
+                    Method = "POST",
+                    Headers = { ["Content-Type"] = "application/json" },
+                    Body = body,
+                })
+            end
+        end)
+    end
+    local function hookRobloxChat()
+        if _G._N0IR_ChatWebhookHooked then return end
+        _G._N0IR_ChatWebhookHooked = true
+        -- TextChatService (new chat)
+        pcall(function()
+            local tcs = game:GetService("TextChatService")
+            if tcs and tcs.MessageReceived then
+                tcs.MessageReceived:Connect(function(msg)
+                    if not _G._N0IR_ChatWebhookEnabled then return end
+                    local text = ""
+                    local speaker = "?"
+                    pcall(function()
+                        text = msg.Text or ""
+                        local src = msg.TextSource
+                        if src then
+                            local p = Players:GetPlayerByUserId(src.UserId)
+                            speaker = p and (p.DisplayName .. " (@" .. p.Name .. ")") or tostring(src.UserId)
+                        end
+                    end)
+                    if text ~= "" then
+                        postWebhook(string.format("**%s** · place `%s`\n%s", speaker, tostring(game.PlaceId), text))
+                    end
+                end)
+            end
+        end)
+        -- Legacy chat
+        pcall(function()
+            local chatEvents = game:GetService("ReplicatedStorage"):FindFirstChild("DefaultChatSystemChatEvents")
+            if chatEvents then
+                local incoming = chatEvents:FindFirstChild("OnMessageDoneFiltering")
+                    or chatEvents:FindFirstChild("OnNewMessage")
+                if incoming and incoming.OnClientEvent then
+                    incoming.OnClientEvent:Connect(function(data)
+                        if not _G._N0IR_ChatWebhookEnabled then return end
+                        if type(data) == "table" then
+                            local speaker = data.FromSpeaker or data.Speaker or "?"
+                            local msg = data.Message or data.message or ""
+                            if msg ~= "" then
+                                postWebhook(string.format("**%s** · place `%s`\n%s", tostring(speaker), tostring(game.PlaceId), tostring(msg)))
+                            end
+                        end
+                    end)
+                end
+            end
+        end)
+        -- also mirror LocalPlayer.Chatted
+        pcall(function()
+            LocalPlayer.Chatted:Connect(function(msg)
+                if not _G._N0IR_ChatWebhookEnabled then return end
+                postWebhook(string.format("**%s** (you) · place `%s`\n%s", LocalPlayer.DisplayName, tostring(game.PlaceId), tostring(msg)))
+            end)
+        end)
+    end
+    Settings:CreateToggle({
+        Name = "Log Roblox chat → webhook",
+        Description = "Forward in-game chat to the webhook URL above",
+        Flag = "ChatWebhookEnabled",
+        Default = false,
+        Callback = function(on)
+            _G._N0IR_ChatWebhookEnabled = on and true or false
+            if on then hookRobloxChat() end
+            if _G._N0IR_SaveSettings then task.defer(_G._N0IR_SaveSettings) end
+        end,
+    })
+
+    Settings:CreateSection("Join a friend")
+    Settings:CreateParagraph({
+        Content = "Jump into a friend's live server (same place if possible). Uses Roblox presence + teleport.",
+    })
+    local friendStatus = Settings:CreateLabel("Friends  ·  not loaded")
+    local function loadFriendsAndJoin()
+        friendStatus:Set("Friends  ·  loading…")
+        task.spawn(function()
+            local list = {}
+            -- official friends endpoint
+            local ok, body = pcall(function()
+                return game:HttpGet("https://friends.roblox.com/v1/users/" .. LocalPlayer.UserId .. "/friends")
+            end)
+            if ok and body then
+                local decoded = nil
+                pcall(function() decoded = HttpService:JSONDecode(body) end)
+                if decoded and type(decoded.data) == "table" then
+                    for _, f in ipairs(decoded.data) do
+                        table.insert(list, { id = f.id, name = f.name or f.displayName or tostring(f.id) })
+                    end
+                end
+            end
+            if #list == 0 then
+                friendStatus:Set("Friends  ·  none / request failed")
+                N0IR:Notify({ Title = "Join Friend", Content = "Could not load friends list", Duration = 2.5 })
+                return
+            end
+            -- presence
+            local ids = {}
+            for _, f in ipairs(list) do table.insert(ids, f.id) end
+            local presenceMap = {}
+            pcall(function()
+                local res
+                if request then
+                    res = request({
+                        Url = "https://presence.roblox.com/v1/presence/users",
+                        Method = "POST",
+                        Headers = { ["Content-Type"] = "application/json" },
+                        Body = HttpService:JSONEncode({ userIds = ids }),
+                    })
+                    if res and res.Body then
+                        local d = HttpService:JSONDecode(res.Body)
+                        if d and d.userPresences then
+                            for _, p in ipairs(d.userPresences) do
+                                presenceMap[p.userId] = p
+                            end
+                        end
+                    end
+                end
+            end)
+            local online = {}
+            for _, f in ipairs(list) do
+                local p = presenceMap[f.id]
+                if p and (p.userPresenceType == 2 or p.userPresenceType == 3) then -- in-game / studio
+                    table.insert(online, {
+                        id = f.id,
+                        name = f.name,
+                        placeId = p.placeId or p.rootPlaceId,
+                        jobId = p.gameId or p.jobId,
+                    })
+                end
+            end
+            friendStatus:Set(string.format("Friends  ·  %d online / %d total", #online, #list))
+            if #online == 0 then
+                N0IR:Notify({ Title = "Join Friend", Content = "No friends currently in a game", Duration = 2.5 })
+                return
+            end
+            -- join first online friend (simple); expose names via notifies
+            local target = online[1]
+            for i, t in ipairs(online) do
+                if i <= 5 then
+                    N0IR:Notify({
+                        Title = "Online · " .. t.name,
+                        Content = "place " .. tostring(t.placeId or "?"),
+                        Duration = 2,
+                    })
+                end
+            end
+            if target.placeId and target.jobId and target.jobId ~= "" then
+                N0IR:Notify({ Title = "Joining", Content = target.name, Duration = 2 })
+                pcall(function()
+                    TeleportService:TeleportToPlaceInstance(tonumber(target.placeId), tostring(target.jobId), LocalPlayer)
+                end)
+            elseif target.placeId then
+                pcall(function()
+                    TeleportService:Teleport(tonumber(target.placeId), LocalPlayer)
+                end)
+            end
+        end)
+    end
+    Settings:CreateButton({
+        Name = "Join online friend",
+        Callback = loadFriendsAndJoin,
+    })
+    Settings:CreateButton({
+        Name = "Refresh friend status",
+        Callback = loadFriendsAndJoin,
+    })
+
     Settings:CreateSection("Keybinds")
     local keyLbl = Settings:CreateLabel("Menu toggle  ·  " .. tostring((_G._N0IR_ToggleKey or Enum.KeyCode.M).Name))
     local cmdKeyLbl = Settings:CreateLabel("Cmd bar key  ·  " .. tostring((_G._N0IR_CmdBarKey or Enum.KeyCode.Semicolon).Name))
@@ -8717,6 +8829,12 @@ local BUILTIN_EMOTES = {
             N0IR:Notify({ Title = "Settings", Content = "Saved to N0IR/settings.json", Duration = 2 })
         end,
     })
+    Settings:CreateButton({
+        Name = "Notify Test",
+        Callback = function()
+            N0IR:Notify({ Title = "NØIR", Content = "Library is alive.", Duration = 2 })
+        end,
+    })
 
     -- mouse tp keybind runtime
     if not _G._N0IR_UI_TPRuntimeInstalled then
@@ -8781,6 +8899,130 @@ local BUILTIN_EMOTES = {
     }
 end
 
+-- floating watermark: open/close menu + toggle own nametag
+function N0IR:CreateWatermark(window)
+    local host = getHost()
+    pcall(function()
+        local old = host:FindFirstChild("N0IR_Watermark")
+        if old then old:Destroy() end
+    end)
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "N0IR_Watermark"
+    gui.ResetOnSpawn = false
+    gui.IgnoreGuiInset = true
+    gui.DisplayOrder = 250
+    gui.Parent = host
+
+    local bar = Instance.new("Frame")
+    bar.Name = "Bar"
+    bar.AnchorPoint = Vector2.new(0, 1)
+    bar.Position = UDim2.new(0, 14, 1, -14)
+    bar.Size = UDim2.fromOffset(168, 34)
+    bar.BackgroundColor3 = T.bg0
+    bar.BackgroundTransparency = 0.12
+    bar.BorderSizePixel = 0
+    bar.Parent = gui
+    corner(bar, 8)
+    stroke(bar, T.border, 1, 0.35)
+
+    local logo = Instance.new("ImageLabel")
+    logo.BackgroundTransparency = 1
+    logo.Position = UDim2.fromOffset(6, 5)
+    logo.Size = UDim2.fromOffset(24, 24)
+    logo.Image = ensureLogoAsset()
+    logo.ScaleType = Enum.ScaleType.Fit
+    logo.Parent = bar
+
+    local menuBtn = Instance.new("TextButton")
+    menuBtn.Size = UDim2.fromOffset(52, 24)
+    menuBtn.Position = UDim2.fromOffset(36, 5)
+    menuBtn.BackgroundColor3 = T.bg3
+    menuBtn.BorderSizePixel = 0
+    menuBtn.Font = Enum.Font.GothamBold
+    menuBtn.TextSize = 11
+    menuBtn.Text = "Menu"
+    menuBtn.TextColor3 = T.text
+    menuBtn.AutoButtonColor = false
+    menuBtn.Parent = bar
+    corner(menuBtn, 6)
+
+    local tagBtn = Instance.new("TextButton")
+    tagBtn.Size = UDim2.fromOffset(70, 24)
+    tagBtn.Position = UDim2.fromOffset(92, 5)
+    tagBtn.BackgroundColor3 = T.bg3
+    tagBtn.BorderSizePixel = 0
+    tagBtn.Font = Enum.Font.GothamBold
+    tagBtn.TextSize = 11
+    tagBtn.Text = "My Tag"
+    tagBtn.TextColor3 = T.text
+    tagBtn.AutoButtonColor = false
+    tagBtn.Parent = bar
+    corner(tagBtn, 6)
+
+    local function refreshTagBtn()
+        local on = Nametag and Nametag.ShowSelf
+        tagBtn.Text = on and "My Tag · on" or "My Tag · off"
+        tagBtn.BackgroundColor3 = on and T.accent or T.bg3
+        tagBtn.TextColor3 = on and Color3.fromRGB(10, 10, 10) or T.text
+    end
+    refreshTagBtn()
+
+    menuBtn.MouseButton1Click:Connect(function()
+        if window and window.Toggle then
+            window:Toggle()
+        elseif window and window.SetVisible and window.Frame then
+            window.SetVisible(not window.Frame.Visible)
+        end
+    end)
+
+    tagBtn.MouseButton1Click:Connect(function()
+        if not Nametag then return end
+        local nextOn = not Nametag.ShowSelf
+        if Nametag.SetShowSelf then
+            Nametag:SetShowSelf(nextOn)
+        else
+            Nametag.ShowSelf = nextOn
+        end
+        N0IR.Flags = N0IR.Flags or {}
+        N0IR.Flags.NametagShowSelf = nextOn
+        if _G._N0IR_SaveSettings then task.defer(_G._N0IR_SaveSettings) end
+        refreshTagBtn()
+        N0IR:Notify({
+            Title = "Nametag",
+            Content = nextOn and "Showing your tag" or "Hidden your tag",
+            Duration = 1.4,
+        })
+    end)
+
+    -- drag watermark
+    do
+        local dragging, start, origin
+        bar.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1
+                or input.UserInputType == Enum.UserInputType.Touch then
+                dragging = true
+                start = input.Position
+                origin = bar.Position
+            end
+        end)
+        UserInputService.InputChanged:Connect(function(input)
+            if not dragging then return end
+            if input.UserInputType ~= Enum.UserInputType.MouseMovement
+                and input.UserInputType ~= Enum.UserInputType.Touch then return end
+            local d = input.Position - start
+            bar.Position = UDim2.new(origin.X.Scale, origin.X.Offset + d.X, origin.Y.Scale, origin.Y.Offset + d.Y)
+        end)
+        UserInputService.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1
+                or input.UserInputType == Enum.UserInputType.Touch then
+                dragging = false
+            end
+        end)
+    end
+
+    return gui
+end
+
 -- quick start helper
 function N0IR:Init(opts)
     opts = opts or {}
@@ -8790,6 +9032,10 @@ function N0IR:Init(opts)
     if not ok then
         warn("[NØIR] Key validation failed")
         return nil, nil
+    end
+
+    if keyData and keyData.rank then
+        _G._N0IR_AuthRank = keyData.rank
     end
 
     local sub = opts.SubTitle or "Suite"
@@ -8808,6 +9054,11 @@ function N0IR:Init(opts)
         ToggleKey = opts.ToggleKey,
     })
     local modules = self:MountUtilities(win)
+
+    -- watermark (menu + own nametag toggle) — show-others stays in Settings
+    pcall(function()
+        self:CreateWatermark(win)
+    end)
 
     -- Show rank on Home if available
     if modules and modules.Home and keyData then
