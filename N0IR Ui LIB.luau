@@ -2681,6 +2681,8 @@ function N0IR:CreateWindow(opts)
     local minSize = UDim2.fromOffset(math.min(width, 420), 52)
     local bodyVisible = true
     local minimizeTween
+    local minimizeToken = 0
+    local MIN_TWEEN = TweenInfo.new(0.22, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 
     -- Tab strip
     local tabStrip = Instance.new("ScrollingFrame")
@@ -2722,27 +2724,42 @@ function N0IR:CreateWindow(opts)
     local function setMinimized(state)
         if isMin == state then return end
         isMin = state
+        minimizeToken += 1
+        local token = minimizeToken
 
         if minimizeTween then
             pcall(function() minimizeTween:Cancel() end)
+            minimizeTween = nil
         end
 
-        local info = TweenInfo.new(0.24, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-
+        -- Keep the expensive content tree out of the render/layout path while the
+        -- outer window is resizing. This preserves the same visual animation but
+        -- avoids a large layout/render spike on restore.
         if state then
+            bodyVisible = false
             tabStrip.Visible = false
             contentHost.Visible = false
-            minimizeTween = TweenService:Create(win, info, {
+
+            minimizeTween = TweenService:Create(win, MIN_TWEEN, {
                 Size = minSize,
             })
             minimizeTween:Play()
         else
-            tabStrip.Visible = true
-            contentHost.Visible = true
-            minimizeTween = TweenService:Create(win, info, {
+            -- Restore the shell first; defer the heavy content tree until the
+            -- window has reached its final size so Roblox does not reflow every
+            -- child on every tween frame.
+            minimizeTween = TweenService:Create(win, MIN_TWEEN, {
                 Size = fullSize,
             })
-            minimizeTween:Play()
+            local thisTween = minimizeTween
+            thisTween:Play()
+            thisTween.Completed:Connect(function()
+                if token ~= minimizeToken or isMin then return end
+                bodyVisible = true
+                tabStrip.Visible = true
+                contentHost.Visible = true
+                minimizeTween = nil
+            end)
         end
     end
 
@@ -4645,7 +4662,9 @@ function N0IR:MountUtilities(Window)
         emoteSave()
     end
 
-    -- Catalog fetch (UGC / marketplace emotes)
+    -- Real Roblox Marketplace UGC emotes only.
+    -- Roblox documents Marketplace AvatarAnimations as Category=12 and
+    -- EmoteAnimations as Subcategory=39; EmoteAnimation assets are assetType 61.
     local function httpGetJson(url)
         local body
         pcall(function()
@@ -4661,93 +4680,49 @@ function N0IR:MountUtilities(Window)
         end)
         if type(body) ~= "string" or body == "" then return nil end
         local ok, data = pcall(function() return HttpService:JSONDecode(body) end)
-        if ok then return data end
-        return nil
+        return ok and data or nil
     end
 
-    -- Marketplace IDs and animation IDs are different for UGC emotes.
-    -- We keep the Marketplace/catalog ID in the browser and resolve the embedded
-    -- Animation asset only when the user actually presses Play.
-    local ugcAnimationCache = {}
-    local ugcResolveBusy = {}
-
-    local function resolveUGCAnimationId(catalogId)
-        catalogId = tonumber(catalogId)
-        if not catalogId then return nil end
-        if ugcAnimationCache[catalogId] then return ugcAnimationCache[catalogId] end
-        if ugcResolveBusy[catalogId] then return nil end
-        ugcResolveBusy[catalogId] = true
-
-        local resolved
-        pcall(function()
-            if not InsertService or not InsertService.LoadAsset then return end
-            local asset = InsertService:LoadAsset(catalogId)
-            if asset then
-                for _, d in ipairs(asset:GetDescendants()) do
-                    if d:IsA("Animation") then
-                        local aid = tostring(d.AnimationId or "")
-                        local digits = aid:match("(%d+)")
-                        if digits then
-                            resolved = digits
-                            break
-                        end
-                    end
-                end
-                pcall(function() asset:Destroy() end)
-            end
-        end)
-
-        ugcResolveBusy[catalogId] = nil
-        if resolved then ugcAnimationCache[catalogId] = resolved end
-        return resolved
-    end
-
-    local function fetchCatalogPage(cursor)
-        -- Search specifically for Avatar Emote assets. The returned `id` is the
-        -- Marketplace item ID; it must not be passed directly to LoadAnimation.
-        local url = "https://catalog.roblox.com/v1/search/items?category=Emotes&limit=30&sortType=3&sortOrder=Desc"
-        if cursor and cursor ~= "" then
-            url = url .. "&cursor=" .. HttpService:UrlEncode(tostring(cursor))
+    local function fetchCatalogPage(cursor, keyword)
+        local params = {
+            "Category=12",
+            "Subcategory=39",
+            "SortType=3",
+            "SortAggregation=5",
+            "Limit=30",
+        }
+        keyword = tostring(keyword or ""):match("^%s*(.-)%s*$") or ""
+        if keyword ~= "" then
+            table.insert(params, "Keyword=" .. HttpService:UrlEncode(keyword))
         end
+        if cursor and cursor ~= "" then
+            table.insert(params, "Cursor=" .. HttpService:UrlEncode(tostring(cursor)))
+        end
+
+        local url = "https://catalog.roblox.com/v1/search/items/details?" .. table.concat(params, "&")
         local data = httpGetJson(url)
         if not data or type(data.data) ~= "table" then
-            url = "https://catalog.roblox.com/v1/search/items?keyword=emote&category=Emotes&limit=30"
-            if cursor and cursor ~= "" then
-                url = url .. "&cursor=" .. HttpService:UrlEncode(tostring(cursor))
-            end
-            data = httpGetJson(url)
+            return {}, nil
         end
 
         local items = {}
-        local nextCursor = data and data.nextPageCursor or nil
-        if data and type(data.data) == "table" then
-            for _, it in ipairs(data.data) do
-                local id = tonumber(it.id or it.itemId)
-                if id then
-                    local name = tostring(it.name or ("Emote " .. id))
-                    -- Confirm the marketplace asset really is an emote when possible.
-                    local isEmote = true
-                    pcall(function()
-                        local info = MarketplaceService:GetProductInfo(id)
-                        if info and info.AssetTypeId and tonumber(info.AssetTypeId) ~= 61 then
-                            isEmote = false
-                        elseif info and info.Name then
-                            name = info.Name
-                        end
-                    end)
-                    if isEmote then
-                        table.insert(items, {
-                            name = name,
-                            id = tostring(id),
-                            catalogId = tostring(id),
-                            kind = "ugc",
-                        })
-                    end
-                end
-                if #items >= 30 then break end
+        for _, it in ipairs(data.data) do
+            local id = tonumber(it.id or it.itemId)
+            local assetType = tonumber(it.assetType or it.AssetTypeId)
+            -- Do not trust category names alone: only assetType 61 is an EmoteAnimation.
+            if id and assetType == 61 then
+                table.insert(items, {
+                    name = tostring(it.name or ("Emote " .. id)),
+                    id = tostring(id),
+                    catalogId = tostring(id),
+                    kind = "ugc",
+                    assetType = 61,
+                    creator = tostring(it.creatorName or ""),
+                    price = tonumber(it.price or it.lowestPrice or 0) or 0,
+                })
             end
         end
-        return items, nextCursor
+        return items, data.nextPageCursor
     end
 
     -- emote browser ui
@@ -5013,25 +4988,14 @@ function N0IR:MountUtilities(Window)
 
         local function playEntry(entry)
             if type(entry) ~= "table" then return false end
-            if entry.kind == "ugc" or entry.catalogId then
-                local catalogId = tonumber(entry.catalogId or entry.id)
-                if not catalogId then
-                    N0IR:Notify({ Title = "Emotes", Content = "Invalid UGC emote ID", Duration = 2 })
-                    return false
-                end
-                N0IR:Notify({ Title = "Emotes", Content = "Resolving UGC animation…", Duration = 1.5 })
-                local animationId = resolveUGCAnimationId(catalogId)
-                if not animationId then
-                    N0IR:Notify({
-                        Title = "Emotes",
-                        Content = "Roblox did not expose the emote's AnimationId",
-                        Duration = 3,
-                    })
-                    return false
-                end
-                return playEmoteId(animationId)
+            local id = tostring(entry.id or ""):gsub("rbxassetid://", "")
+            if id == "" or not tonumber(id) then
+                N0IR:Notify({ Title = "Emotes", Content = "Invalid emote asset ID", Duration = 2 })
+                return false
             end
-            return playEmoteId(entry.id)
+            -- Marketplace EmoteAnimation IDs are the animation asset IDs used by Animation.AnimationId.
+            -- No avatar/bundle extraction is performed here.
+            return playEmoteId(id)
         end
 
         local function addRow(entry)
