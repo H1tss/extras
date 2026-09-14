@@ -9076,11 +9076,14 @@ function N0IR:CreateWatermark(window)
         btn.MouseLeave:Connect(function()
             tweenGui(btn, { BackgroundColor3 = baseColor() }, 0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
         end)
-        btn.MouseButton1Down:Connect(function()
-            tweenGui(btn, { Size = UDim2.fromOffset(btn.Size.X.Offset - 2, btn.Size.Y.Offset - 2) }, 0.07, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        end)
-        btn.MouseButton1Up:Connect(function()
-            tweenGui(btn, { Size = UDim2.fromOffset(btn.Size.X.Offset + 2, btn.Size.Y.Offset + 2) }, 0.09, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+        btn.MouseButton1Click:Connect(function()
+            local originalSize = btn.Size
+            tweenGui(btn, { Size = UDim2.fromOffset(originalSize.X.Offset - 2, originalSize.Y.Offset - 2) }, 0.07, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            task.delay(0.07, function()
+                if btn and btn.Parent then
+                    tweenGui(btn, { Size = originalSize }, 0.09, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+                end
+            end)
         end)
     end
 
