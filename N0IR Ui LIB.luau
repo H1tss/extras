@@ -9076,8 +9076,6 @@ function N0IR:CreateWatermark(window)
         btn.MouseLeave:Connect(function()
             tweenGui(btn, { BackgroundColor3 = baseColor() }, 0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
         end)
-        -- Clicks no longer change the button size.
-        -- Hover animation above is kept unchanged.
     end
 
     styleHover(menuBtn, function() return T.bg3 end, T.bg2)
@@ -9131,11 +9129,19 @@ function N0IR:CreateWatermark(window)
     _G._N0IR_SetWatermarkTagState = setWatermarkTagState
 
     menuBtn.MouseButton1Click:Connect(function()
+        -- Menu has hover-only visual feedback; never resize/reposition it on press/release.
+        menuBtn.Size = UDim2.fromOffset(52, 24)
+        menuBtn.Position = UDim2.fromOffset(36, 5)
+
         if window and window.Toggle then
             window:Toggle()
         elseif window and window.SetVisible and window.Frame then
             window.SetVisible(not window.Frame.Visible)
         end
+
+        -- Keep the watermark Menu button at its original geometry after the click.
+        menuBtn.Size = UDim2.fromOffset(52, 24)
+        menuBtn.Position = UDim2.fromOffset(36, 5)
     end)
 
     tagBtn.MouseButton1Click:Connect(function()
