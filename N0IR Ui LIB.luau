@@ -1185,6 +1185,7 @@ local function resolveStyle(data)
 		strokeThickness = tonumber(pick("strokeThickness", 2.2)) or 2.2,
 		pfpSize = tonumber(pick("pfpSize", 32)) or 32,
 		pfpUrl = tostring(pick("pfpUrl", pick("iconUrl", "")) or ""),
+		iconType = tostring(pick("iconType", "pfp") or "pfp"):lower(),
 		bgUrl = tostring(pick("bgUrl", pick("bgImageUrl", "")) or ""),
 		brandUrl = tostring(pick("brandUrl", pick("farUrl", "")) or ""),
 		customText = tostring(pick("customText", pick("subtitle", "")) or ""),
@@ -1271,7 +1272,7 @@ function Nametag:Create(player, data)
 	uiScale.Parent = root
 
 	-- ========== NEAR MODE (pill) ==========
-	-- Matches designed tag: compact dark pill, thick outline, circular pfp, title + @user
+	-- 1:1 from nametagsys style — do NOT hardcode look, use S.* from website
 	local near = Instance.new("Frame")
 	near.Name = "Near"
 	near.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -1283,7 +1284,8 @@ function Nametag:Create(player, data)
 	near.BorderSizePixel = 0
 	near.Visible = true
 	near.Parent = root
-	Instance.new("UICorner", near).CornerRadius = UDim.new(1, 0) -- full capsule
+	-- corner radius FROM WEBSITE (not forced capsule)
+	Instance.new("UICorner", near).CornerRadius = UDim.new(0, math.clamp(S.cornerRadius or 12, 0, 50))
 
 	local nearStroke = Instance.new("UIStroke")
 	nearStroke.Name = "Outline"
@@ -1292,7 +1294,6 @@ function Nametag:Create(player, data)
 	nearStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	nearStroke.Parent = near
 
-	-- optional background image inside pill
 	if S.bgUrl ~= "" then
 		local bg = Instance.new("ImageLabel")
 		bg.Name = "Bg"
@@ -1302,7 +1303,7 @@ function Nametag:Create(player, data)
 		bg.ScaleType = Enum.ScaleType.Crop
 		bg.ZIndex = 0
 		bg.Parent = near
-		Instance.new("UICorner", bg).CornerRadius = UDim.new(1, 0)
+		Instance.new("UICorner", bg).CornerRadius = UDim.new(0, math.clamp(S.cornerRadius or 12, 0, 50))
 		task.spawn(function()
 			local a = resolveImageAsset(S.bgUrl, isSelf)
 			if a and bg.Parent then bg.Image = a end
@@ -1311,9 +1312,9 @@ function Nametag:Create(player, data)
 
 	local pad = Instance.new("UIPadding")
 	pad.PaddingLeft = UDim.new(0, 6)
-	pad.PaddingRight = UDim.new(0, 14)
-	pad.PaddingTop = UDim.new(0, 5)
-	pad.PaddingBottom = UDim.new(0, 5)
+	pad.PaddingRight = UDim.new(0, 12)
+	pad.PaddingTop = UDim.new(0, 4)
+	pad.PaddingBottom = UDim.new(0, 4)
 	pad.Parent = near
 
 	local hlist = Instance.new("UIListLayout")
@@ -1324,36 +1325,40 @@ function Nametag:Create(player, data)
 	hlist.SortOrder = Enum.SortOrder.LayoutOrder
 	hlist.Parent = near
 
-	-- PFP (circular)
+	-- PFP from website (or headshot fallback)
+	local pfpSize = math.clamp(tonumber(S.pfpSize) or 32, 16, 64)
 	local pfpHolder = Instance.new("Frame")
 	pfpHolder.Name = "PfpHolder"
-	pfpHolder.Size = UDim2.fromOffset(S.pfpSize, S.pfpSize)
-	pfpHolder.BackgroundTransparency = 1
+	pfpHolder.Size = UDim2.fromOffset(pfpSize, pfpSize)
+	pfpHolder.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	pfpHolder.BorderSizePixel = 0
 	pfpHolder.LayoutOrder = 1
+	pfpHolder.ZIndex = 3
 	pfpHolder.Parent = near
+	Instance.new("UICorner", pfpHolder).CornerRadius = UDim.new(1, 0)
 
 	local pfp = Instance.new("ImageLabel")
 	pfp.Name = "Pfp"
+	pfp.BackgroundTransparency = 1
 	pfp.Size = UDim2.fromScale(1, 1)
-	pfp.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
 	pfp.BorderSizePixel = 0
 	pfp.ScaleType = Enum.ScaleType.Crop
+	pfp.ZIndex = 4
 	pfp.Parent = pfpHolder
 	Instance.new("UICorner", pfp).CornerRadius = UDim.new(1, 0)
 
-	-- default headshot
 	local thumb = string.format("rbxthumb://type=AvatarHeadShot&id=%d&w=150&h=150", player.UserId)
 	pfp.Image = thumb
-	if S.pfpUrl ~= "" then
+	if type(S.pfpUrl) == "string" and S.pfpUrl ~= "" then
 		task.spawn(function()
 			local a = resolveImageAsset(S.pfpUrl, isSelf)
 			if a and pfp.Parent then
 				pfp.Image = a
-				if S.pfpIsGif or S.pfpFrames > 1 then
+				if S.pfpIsGif or (S.pfpFrames and S.pfpFrames > 1) then
 					startFlipbook(pfp, {
-						frames = math.max(S.pfpFrames, 1),
-						cols = S.pfpCols > 0 and S.pfpCols or math.max(S.pfpFrames, 1),
-						fps = S.pfpFps,
+						frames = math.max(S.pfpFrames or 1, 1),
+						cols = (S.pfpCols and S.pfpCols > 0) and S.pfpCols or math.max(S.pfpFrames or 1, 1),
+						fps = S.pfpFps or 12,
 						frameW = 150, frameH = 150,
 					})
 				end
@@ -1361,7 +1366,6 @@ function Nametag:Create(player, data)
 		end)
 	end
 
-	-- Text stack
 	local textCol = Instance.new("Frame")
 	textCol.Name = "TextCol"
 	textCol.BackgroundTransparency = 1
@@ -1405,11 +1409,11 @@ function Nametag:Create(player, data)
 	userLbl.TextXAlignment = Enum.TextXAlignment.Left
 	userLbl.TextYAlignment = Enum.TextYAlignment.Center
 	userLbl.Text = tostring(username)
-	userLbl.Visible = S.showUsername
+	userLbl.Visible = S.showUsername ~= false
 	userLbl.LayoutOrder = 2
 	userLbl.Parent = textCol
 
-	if customText ~= "" and S.showCustomText then
+	if customText ~= "" and S.showCustomText ~= false then
 		local sub = Instance.new("TextLabel")
 		sub.Name = "CustomText"
 		sub.BackgroundTransparency = 1
