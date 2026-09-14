@@ -1278,8 +1278,8 @@ function Nametag:Create(player, data)
 	near.Name = "Near"
 	near.AnchorPoint = Vector2.new(0.5, 0.5)
 	near.Position = UDim2.fromScale(0.5, 0.5)
-	near.AutomaticSize = Enum.AutomaticSize.X
-	near.Size = UDim2.fromOffset(0, S.pillHeight)
+	near.AutomaticSize = Enum.AutomaticSize.None
+	near.Size = UDim2.fromOffset(S.tagWidth, S.pillHeight)
 	near.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
 	near.BackgroundTransparency = 0.05
 	near.BorderSizePixel = 0
