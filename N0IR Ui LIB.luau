@@ -1299,7 +1299,7 @@ function Nametag:Create(player, data)
 	uiScale.Scale = sc
 	uiScale.Parent = root
 
-	-- ========== NEAR MODE (pill) ==========
+	-- NEAR MODE (pill)
 	local near = Instance.new("Frame")
 	near.Name = "Near"
 	near.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -1445,7 +1445,7 @@ function Nametag:Create(player, data)
 		sub.Parent = textCol
 	end
 
-	-- ========== FAR MODE (circular brand) ==========
+	-- FAR MODE (circular brand)
 	local far = Instance.new("Frame")
 	far.Name = "Far"
 	far.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -7991,7 +7991,7 @@ function N0IR:MountUtilities(Window)
     startFriendLeft()
 
     -- autoexec
-    -- ========== NØIR Chat (users only — no message filter; wire your own) ==========
+    -- NØIR Chat
     local ChatTab = Window:CreateTab({ Name = "Chat" })
     ChatTab:CreateSection("NØIR users")
     ChatTab:CreateParagraph({
