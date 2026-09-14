@@ -4,6 +4,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local MarketplaceService = game:GetService("MarketplaceService")
+local InsertService = game:GetService("InsertService")
 local TeleportService = game:GetService("TeleportService")
 local CoreGui = game:GetService("CoreGui")
 
@@ -4477,148 +4478,16 @@ function N0IR:MountUtilities(Window)
         gui = nil,
     }
 
-local BUILTIN_EMOTES = {
-        { name = "Wave", id = "507770239" },
-        { name = "Point", id = "507770453" },
-        { name = "Fall", id = "507767968" },
-        { name = "Jump", id = "507765000" },
-        { name = "Run", id = "507767714" },
-        { name = "Swim", id = "507784897" },
-        { name = "Climb", id = "507765644" },
-        { name = "Dance", id = "507771019" },
-        { name = "Dance2", id = "507776043" },
-        { name = "Dance3", id = "507777268" },
-        { name = "Laugh", id = "507770818" },
-        { name = "Cheer", id = "507770677" },
-        { name = "Sit", id = "507768133" },
-        { name = "ToolSlash", id = "522635514" },
-        { name = "ToolLunge", id = "522638767" },
-        { name = "CrazyLaugh", id = "333344292" },
-        { name = "Curtsy", id = "333343023" },
-        { name = "Twirl", id = "333343245" },
-        { name = "Salute", id = "333343988" },
-        { name = "Shrug", id = "333339232" },
-        { name = "AroundTown", id = "333349950" },
-        { name = "HipHop", id = "333343994" },
-        { name = "Monkey", id = "333349291" },
-        { name = "Greatest", id = "333343637" },
-        { name = "Haha", id = "333338674" },
-        { name = "BunnyHop", id = "333349914" },
-        { name = "Zombie", id = "3489171152" },
-        { name = "Idol", id = "3360692915" },
-        { name = "Fashionable", id = "333343400" },
-        { name = "Robot", id = "333339861" },
-        { name = "Louder", id = "333343473" },
-        { name = "Samba", id = "3360686498" },
-        { name = "RockOn", id = "333343823" },
-        { name = "TopRock", id = "333343104" },
-        { name = "SideToSide", id = "333349214" },
-        { name = "Dolphin", id = "333349294" },
-        { name = "FancyFeet", id = "333349278" },
-        { name = "Floss", id = "333351151" },
-        { name = "Shuffle", id = "333348838" },
-        { name = "Dizzy", id = "333343481" },
-        { name = "BreakDance", id = "333348840" },
-        { name = "Celebrate", id = "333349941" },
-        { name = "Y", id = "333339294" },
-        { name = "Hype Dance", id = "3695333486" },
-        { name = "Fast Hands", id = "333348839" },
-        { name = "Cower", id = "333348835" },
-        { name = "Line Dance", id = "4049037604" },
-        { name = "Superhero Reveal", id = "333343566" },
-        { name = "Godlike", id = "333343334" },
-        { name = "Sneaky", id = "333341797" },
-        { name = "Quiet Waves", id = "7462801995" },
-        { name = "Old Town Road", id = "5937516252" },
-        { name = "Cha Cha", id = "6862294280" },
-        { name = "Orange Justice", id = "3934985183" },
-        { name = "Take The L", id = "333348841" },
-        { name = "Infinite Dab", id = "333343098" },
-        { name = "Boogie Down", id = "333349292" },
-        { name = "Rodeo", id = "5917446587" },
-        { name = "Saturday Night Fever", id = "333343567" },
-        { name = "Sleep", id = "4689362868" },
-        { name = "Backflip", id = "5917459365" },
-        { name = "Boxing", id = "333348837" },
-        { name = "Jumping Wave", id = "333343590" },
-        { name = "Swan Dance", id = "6862257592" },
-        { name = "Dorky Dance", id = "4212493383" },
-        { name = "Baby Queen", id = "6862265097" },
-        { name = "Rock Guitar", id = "333343824" },
-        { name = "Air Guitar", id = "333348836" },
-        { name = "Victory", id = "333343575" },
-        { name = "Confused", id = "333343234" },
-        { name = "Agree", id = "333343044" },
-        { name = "Disagree", id = "333343062" },
-        { name = "Beckon", id = "333343078" },
-        { name = "Bow", id = "333343094" },
-        { name = "Power Moves", id = "5917470852" },
-        { name = "Cobra Arms", id = "333349276" },
-        { name = "Drum Solo", id = "333349280" },
-        { name = "Firework", id = "5917457351" },
-        { name = "Fresh", id = "5917463563" },
-        { name = "Get Out", id = "333348842" },
-        { name = "High Wave", id = "333343589" },
-        { name = "Hugs", id = "333343520" },
-        { name = "Jacks", id = "333349289" },
-        { name = "Keeping Time", id = "333349287" },
-        { name = "Kick It", id = "333349285" },
-        { name = "Majestic", id = "333349283" },
-        { name = "On The Move", id = "333349281" },
-        { name = "Party Time", id = "333349279" },
-        { name = "Showtime", id = "333349277" },
-        { name = "Stadium", id = "333349273" },
-        { name = "Sturdy", id = "333349271" },
-        { name = "Twinkle Toes", id = "333349269" },
-        { name = "Up And Down", id = "333349267" },
-        { name = "Wake Up", id = "333349265" },
-        { name = "Whisper", id = "333349263" },
-        { name = "Yawn", id = "333349261" },
-        { name = "Boom Boom Clap", id = "5917469349" },
-        { name = "Caffeinated", id = "6862276475" },
-        { name = "Frosty Flair", id = "7462822418" },
-        { name = "Hot Chocolate", id = "7462830000" },
-        { name = "Jubilation", id = "5917473125" },
-        { name = "Moon Dance", id = "6862285670" },
-        { name = "Ninja Flip", id = "5917475890" },
-        { name = "Panther Stance", id = "6862291000" },
-        { name = "Parisian", id = "6862298000" },
-        { name = "Pop Dance", id = "5917480000" },
-        { name = "Sippin'", id = "6862305000" },
-        { name = "Smooth Moves", id = "6862309000" },
-        { name = "SpongeBob", id = "6862312000" },
-        { name = "Tweak Peak", id = "6862318000" },
-        { name = "Vibin'", id = "6862321000" },
-        { name = "Wake Up Call", id = "6862324000" },
-        { name = "Whirlwind", id = "6862327000" },
-        { name = "X Marks", id = "6862330000" },
-        { name = "Yoga", id = "6862333000" },
-        { name = "Zoomies", id = "6862336000" },
-        { name = "Alo Yoga Pose", id = "6862339000" },
-        { name = "Applaud", id = "5917485000" },
-        { name = "Arm Wave", id = "5917488000" },
-        { name = "Batsy", id = "6862345000" },
-        { name = "Bodybuilder", id = "333343500" },
-        { name = "Bon Voyage", id = "6862351000" },
-        { name = "Cabbage Patch", id = "6862357000" },
-        { name = "Chicken Dance", id = "6862360000" },
-        { name = "Clap Dance", id = "6862363000" },
-        { name = "Festive Dance", id = "6862375000" },
-        { name = "Floating Z", id = "6862378000" },
-        { name = "Hokey Pokey", id = "6862390000" },
-        { name = "Holiday Dance", id = "6862393000" },
-        { name = "Jiggy", id = "6862399000" },
-        { name = "Kabaya", id = "6862402000" },
-        { name = "Lagwagon", id = "6862405000" },
-        { name = "Macarena", id = "6862408000" },
-        { name = "Mambo", id = "6862411000" },
-        { name = "Mic Up", id = "6862414000" },
-        { name = "Moonwalk", id = "6862417000" },
-        { name = "Naruto Run", id = "6862420000" },
-        { name = "Paper", id = "6862432000" },
-        { name = "Raise The Roof", id = "6862441000" },
-        { name = "Toast", id = "6862471000" },
-        { name = "UFO", id = "6862474000" },
+    -- Verified Roblox default emote animation IDs. These are animation assets, not Marketplace item IDs.
+    -- Roblox documents emotes as Animation assets, and the default R15 Animate set uses these IDs.
+    local BUILTIN_EMOTES = {
+        { name = "Wave", id = "507770239", kind = "builtin" },
+        { name = "Point", id = "507770453", kind = "builtin" },
+        { name = "Dance", id = "507771019", kind = "builtin" },
+        { name = "Dance 2", id = "507776043", kind = "builtin" },
+        { name = "Dance 3", id = "507777268", kind = "builtin" },
+        { name = "Laugh", id = "507770818", kind = "builtin" },
+        { name = "Cheer", id = "507770677", kind = "builtin" },
     }
 
     local function emoteLoad()
@@ -4796,46 +4665,86 @@ local BUILTIN_EMOTES = {
         return nil
     end
 
+    -- Marketplace IDs and animation IDs are different for UGC emotes.
+    -- We keep the Marketplace/catalog ID in the browser and resolve the embedded
+    -- Animation asset only when the user actually presses Play.
+    local ugcAnimationCache = {}
+    local ugcResolveBusy = {}
+
+    local function resolveUGCAnimationId(catalogId)
+        catalogId = tonumber(catalogId)
+        if not catalogId then return nil end
+        if ugcAnimationCache[catalogId] then return ugcAnimationCache[catalogId] end
+        if ugcResolveBusy[catalogId] then return nil end
+        ugcResolveBusy[catalogId] = true
+
+        local resolved
+        pcall(function()
+            if not InsertService or not InsertService.LoadAsset then return end
+            local asset = InsertService:LoadAsset(catalogId)
+            if asset then
+                for _, d in ipairs(asset:GetDescendants()) do
+                    if d:IsA("Animation") then
+                        local aid = tostring(d.AnimationId or "")
+                        local digits = aid:match("(%d+)")
+                        if digits then
+                            resolved = digits
+                            break
+                        end
+                    end
+                end
+                pcall(function() asset:Destroy() end)
+            end
+        end)
+
+        ugcResolveBusy[catalogId] = nil
+        if resolved then ugcAnimationCache[catalogId] = resolved end
+        return resolved
+    end
+
     local function fetchCatalogPage(cursor)
-        -- Roblox catalog search for Emotes category
+        -- Search specifically for Avatar Emote assets. The returned `id` is the
+        -- Marketplace item ID; it must not be passed directly to LoadAnimation.
         local url = "https://catalog.roblox.com/v1/search/items?category=Emotes&limit=30&sortType=3&sortOrder=Desc"
         if cursor and cursor ~= "" then
             url = url .. "&cursor=" .. HttpService:UrlEncode(tostring(cursor))
         end
         local data = httpGetJson(url)
         if not data or type(data.data) ~= "table" then
-            -- fallback keyword search
             url = "https://catalog.roblox.com/v1/search/items?keyword=emote&category=Emotes&limit=30"
             if cursor and cursor ~= "" then
                 url = url .. "&cursor=" .. HttpService:UrlEncode(tostring(cursor))
             end
             data = httpGetJson(url)
         end
+
         local items = {}
         local nextCursor = data and data.nextPageCursor or nil
         if data and type(data.data) == "table" then
-            local ids = {}
             for _, it in ipairs(data.data) do
-                local id = it.id or it.itemId
-                if id then table.insert(ids, tonumber(id) or id) end
-            end
-            if #ids > 0 then
-                local batch = table.concat((function()
-                    local t = {}
-                    for _, id in ipairs(ids) do table.insert(t, tostring(id)) end
-                    return t
-                end)(), ",")
-                local details = httpGetJson("https://catalog.roblox.com/v1/catalog/items/details")
-                -- POST details preferred; GET may not work — try marketplace product info one by one limited
-                for _, id in ipairs(ids) do
-                    local name = "Emote " .. tostring(id)
+                local id = tonumber(it.id or it.itemId)
+                if id then
+                    local name = tostring(it.name or ("Emote " .. id))
+                    -- Confirm the marketplace asset really is an emote when possible.
+                    local isEmote = true
                     pcall(function()
-                        local info = MarketplaceService:GetProductInfo(tonumber(id))
-                        if info and info.Name then name = info.Name end
+                        local info = MarketplaceService:GetProductInfo(id)
+                        if info and info.AssetTypeId and tonumber(info.AssetTypeId) ~= 61 then
+                            isEmote = false
+                        elseif info and info.Name then
+                            name = info.Name
+                        end
                     end)
-                    table.insert(items, { name = name, id = tostring(id) })
-                    if #items >= 30 then break end
+                    if isEmote then
+                        table.insert(items, {
+                            name = name,
+                            id = tostring(id),
+                            catalogId = tostring(id),
+                            kind = "ugc",
+                        })
+                    end
                 end
+                if #items >= 30 then break end
             end
         end
         return items, nextCursor
@@ -5102,8 +5011,32 @@ local BUILTIN_EMOTES = {
             end
         end
 
+        local function playEntry(entry)
+            if type(entry) ~= "table" then return false end
+            if entry.kind == "ugc" or entry.catalogId then
+                local catalogId = tonumber(entry.catalogId or entry.id)
+                if not catalogId then
+                    N0IR:Notify({ Title = "Emotes", Content = "Invalid UGC emote ID", Duration = 2 })
+                    return false
+                end
+                N0IR:Notify({ Title = "Emotes", Content = "Resolving UGC animation…", Duration = 1.5 })
+                local animationId = resolveUGCAnimationId(catalogId)
+                if not animationId then
+                    N0IR:Notify({
+                        Title = "Emotes",
+                        Content = "Roblox did not expose the emote's AnimationId",
+                        Duration = 3,
+                    })
+                    return false
+                end
+                return playEmoteId(animationId)
+            end
+            return playEmoteId(entry.id)
+        end
+
         local function addRow(entry)
             local id = tostring(entry.id)
+            local key = entry.kind == "ugc" and ("ugc:" .. id) or id
             local name = tostring(entry.name or id)
             local row = Instance.new("Frame")
             row.Size = UDim2.new(1, -4, 0, 40)
@@ -5143,12 +5076,12 @@ local BUILTIN_EMOTES = {
             favBtn.BorderSizePixel = 0
             favBtn.Font = Enum.Font.GothamBold
             favBtn.TextSize = 12
-            favBtn.TextColor3 = isFav(id) and T.accent or T.text3
-            favBtn.Text = isFav(id) and "★" or "☆"
+            favBtn.TextColor3 = isFav(key) and T.accent or T.text3
+            favBtn.Text = isFav(key) and "★" or "☆"
             favBtn.Parent = row
             Instance.new("UICorner", favBtn).CornerRadius = UDim.new(0, 5)
             favBtn.MouseButton1Click:Connect(function()
-                local on = toggleFav(id)
+                local on = toggleFav(key)
                 favBtn.Text = on and "★" or "☆"
                 favBtn.TextColor3 = on and T.accent or T.text3
             end)
@@ -5166,22 +5099,31 @@ local BUILTIN_EMOTES = {
             go.Parent = row
             Instance.new("UICorner", go).CornerRadius = UDim.new(0, 5)
             go.MouseButton1Click:Connect(function()
-                playEmoteId(id)
+                playEntry(entry)
             end)
         end
 
         local function sourceList()
             if activeTab == "fav" then
                 local out = {}
-                for _, id in ipairs(emoteState.favs) do
-                    local name = id
-                    for _, e in ipairs(BUILTIN_EMOTES) do
-                        if e.id == tostring(id) then name = e.name break end
+                for _, favKey in ipairs(emoteState.favs) do
+                    local found
+                    local key = tostring(favKey)
+                    if key:sub(1, 4) == "ugc:" then
+                        local id = key:sub(5)
+                        for _, e in ipairs(catalogItems) do
+                            if tostring(e.id) == id then found = e break end
+                        end
+                        if not found then
+                            found = { name = "UGC Emote " .. id, id = id, catalogId = id, kind = "ugc" }
+                        end
+                    else
+                        for _, e in ipairs(BUILTIN_EMOTES) do
+                            if e.id == key then found = e break end
+                        end
+                        if not found then found = { name = key, id = key, kind = "builtin" } end
                     end
-                    for _, e in ipairs(catalogItems) do
-                        if e.id == tostring(id) then name = e.name break end
-                    end
-                    table.insert(out, { name = name, id = tostring(id) })
+                    table.insert(out, found)
                 end
                 return out
             elseif activeTab == "catalog" then
