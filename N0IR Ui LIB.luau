@@ -9007,7 +9007,30 @@ function N0IR:CreateWatermark(window)
     bar.BorderSizePixel = 0
     bar.Parent = gui
     corner(bar, 8)
-    stroke(bar, T.border, 1, 0.35)
+    local barStroke = stroke(bar, T.border, 1, 0.35)
+
+    -- Lightweight watermark motion: one intro tween, plus event-driven hover/click
+    -- tweens. Nothing runs every frame, so the watermark stays cheap.
+    local barScale = Instance.new("UIScale")
+    barScale.Scale = 0.94
+    barScale.Parent = bar
+    bar.BackgroundTransparency = 1
+    if barStroke then
+        barStroke.Transparency = 1
+    end
+
+    local function tweenGui(obj, props, duration, style, direction)
+        local info = TweenInfo.new(duration or 0.16, style or Enum.EasingStyle.Quad, direction or Enum.EasingDirection.Out)
+        local t = TweenService:Create(obj, info, props)
+        t:Play()
+        return t
+    end
+
+    tweenGui(barScale, { Scale = 1 }, 0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    tweenGui(bar, { BackgroundTransparency = 0.12 }, 0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    if barStroke then
+        tweenGui(barStroke, { Transparency = 0.35 }, 0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    end
 
     local logo = Instance.new("ImageLabel")
     logo.BackgroundTransparency = 1
@@ -9043,6 +9066,23 @@ function N0IR:CreateWatermark(window)
     tagBtn.Parent = bar
     corner(tagBtn, 6)
 
+    local function styleHover(btn, baseColor, hoverColor)
+        btn.MouseEnter:Connect(function()
+            tweenGui(btn, { BackgroundColor3 = hoverColor }, 0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        end)
+        btn.MouseLeave:Connect(function()
+            tweenGui(btn, { BackgroundColor3 = baseColor() }, 0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        end)
+        btn.MouseButton1Down:Connect(function()
+            tweenGui(btn, { Size = UDim2.fromOffset(btn.Size.X.Offset - 2, btn.Size.Y.Offset - 2) }, 0.07, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        end)
+        btn.MouseButton1Up:Connect(function()
+            tweenGui(btn, { Size = UDim2.fromOffset(btn.Size.X.Offset + 2, btn.Size.Y.Offset + 2) }, 0.09, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+        end)
+    end
+
+    styleHover(menuBtn, function() return T.bg3 end, T.bg2)
+
     local function refreshTagBtn(forcedState)
         local on
         if forcedState ~= nil then
@@ -9055,10 +9095,28 @@ function N0IR:CreateWatermark(window)
         tagBtn.TextColor3 = on and Color3.fromRGB(10, 10, 10) or T.text
     end
 
+    local tagHoverTweenColor = T.bg2
+    tagBtn.MouseEnter:Connect(function()
+        local on = _G._N0IR_ShowSelfTag and true or false
+        tweenGui(tagBtn, { BackgroundColor3 = on and T.accent or tagHoverTweenColor }, 0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    end)
+    tagBtn.MouseLeave:Connect(function()
+        local on = _G._N0IR_ShowSelfTag and true or false
+        tweenGui(tagBtn, { BackgroundColor3 = on and T.accent or T.bg3 }, 0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    end)
+
     local function setWatermarkTagState(on)
         on = on and true or false
         refreshTagBtn(on)
         _G._N0IR_ShowSelfTag = on
+        if on then
+            tweenGui(barStroke, { Transparency = 0.05 }, 0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            task.delay(0.13, function()
+                if gui and gui.Parent and barStroke and barStroke.Parent then
+                    tweenGui(barStroke, { Transparency = 0.35 }, 0.24, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                end
+            end)
+        end
     end
 
     local initialTagState
