@@ -996,23 +996,24 @@ local function validateKey(key)
     }) or { success = false, message = "Server error" }
 end
 
--- nametag system (multi-user)
--- on key validate the API stores userId -> tag/rank/color
--- clients poll /api/nametags and only show tags for real N0IR key users
+--[[
+  NØIR Nametag System v2
+  1:1 with Nametag Studio (Near rectangular pill + Far circular brand)
+  Supports: GIF (spritesheet flipbook), VideoFrame, custom colors, width, pfp, bg, brand
+]]
+
 local Nametag = {
-    Folder = nil,
-    Tags = {},          -- [Player] = BillboardGui
-    PlayerData = {},    -- [UserId string] = style data
-    MyData = nil,
-    ShowSelf = true,    -- show your own tag
-    ShowOthers = true,  -- show other NØIR script users' tags
-    RefreshSeconds = 12,
-    _refreshing = false,
-    _started = false,
+	Folder = nil,
+	Tags = {},          -- [Player] = { bb = BillboardGui, near = Frame, far = Frame, conn = RBXScriptConnection }
+	PlayerData = {},    -- [UserId string] = style data
+	MyData = nil,
+	ShowSelf = true,
+	ShowOthers = true,
+	RefreshSeconds = 12,
+	_refreshing = false,
+	_started = false,
 }
 
--- 1:1 with Nametag Studio (Roblox-only properties)
--- Tree: BillboardGui > Root > Pill(Frame+UIStroke+UICorner[+UIGradient]) > Icon/Dot + Tag[+UIGradient] > Name > Rank
 local DEFAULT_TAG = "NØIR"
 local DEFAULT_COLOR = "#FFFFFF"
 
@@ -1020,628 +1021,632 @@ local _N0IR_ImgCache = _G._N0IR_ImgCache or {}
 _G._N0IR_ImgCache = _N0IR_ImgCache
 
 local FONT_MAP = {
-    Gotham = Enum.Font.Gotham, GothamMedium = Enum.Font.GothamMedium,
-    GothamBold = Enum.Font.GothamBold, GothamBlack = Enum.Font.GothamBlack,
-    GothamSemibold = Enum.Font.GothamSemibold,
-    SourceSans = Enum.Font.SourceSans, SourceSansBold = Enum.Font.SourceSansBold,
-    SourceSansSemibold = Enum.Font.SourceSansSemibold, SourceSansLight = Enum.Font.SourceSansLight,
-    SourceSansItalic = Enum.Font.SourceSansItalic,
-    Roboto = Enum.Font.Roboto, RobotoCondensed = Enum.Font.RobotoCondensed,
-    RobotoMono = Enum.Font.RobotoMono, Arcade = Enum.Font.Arcade, Bodoni = Enum.Font.Bodoni,
-    Garamond = Enum.Font.Garamond, Cartoon = Enum.Font.Cartoon, Code = Enum.Font.Code,
-    Highway = Enum.Font.Highway, SciFi = Enum.Font.SciFi, Fantasy = Enum.Font.Fantasy,
-    Antique = Enum.Font.Antique, Legacy = Enum.Font.Legacy, AmaticSC = Enum.Font.AmaticSC,
-    Bangers = Enum.Font.Bangers, Creepster = Enum.Font.Creepster, DenkOne = Enum.Font.DenkOne,
-    Fondamento = Enum.Font.Fondamento, FredokaOne = Enum.Font.FredokaOne,
-    GrenzeGotisch = Enum.Font.GrenzeGotisch, IndieFlower = Enum.Font.IndieFlower,
-    JosefinSans = Enum.Font.JosefinSans, Jura = Enum.Font.Jura, Kalam = Enum.Font.Kalam,
-    LuckiestGuy = Enum.Font.LuckiestGuy, Merriweather = Enum.Font.Merriweather,
-    Michroma = Enum.Font.Michroma, Nunito = Enum.Font.Nunito, Oswald = Enum.Font.Oswald,
-    PatrickHand = Enum.Font.PatrickHand, PermanentMarker = Enum.Font.PermanentMarker,
-    Sarpanch = Enum.Font.Sarpanch, SpecialElite = Enum.Font.SpecialElite,
-    TitilliumWeb = Enum.Font.TitilliumWeb, Ubuntu = Enum.Font.Ubuntu,
+	Gotham = Enum.Font.Gotham, GothamMedium = Enum.Font.GothamMedium,
+	GothamBold = Enum.Font.GothamBold, GothamBlack = Enum.Font.GothamBlack,
+	GothamSemibold = Enum.Font.GothamSemibold,
+	SourceSans = Enum.Font.SourceSans, SourceSansBold = Enum.Font.SourceSansBold,
+	SourceSansSemibold = Enum.Font.SourceSansSemibold, SourceSansLight = Enum.Font.SourceSansLight,
+	SourceSansItalic = Enum.Font.SourceSansItalic,
+	Roboto = Enum.Font.Roboto, RobotoCondensed = Enum.Font.RobotoCondensed,
+	RobotoMono = Enum.Font.RobotoMono, Arcade = Enum.Font.Arcade, Bodoni = Enum.Font.Bodoni,
+	Garamond = Enum.Font.Garamond, Cartoon = Enum.Font.Cartoon, Code = Enum.Font.Code,
+	Highway = Enum.Font.Highway, SciFi = Enum.Font.SciFi, Fantasy = Enum.Font.Fantasy,
+	Antique = Enum.Font.Antique, Legacy = Enum.Font.Legacy, AmaticSC = Enum.Font.AmaticSC,
+	Bangers = Enum.Font.Bangers, Creepster = Enum.Font.Creepster, DenkOne = Enum.Font.DenkOne,
+	Fondamento = Enum.Font.Fondamento, FredokaOne = Enum.Font.FredokaOne,
+	GrenzeGotisch = Enum.Font.GrenzeGotisch, IndieFlower = Enum.Font.IndieFlower,
+	JosefinSans = Enum.Font.JosefinSans, Jura = Enum.Font.Jura, Kalam = Enum.Font.Kalam,
+	LuckiestGuy = Enum.Font.LuckiestGuy, Merriweather = Enum.Font.Merriweather,
+	Michroma = Enum.Font.Michroma, Nunito = Enum.Font.Nunito, Oswald = Enum.Font.Oswald,
+	PatrickHand = Enum.Font.PatrickHand, PermanentMarker = Enum.Font.PermanentMarker,
+	Sarpanch = Enum.Font.Sarpanch, SpecialElite = Enum.Font.SpecialElite,
+	TitilliumWeb = Enum.Font.TitilliumWeb, Ubuntu = Enum.Font.Ubuntu,
 }
 
 local function fontOf(n, fb)
-    return FONT_MAP[tostring(n or "")] or fb or Enum.Font.GothamBold
+	return FONT_MAP[tostring(n or "")] or fb or Enum.Font.GothamBold
 end
 
 local function getHost()
-    return LocalPlayer:FindFirstChildOfClass("PlayerGui") or CoreGui
+	return LocalPlayer:FindFirstChildOfClass("PlayerGui") or CoreGui
 end
 
 local function hexToColor3(hex)
-    hex = tostring(hex or "#FFFFFF"):gsub("#", "")
-    if #hex ~= 6 then return Color3.new(1, 1, 1) end
-    return Color3.fromRGB(
-        tonumber(hex:sub(1, 2), 16) or 255,
-        tonumber(hex:sub(3, 4), 16) or 255,
-        tonumber(hex:sub(5, 6), 16) or 255
-    )
+	hex = tostring(hex or "#FFFFFF"):gsub("#", "")
+	if #hex ~= 6 then return Color3.new(1, 1, 1) end
+	return Color3.fromRGB(
+		tonumber(hex:sub(1, 2), 16) or 255,
+		tonumber(hex:sub(3, 4), 16) or 255,
+		tonumber(hex:sub(5, 6), 16) or 255
+	)
 end
 
 local function httpGetBinary(url)
-    local data
-    pcall(function()
-        if request then
-            local r = request({ Url = url, Method = "GET" })
-            if r and r.Body and #r.Body > 32 then data = r.Body end
-        elseif syn and syn.request then
-            local r = syn.request({ Url = url, Method = "GET" })
-            if r and r.Body and #r.Body > 32 then data = r.Body end
-        end
-    end)
-    if not data then
-        pcall(function()
-            local d = game:HttpGet(url)
-            if d and #d > 32 then data = d end
-        end)
-    end
-    return data
+	local data
+	pcall(function()
+		if request then
+			local r = request({ Url = url, Method = "GET" })
+			if r and r.Body and #r.Body > 32 then data = r.Body end
+		elseif syn and syn.request then
+			local r = syn.request({ Url = url, Method = "GET" })
+			if r and r.Body and #r.Body > 32 then data = r.Body end
+		end
+	end)
+	if not data then
+		pcall(function()
+			local d = game:HttpGet(url)
+			if d and #d > 32 then data = d end
+		end)
+	end
+	return data
 end
 
 local function resolveImageAsset(url, allowDisk)
-    if type(url) ~= "string" or url == "" then return nil end
-    url = url:gsub("^%s+", ""):gsub("%s+$", "")
-    if url == "" then return nil end
-    if url:find("^rbxasset") or url:find("^rbxthumb") then return url end
-    if _N0IR_ImgCache[url] then return _N0IR_ImgCache[url] end
-    if allowDisk then
-        local h = 0
-        for i = 1, #url do h = (h * 31 + string.byte(url, i)) % 2147483647 end
-        local path = "N0IR/MyTagImg_" .. h .. ".img"
-        local asset
-        pcall(function()
-            if isfolder and not isfolder("N0IR") then makefolder("N0IR") end
-            local onDisk = isfile and isfile(path)
-            if not onDisk then
-                local bin = httpGetBinary(url)
-                if bin and writefile then writefile(path, bin) onDisk = true end
-            end
-            if onDisk and getcustomasset then
-                local ok, a = pcall(getcustomasset, path)
-                if ok and type(a) == "string" and a ~= "" then asset = a end
-            end
-        end)
-        if asset then _N0IR_ImgCache[url] = asset return asset end
-    end
-    _N0IR_ImgCache[url] = url
-    return url
+	if type(url) ~= "string" or url == "" then return nil end
+	url = url:gsub("^%s+", ""):gsub("%s+$", "")
+	if url == "" then return nil end
+	if url:find("^rbxasset") or url:find("^rbxthumb") or url:find("^http://www.roblox.com/asset") then
+		return url
+	end
+	if _N0IR_ImgCache[url] then return _N0IR_ImgCache[url] end
+	if allowDisk then
+		local h = 0
+		for i = 1, #url do h = (h * 31 + string.byte(url, i)) % 2147483647 end
+		local path = "N0IR/MyTagImg_" .. h .. ".img"
+		local asset
+		pcall(function()
+			if isfolder and not isfolder("N0IR") then makefolder("N0IR") end
+			local onDisk = isfile and isfile(path)
+			if not onDisk then
+				local bin = httpGetBinary(url)
+				if bin and writefile then writefile(path, bin) onDisk = true end
+			end
+			if onDisk and getcustomasset then
+				local ok, a = pcall(getcustomasset, path)
+				if ok and type(a) == "string" and a ~= "" then asset = a end
+			end
+		end)
+		if asset then _N0IR_ImgCache[url] = asset return asset end
+	end
+	_N0IR_ImgCache[url] = url
+	return url
 end
 
-local function applyPfp(img, userId)
-    if not img or not img.Parent then return end
-    userId = tonumber(userId) or 0
-    if userId <= 0 then return end
-    local thumb = string.format("rbxthumb://type=AvatarHeadShot&id=%d&w=150&h=150", userId)
-    local http = string.format("https://www.roblox.com/headshot-thumbnail/image?userId=%d&width=150&height=150&format=png", userId)
-    img.Image = thumb
-    task.delay(0.2, function()
-        if img and img.Parent then img.Image = http end
-    end)
-    task.spawn(function()
-        local body = httpGetBinary(string.format(
-            "https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=%d&size=150x150&format=Png&isCircular=false",
-            userId
-        ))
-        if not body then return end
-        local s = type(body) == "string" and body or tostring(body)
-        local u = s:match('"imageUrl"%s*:%s*"(.-)"')
-        if u and u ~= "" and img and img.Parent then
-            img.Image = u:gsub("\\u0026", "&"):gsub("\\/", "/")
-        end
-    end)
+-- Simple spritesheet / GIF flipbook animator for ImageLabels
+local function startFlipbook(img, opts)
+	if not img or not img.Parent then return nil end
+	opts = opts or {}
+	local frames = opts.frames or 1
+	local cols = opts.cols or frames
+	local rows = opts.rows or 1
+	local fps = opts.fps or 12
+	local frameW = opts.frameW or (img.AbsoluteSize.X > 0 and img.AbsoluteSize.X or 64)
+	local frameH = opts.frameH or frameW
+
+	-- If no frame data, just show the image (static or engine-handled)
+	if frames <= 1 and not opts.force then
+		return nil
+	end
+
+	local idx = 0
+	local conn
+	conn = game:GetService("RunService").Heartbeat:Connect(function()
+		if not img or not img.Parent then
+			if conn then conn:Disconnect() end
+			return
+		end
+		idx = (idx + 1) % frames
+		local col = idx % cols
+		local row = math.floor(idx / cols)
+		img.ImageRectSize = Vector2.new(frameW, frameH)
+		img.ImageRectOffset = Vector2.new(col * frameW, row * frameH)
+	end)
+	-- better timed version
+	task.spawn(function()
+		while img and img.Parent do
+			idx = (idx + 1) % frames
+			local col = idx % cols
+			local row = math.floor(idx / cols)
+			img.ImageRectSize = Vector2.new(frameW, frameH)
+			img.ImageRectOffset = Vector2.new(col * frameW, row * frameH)
+			task.wait(1 / fps)
+		end
+		if conn then conn:Disconnect() end
+	end)
+	return true
 end
 
 local function resolveStyle(data)
-    data = data or {}
-    local st = type(data.style) == "table" and data.style or {}
-    local function pick(k, d)
-        local v = st[k]
-        if v == nil then v = data[k] end
-        if v == nil then return d end
-        return v
-    end
+	data = data or {}
+	local style = type(data.style) == "table" and data.style or {}
+	local function pick(k, def)
+		if style[k] ~= nil then return style[k] end
+		if data[k] ~= nil then return data[k] end
+		return def
+	end
 
-    local rank = tostring(data.rank or st.rank or "User")
-    local tag = st.tag or data.tag
-    local hasCustom = tag and tag ~= "" and tag ~= rank
-    if not hasCustom then tag = DEFAULT_TAG end
+	local textColor = hexToColor3(pick("textColor", pick("color", DEFAULT_COLOR)))
+	local tagColor = hexToColor3(pick("tagColor", "#A0A0A0"))
+	local outlineColor = hexToColor3(pick("outlineColor", pick("stroke", "#FF0000")))
+	local textOutlineColor = hexToColor3(pick("textOutlineColor", "#000000"))
 
-    local c1 = st.tagColor or data.color or data.tagColor
-    if not hasCustom then c1 = DEFAULT_COLOR
-    elseif not c1 or c1 == "" then c1 = DEFAULT_COLOR end
-    local c2 = st.tagColor2 or c1
-
-    local textGradient = pick("textGradient", false) == true
-    local textFade = pick("textFade", false) == true
-    -- if studio saved two different colors, treat as gradient (1:1 with preview default)
-    if not textGradient and tostring(c1):upper() ~= tostring(c2):upper() then
-        textGradient = true
-    end
-
-    local prefix = tostring(pick("prefix", "") or "")
-    local suffix = tostring(pick("suffix", "") or "")
-
-    return {
-        tag = prefix .. tag .. suffix,
-        rank = rank,
-        color = hexToColor3(c1),
-        color2 = hexToColor3(c2),
-        stroke = hexToColor3(pick("strokeColor", hasCustom and c1 or "#FFFFFF")),
-        strokeThickness = tonumber(pick("strokeThickness", 1.2)) or 1.2,
-        strokeTransparency = tonumber(pick("strokeTransparency", 0.05)) or 0.05,
-        pillBg = hexToColor3(pick("pillBg", "#0C0C0C")),
-        pillBg2 = hexToColor3(pick("pillBg2", "#1A1A1A")),
-        pillTransparency = tonumber(pick("pillTransparency", 0.15)) or 0.15,
-        pillHeight = tonumber(pick("pillHeight", 28)) or 28,
-        cornerRadius = tonumber(pick("cornerRadius", 8)) or 8,
-        paddingX = tonumber(pick("paddingX", 10)) or 10,
-        paddingY = tonumber(pick("paddingY", 4)) or 4,
-        gap = tonumber(pick("gap", 6)) or 6,
-        textSize = tonumber(pick("textSize", 12)) or 12,
-        scale = tonumber(pick("scale", 1)) or 1,
-        offsetY = tonumber(pick("offsetY", 3.15)) or 3.15,
-        maxDistance = tonumber(pick("maxDistance", 180)) or 180,
-        showDot = pick("showDot", true) ~= false,
-        showName = pick("showName", true) ~= false,
-        showRank = pick("showRank", false) == true,
-        glow = pick("glow", false) == true,
-        glowStrength = tonumber(pick("glowStrength", 2)) or 2,
-        nameColor = hexToColor3(pick("nameColor", "#DCDCDC")),
-        rankColor = hexToColor3(pick("rankColor", "#8C8C8C")),
-        nameSize = tonumber(pick("nameSize", 11)) or 11,
-        rankSize = tonumber(pick("rankSize", 9)) or 9,
-        font = fontOf(pick("font", "GothamBold"), Enum.Font.GothamBold),
-        nameFont = fontOf(pick("nameFont", "GothamMedium"), Enum.Font.GothamMedium),
-        textStroke = pick("textStroke", true) ~= false,
-        textStrokeTransparency = tonumber(pick("textStrokeTransparency", 0.7)) or 0.7,
-        textStrokeColor = hexToColor3(pick("textStrokeColor", "#000000")),
-        textGradient = textGradient,
-        textFade = textFade,
-        gradientRotation = tonumber(pick("gradientRotation", 0)) or 0,
-        fadeSpeed = tonumber(pick("fadeSpeed", 1.2)) or 1.2,
-        pillGradient = pick("pillGradient", false) == true,
-        iconType = tostring(pick("iconType", "none") or "none"):lower(),
-        iconUrl = tostring(pick("iconUrl", "") or ""),
-        iconSize = tonumber(pick("iconSize", 18)) or 18,
-        pfpSize = tonumber(pick("pfpSize", 18)) or 18,
-        bgImageUrl = tostring(pick("bgImageUrl", "") or ""),
-        bgTransparency = tonumber(pick("bgTransparency", 0.4)) or 0.4,
-        bob = pick("bob", false) == true,
-        bobSpeed = tonumber(pick("bobSpeed", 1.5)) or 1.5,
-        bobAmount = tonumber(pick("bobAmount", 0.12)) or 0.12,
-        pulse = pick("pulse", false) == true,
-        alwaysOnTop = pick("alwaysOnTop", true) ~= false,
-        dotSize = tonumber(pick("dotSize", 7)) or 7,
-    }
-end
-
-function Nametag:Create(player, data)
-    if not player or not player.Parent then return end
-    if player == LocalPlayer then
-        if not self.ShowSelf then return end
-    else
-        if not self.ShowOthers then return end
-    end
-    self:Remove(player)
-
-    local char = player.Character
-    if not char then return end
-    local head = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
-    if not head then return end
-
-    if not self.Folder or not self.Folder.Parent then
-        self.Folder = Instance.new("Folder")
-        self.Folder.Name = "N0IR_Nametags"
-        self.Folder.Parent = getHost()
-    end
-
-    local S = resolveStyle(data)
-    local isSelf = player == LocalPlayer
-    local sc = math.clamp(S.scale, 0.7, 1.6)
-
-    local stackH = S.pillHeight
-    if S.showName then stackH = stackH + 6 + 16 end
-    if S.showRank then stackH = stackH + 4 + 12 end
-
-    local bb = Instance.new("BillboardGui")
-    bb.Name = "N0IR_Tag_" .. player.Name
-    bb.Adornee = head
-    bb.AlwaysOnTop = S.alwaysOnTop
-    bb.Size = UDim2.fromOffset(math.floor(320 * sc), math.floor((stackH + 16) * sc))
-    bb.StudsOffset = Vector3.new(0, S.offsetY, 0)
-    bb.MaxDistance = S.maxDistance
-    bb.Parent = self.Folder
-
-    local root = Instance.new("Frame")
-    root.Name = "Root"
-    root.BackgroundTransparency = 1
-    root.Size = UDim2.fromScale(1, 1)
-    root.Parent = bb
-
-    local uiScale = Instance.new("UIScale")
-    uiScale.Scale = sc
-    uiScale.Parent = root
-
-    local vlist = Instance.new("UIListLayout")
-    vlist.FillDirection = Enum.FillDirection.Vertical
-    vlist.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    vlist.VerticalAlignment = Enum.VerticalAlignment.Top
-    vlist.Padding = UDim.new(0, 6)
-    vlist.SortOrder = Enum.SortOrder.LayoutOrder
-    vlist.Parent = root
-
-    -- optional bg image behind stack
-    if S.bgImageUrl ~= "" then
-        local bg = Instance.new("ImageLabel")
-        bg.Name = "Bg"
-        bg.BackgroundTransparency = 1
-        bg.Size = UDim2.fromOffset(220, stackH + 8)
-        bg.ImageTransparency = S.bgTransparency
-        bg.ScaleType = Enum.ScaleType.Crop
-        bg.ZIndex = 0
-        bg.LayoutOrder = 0
-        bg.Parent = root
-        Instance.new("UICorner", bg).CornerRadius = UDim.new(0, 10)
-        bg.Image = S.bgImageUrl
-        task.spawn(function()
-            local a = resolveImageAsset(S.bgImageUrl, isSelf)
-            if a and bg.Parent then bg.Image = a end
-        end)
-    end
-
-    -- PILL
-    local pill = Instance.new("Frame")
-    pill.Name = "Pill"
-    pill.AutomaticSize = Enum.AutomaticSize.X
-    pill.Size = UDim2.fromOffset(0, S.pillHeight)
-    pill.BackgroundColor3 = S.pillBg
-    pill.BackgroundTransparency = S.pillTransparency
-    pill.BorderSizePixel = 0
-    pill.ZIndex = 2
-    pill.LayoutOrder = 1
-    pill.Parent = root
-    Instance.new("UICorner", pill).CornerRadius = UDim.new(0, S.cornerRadius)
-
-    if S.pillGradient then
-        pill.BackgroundColor3 = Color3.new(1, 1, 1)
-        local pg = Instance.new("UIGradient")
-        pg.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, S.pillBg),
-            ColorSequenceKeypoint.new(1, S.pillBg2),
-        })
-        pg.Rotation = 90
-        pg.Parent = pill
-    end
-
-    local stroke = Instance.new("UIStroke")
-    stroke.Color = S.stroke
-    stroke.Thickness = S.strokeThickness
-    stroke.Transparency = S.strokeTransparency
-    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    stroke.Parent = pill
-
-    if S.glow then
-        local g = Instance.new("UIStroke")
-        g.Name = "Glow"
-        g.Color = S.color
-        g.Thickness = S.strokeThickness + S.glowStrength
-        g.Transparency = 0.55
-        g.Parent = pill
-    end
-
-    local pad = Instance.new("UIPadding")
-    pad.PaddingLeft = UDim.new(0, S.paddingX)
-    pad.PaddingRight = UDim.new(0, S.paddingX)
-    pad.PaddingTop = UDim.new(0, S.paddingY)
-    pad.PaddingBottom = UDim.new(0, S.paddingY)
-    pad.Parent = pill
-
-    local row = Instance.new("UIListLayout")
-    row.FillDirection = Enum.FillDirection.Horizontal
-    row.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    row.VerticalAlignment = Enum.VerticalAlignment.Center
-    row.Padding = UDim.new(0, S.gap)
-    row.Parent = pill
-
-    local showMedia = false
-    local mediaSize = S.iconSize
-    if S.iconType == "pfp" then
-        showMedia, mediaSize = true, S.pfpSize
-    elseif (S.iconType == "custom" or S.iconType == "gif") and S.iconUrl ~= "" then
-        showMedia, mediaSize = true, S.iconSize
-    end
-
-    if showMedia then
-        local icon = Instance.new("ImageLabel")
-        icon.Name = "Icon"
-        icon.Size = UDim2.fromOffset(mediaSize, mediaSize)
-        icon.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
-        icon.BackgroundTransparency = 0
-        icon.BorderSizePixel = 0
-        icon.ScaleType = Enum.ScaleType.Crop
-        icon.ZIndex = 3
-        icon.Parent = pill
-        local ic = Instance.new("UICorner")
-        ic.CornerRadius = S.iconType == "pfp" and UDim.new(1, 0) or UDim.new(0, 6)
-        ic.Parent = icon
-        if S.iconType == "pfp" then
-            applyPfp(icon, player.UserId)
-        else
-            icon.Image = S.iconUrl
-            task.spawn(function()
-                local a = resolveImageAsset(S.iconUrl, isSelf)
-                if a and icon.Parent then icon.Image = a end
-            end)
-        end
-    elseif S.showDot then
-        local dot = Instance.new("Frame")
-        dot.Name = "Dot"
-        dot.Size = UDim2.fromOffset(S.dotSize, S.dotSize)
-        dot.BackgroundColor3 = S.color
-        dot.BorderSizePixel = 0
-        dot.ZIndex = 3
-        dot.Parent = pill
-        Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
-    end
-
-    local label = Instance.new("TextLabel")
-    label.Name = "Tag"
-    label.BackgroundTransparency = 1
-    label.AutomaticSize = Enum.AutomaticSize.X
-    label.Size = UDim2.fromOffset(0, 20)
-    label.Font = S.font
-    label.TextSize = S.textSize
-    label.Text = S.tag
-    label.ZIndex = 3
-    label.Parent = pill
-
-    if S.textGradient or S.textFade then
-        label.TextColor3 = Color3.new(1, 1, 1)
-        local grad = Instance.new("UIGradient")
-        grad.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, S.color),
-            ColorSequenceKeypoint.new(0.5, S.color2),
-            ColorSequenceKeypoint.new(1, S.color),
-        })
-        grad.Rotation = S.gradientRotation
-        grad.Parent = label
-        if S.textFade then
-            task.spawn(function()
-                local t0 = tick()
-                while label.Parent and bb.Parent do
-                    grad.Rotation = S.gradientRotation + ((tick() - t0) * S.fadeSpeed * 50) % 360
-                    task.wait(0.03)
-                end
-            end)
-        end
-    else
-        label.TextColor3 = S.color
-    end
-
-    if S.textStroke then
-        label.TextStrokeColor3 = S.textStrokeColor
-        label.TextStrokeTransparency = S.textStrokeTransparency
-    else
-        label.TextStrokeTransparency = 1
-    end
-
-    if S.showName then
-        local nameLbl = Instance.new("TextLabel")
-        nameLbl.Name = "DisplayName"
-        nameLbl.BackgroundTransparency = 1
-        nameLbl.Size = UDim2.fromOffset(220, 16)
-        nameLbl.Font = S.nameFont
-        nameLbl.TextSize = S.nameSize
-        nameLbl.TextColor3 = S.nameColor
-        nameLbl.TextStrokeTransparency = 0.4
-        nameLbl.Text = player.DisplayName
-        nameLbl.TextTruncate = Enum.TextTruncate.AtEnd
-        nameLbl.ZIndex = 2
-        nameLbl.LayoutOrder = 2
-        nameLbl.Parent = root
-    end
-
-    if S.showRank then
-        local rankLbl = Instance.new("TextLabel")
-        rankLbl.Name = "Rank"
-        rankLbl.BackgroundTransparency = 1
-        rankLbl.Size = UDim2.fromOffset(220, 12)
-        rankLbl.Font = Enum.Font.Gotham
-        rankLbl.TextSize = S.rankSize
-        rankLbl.TextColor3 = S.rankColor
-        rankLbl.Text = S.rank
-        rankLbl.ZIndex = 2
-        rankLbl.LayoutOrder = 3
-        rankLbl.Parent = root
-    end
-
-    if S.bob or S.pulse then
-        task.spawn(function()
-            local base = S.offsetY
-            local t0 = tick()
-            while bb.Parent do
-                local t = tick() - t0
-                local y = base
-                if S.bob then y = base + math.sin(t * S.bobSpeed * 3) * S.bobAmount end
-                bb.StudsOffset = Vector3.new(0, y, 0)
-                if S.pulse then uiScale.Scale = sc * (1 + math.sin(t * 3) * 0.04) end
-                task.wait(0.03)
-            end
-        end)
-    end
-
-    self.Tags[player] = bb
-
-    if not player:GetAttribute("N0IR_TagHooked") then
-        player:SetAttribute("N0IR_TagHooked", true)
-        player.CharacterRemoving:Connect(function() self:Remove(player) end)
-        player.CharacterAdded:Connect(function()
-            task.wait(0.8)
-            local d = self.PlayerData[tostring(player.UserId)]
-            if d then self:Create(player, d) end
-        end)
-    end
+	return {
+		tag = tostring(pick("tag", data.tag or DEFAULT_TAG)),
+		rank = tostring(pick("rank", data.rank or "User")),
+		textColor = textColor,
+		tagColor = tagColor,
+		outlineColor = outlineColor,
+		textOutlineColor = textOutlineColor,
+		font = fontOf(pick("font", "GothamBold"), Enum.Font.GothamBold),
+		nameFont = fontOf(pick("nameFont", "GothamBold"), Enum.Font.GothamBold),
+		tagWidth = math.clamp(tonumber(pick("tagWidth", pick("width", 280))) or 280, 120, 500),
+		pillHeight = tonumber(pick("pillHeight", 52)) or 52,
+		cornerRadius = tonumber(pick("cornerRadius", 12)) or 12,
+		strokeThickness = tonumber(pick("strokeThickness", 2.5)) or 2.5,
+		pfpSize = tonumber(pick("pfpSize", 40)) or 40,
+		pfpUrl = tostring(pick("pfpUrl", pick("iconUrl", "")) or ""),
+		bgUrl = tostring(pick("bgUrl", pick("bgImageUrl", "")) or ""),
+		brandUrl = tostring(pick("brandUrl", pick("farUrl", "")) or ""),
+		customText = tostring(pick("customText", pick("subtitle", "")) or ""),
+		displayName = tostring(pick("displayName", "") or ""),
+		username = tostring(pick("username", "") or ""),
+		scale = math.clamp(tonumber(pick("scale", 1)) or 1, 0.7, 1.6),
+		offsetY = tonumber(pick("offsetY", 3.4)) or 3.4,
+		nearMaxDistance = tonumber(pick("nearMaxDistance", 45)) or 45,
+		farMaxDistance = tonumber(pick("farMaxDistance", 200)) or 200,
+		alwaysOnTop = pick("alwaysOnTop", true) ~= false,
+		-- media
+		pfpIsGif = pick("pfpIsGif", false) == true,
+		brandIsGif = pick("brandIsGif", false) == true,
+		pfpFrames = tonumber(pick("pfpFrames", 0)) or 0,
+		pfpCols = tonumber(pick("pfpCols", 0)) or 0,
+		pfpFps = tonumber(pick("pfpFps", 12)) or 12,
+		brandFrames = tonumber(pick("brandFrames", 0)) or 0,
+		brandCols = tonumber(pick("brandCols", 0)) or 0,
+		brandFps = tonumber(pick("brandFps", 12)) or 12,
+		videoId = tostring(pick("videoId", "") or ""),
+		showName = pick("showName", true) ~= false,
+		showUsername = pick("showUsername", true) ~= false,
+		showCustomText = pick("showCustomText", true) ~= false,
+	}
 end
 
 function Nametag:Remove(player)
-    local t = self.Tags[player]
-    if t then
-        pcall(function() t:Destroy() end)
-        self.Tags[player] = nil
-    end
+	local entry = self.Tags[player]
+	if not entry then return end
+	if entry.conn then pcall(function() entry.conn:Disconnect() end) end
+	if entry.bb and entry.bb.Parent then pcall(function() entry.bb:Destroy() end) end
+	self.Tags[player] = nil
+end
+
+function Nametag:Create(player, data)
+	if not player or not player.Parent then return end
+	if player == LocalPlayer then
+		if not self.ShowSelf then return end
+	else
+		if not self.ShowOthers then return end
+	end
+	self:Remove(player)
+
+	local char = player.Character
+	if not char then return end
+	local head = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
+	if not head then return end
+
+	if not self.Folder or not self.Folder.Parent then
+		self.Folder = Instance.new("Folder")
+		self.Folder.Name = "N0IR_Nametags"
+		self.Folder.Parent = getHost()
+	end
+
+	local S = resolveStyle(data)
+	local isSelf = player == LocalPlayer
+	local sc = S.scale
+
+	local displayName = S.displayName ~= "" and S.displayName or player.DisplayName
+	local username = S.username ~= "" and S.username or ("@" .. player.Name)
+	local customText = S.customText
+
+	-- Billboard
+	local bb = Instance.new("BillboardGui")
+	bb.Name = "N0IR_Tag_" .. player.Name
+	bb.Adornee = head
+	bb.AlwaysOnTop = S.alwaysOnTop
+	bb.Size = UDim2.fromOffset(math.floor(S.tagWidth * sc + 40), math.floor(120 * sc))
+	bb.StudsOffset = Vector3.new(0, S.offsetY, 0)
+	bb.MaxDistance = S.farMaxDistance
+	bb.Parent = self.Folder
+
+	local root = Instance.new("Frame")
+	root.Name = "Root"
+	root.BackgroundTransparency = 1
+	root.Size = UDim2.fromScale(1, 1)
+	root.Parent = bb
+
+	local uiScale = Instance.new("UIScale")
+	uiScale.Scale = sc
+	uiScale.Parent = root
+
+	-- ========== NEAR MODE (pill) ==========
+	local near = Instance.new("Frame")
+	near.Name = "Near"
+	near.AnchorPoint = Vector2.new(0.5, 0.5)
+	near.Position = UDim2.fromScale(0.5, 0.5)
+	near.Size = UDim2.fromOffset(S.tagWidth, S.pillHeight)
+	near.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
+	near.BackgroundTransparency = 0.08
+	near.BorderSizePixel = 0
+	near.Visible = true
+	near.Parent = root
+	Instance.new("UICorner", near).CornerRadius = UDim.new(0, S.cornerRadius)
+
+	local nearStroke = Instance.new("UIStroke")
+	nearStroke.Name = "Outline"
+	nearStroke.Color = S.outlineColor
+	nearStroke.Thickness = S.strokeThickness
+	nearStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	nearStroke.Parent = near
+
+	-- optional background image inside pill
+	if S.bgUrl ~= "" then
+		local bg = Instance.new("ImageLabel")
+		bg.Name = "Bg"
+		bg.BackgroundTransparency = 1
+		bg.Size = UDim2.fromScale(1, 1)
+		bg.ImageTransparency = 0.55
+		bg.ScaleType = Enum.ScaleType.Crop
+		bg.ZIndex = 0
+		bg.Parent = near
+		Instance.new("UICorner", bg).CornerRadius = UDim.new(0, S.cornerRadius)
+		task.spawn(function()
+			local a = resolveImageAsset(S.bgUrl, isSelf)
+			if a and bg.Parent then bg.Image = a end
+		end)
+	end
+
+	local pad = Instance.new("UIPadding")
+	pad.PaddingLeft = UDim.new(0, 8)
+	pad.PaddingRight = UDim.new(0, 12)
+	pad.PaddingTop = UDim.new(0, 6)
+	pad.PaddingBottom = UDim.new(0, 6)
+	pad.Parent = near
+
+	local hlist = Instance.new("UIListLayout")
+	hlist.FillDirection = Enum.FillDirection.Horizontal
+	hlist.VerticalAlignment = Enum.VerticalAlignment.Center
+	hlist.Padding = UDim.new(0, 10)
+	hlist.Parent = near
+
+	-- PFP (circular)
+	local pfpHolder = Instance.new("Frame")
+	pfpHolder.Name = "PfpHolder"
+	pfpHolder.Size = UDim2.fromOffset(S.pfpSize, S.pfpSize)
+	pfpHolder.BackgroundTransparency = 1
+	pfpHolder.LayoutOrder = 1
+	pfpHolder.Parent = near
+
+	local pfp = Instance.new("ImageLabel")
+	pfp.Name = "Pfp"
+	pfp.Size = UDim2.fromScale(1, 1)
+	pfp.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	pfp.BorderSizePixel = 0
+	pfp.ScaleType = Enum.ScaleType.Crop
+	pfp.Parent = pfpHolder
+	Instance.new("UICorner", pfp).CornerRadius = UDim.new(1, 0)
+	Instance.new("UIStroke", pfp).Color = Color3.fromRGB(40, 40, 40)
+	Instance.new("UIStroke", pfp).Thickness = 1
+
+	-- default headshot
+	local thumb = string.format("rbxthumb://type=AvatarHeadShot&id=%d&w=150&h=150", player.UserId)
+	pfp.Image = thumb
+	if S.pfpUrl ~= "" then
+		task.spawn(function()
+			local a = resolveImageAsset(S.pfpUrl, isSelf)
+			if a and pfp.Parent then
+				pfp.Image = a
+				if S.pfpIsGif or S.pfpFrames > 1 then
+					startFlipbook(pfp, {
+						frames = math.max(S.pfpFrames, 1),
+						cols = S.pfpCols > 0 and S.pfpCols or math.max(S.pfpFrames, 1),
+						fps = S.pfpFps,
+						frameW = 150, frameH = 150,
+					})
+				end
+			end
+		end)
+	end
+
+	-- Text stack
+	local textCol = Instance.new("Frame")
+	textCol.Name = "TextCol"
+	textCol.BackgroundTransparency = 1
+	textCol.Size = UDim2.new(1, -S.pfpSize - 20, 1, 0)
+	textCol.LayoutOrder = 2
+	textCol.Parent = near
+
+	local vlist = Instance.new("UIListLayout")
+	vlist.FillDirection = Enum.FillDirection.Vertical
+	vlist.VerticalAlignment = Enum.VerticalAlignment.Center
+	vlist.Padding = UDim.new(0, 1)
+	vlist.Parent = textCol
+
+	local nameLbl = Instance.new("TextLabel")
+	nameLbl.Name = "DisplayName"
+	nameLbl.BackgroundTransparency = 1
+	nameLbl.Size = UDim2.new(1, 0, 0, 18)
+	nameLbl.Font = S.nameFont
+	nameLbl.TextSize = 15
+	nameLbl.TextColor3 = S.textColor
+	nameLbl.TextXAlignment = Enum.TextXAlignment.Left
+	nameLbl.TextTruncate = Enum.TextTruncate.AtEnd
+	nameLbl.Text = string.upper(displayName)
+	nameLbl.Parent = textCol
+	if S.textOutlineColor then
+		nameLbl.TextStrokeColor3 = S.textOutlineColor
+		nameLbl.TextStrokeTransparency = 0.35
+	end
+
+	local userLbl = Instance.new("TextLabel")
+	userLbl.Name = "Username"
+	userLbl.BackgroundTransparency = 1
+	userLbl.Size = UDim2.new(1, 0, 0, 14)
+	userLbl.Font = Enum.Font.Gotham
+	userLbl.TextSize = 11
+	userLbl.TextColor3 = S.tagColor
+	userLbl.TextXAlignment = Enum.TextXAlignment.Left
+	userLbl.TextTruncate = Enum.TextTruncate.AtEnd
+	userLbl.Text = username
+	userLbl.Visible = S.showUsername
+	userLbl.Parent = textCol
+
+	if customText ~= "" and S.showCustomText then
+		local sub = Instance.new("TextLabel")
+		sub.Name = "CustomText"
+		sub.BackgroundTransparency = 1
+		sub.Size = UDim2.new(1, 0, 0, 12)
+		sub.Font = Enum.Font.Gotham
+		sub.TextSize = 10
+		sub.TextColor3 = Color3.fromRGB(160, 160, 160)
+		sub.TextXAlignment = Enum.TextXAlignment.Left
+		sub.TextTruncate = Enum.TextTruncate.AtEnd
+		sub.Text = customText
+		sub.Parent = textCol
+	end
+
+	-- ========== FAR MODE (circular brand) ==========
+	local far = Instance.new("Frame")
+	far.Name = "Far"
+	far.AnchorPoint = Vector2.new(0.5, 0.5)
+	far.Position = UDim2.fromScale(0.5, 0.5)
+	far.Size = UDim2.fromOffset(72, 72)
+	far.BackgroundTransparency = 1
+	far.Visible = false
+	far.Parent = root
+
+	local farCircle = Instance.new("ImageLabel")
+	farCircle.Name = "Brand"
+	farCircle.Size = UDim2.fromScale(1, 1)
+	farCircle.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+	farCircle.BorderSizePixel = 0
+	farCircle.ScaleType = Enum.ScaleType.Crop
+	farCircle.Parent = far
+	Instance.new("UICorner", farCircle).CornerRadius = UDim.new(1, 0)
+
+	local farStroke = Instance.new("UIStroke")
+	farStroke.Color = S.outlineColor
+	farStroke.Thickness = 3
+	farStroke.Parent = farCircle
+
+	-- default to pfp or brand
+	farCircle.Image = thumb
+	local brandSrc = S.brandUrl ~= "" and S.brandUrl or S.pfpUrl
+	if brandSrc ~= "" then
+		task.spawn(function()
+			local a = resolveImageAsset(brandSrc, isSelf)
+			if a and farCircle.Parent then
+				farCircle.Image = a
+				if S.brandIsGif or S.brandFrames > 1 then
+					startFlipbook(farCircle, {
+						frames = math.max(S.brandFrames, 1),
+						cols = S.brandCols > 0 and S.brandCols or math.max(S.brandFrames, 1),
+						fps = S.brandFps,
+						frameW = 150, frameH = 150,
+					})
+				end
+			end
+		end)
+	end
+
+	-- optional VideoFrame (limited support)
+	if S.videoId ~= "" then
+		local vid = Instance.new("VideoFrame")
+		vid.Name = "Video"
+		vid.Size = UDim2.fromScale(1, 1)
+		vid.BackgroundTransparency = 1
+		vid.Looped = true
+		vid.Playing = true
+		vid.Visible = false
+		vid.Parent = near
+		pcall(function()
+			vid.Video = "rbxassetid://" .. tostring(S.videoId):gsub("%D", "")
+		end)
+		-- show video instead of pfp when available
+		task.spawn(function()
+			task.wait(0.8)
+			if vid.IsLoaded then
+				vid.Visible = true
+				pfp.Visible = false
+			end
+		end)
+	end
+
+	-- Distance switcher (Near <-> Far)
+	local cam = workspace.CurrentCamera
+	local conn = game:GetService("RunService").RenderStepped:Connect(function()
+		if not bb.Parent or not head.Parent then return end
+		local dist = (cam.CFrame.Position - head.Position).Magnitude
+		local showNear = dist <= S.nearMaxDistance
+		near.Visible = showNear
+		far.Visible = not showNear
+	end)
+
+	self.Tags[player] = {
+		bb = bb,
+		near = near,
+		far = far,
+		conn = conn,
+	}
+
+	if not player:GetAttribute("N0IR_TagHooked") then
+		player:SetAttribute("N0IR_TagHooked", true)
+		player.CharacterRemoving:Connect(function() self:Remove(player) end)
+		player.CharacterAdded:Connect(function()
+			task.wait(0.8)
+			local d = self.PlayerData[tostring(player.UserId)]
+			if d then self:Create(player, d) end
+		end)
+	end
 end
 
 function Nametag:SetShowSelf(on)
-    self.ShowSelf = on and true or false
-    if self.ShowSelf and self.MyData then
-        self:ApplyPlayer(LocalPlayer, self.MyData)
-    else
-        self:Remove(LocalPlayer)
-    end
+	self.ShowSelf = on and true or false
+	if self.MyData then
+		if self.ShowSelf then
+			self:ApplyPlayer(LocalPlayer, self.MyData)
+		else
+			self:Remove(LocalPlayer)
+		end
+	end
 end
 
 function Nametag:SetShowOthers(on)
-    self.ShowOthers = on and true or false
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer then
-            local uid = tostring(plr.UserId)
-            local d = self.PlayerData[uid]
-            if self.ShowOthers and d then
-                self:ApplyPlayer(plr, d)
-            else
-                self:Remove(plr)
-            end
-        end
-    end
+	self.ShowOthers = on and true or false
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= LocalPlayer then
+			local d = self.PlayerData[tostring(plr.UserId)]
+			if d and self.ShowOthers then
+				self:ApplyPlayer(plr, d)
+			else
+				self:Remove(plr)
+			end
+		end
+	end
 end
 
-
 function Nametag:Clear()
-    for plr in pairs(self.Tags) do
-        self:Remove(plr)
-    end
-    if self.Folder then
-        pcall(function() self.Folder:Destroy() end)
-        self.Folder = nil
-    end
+	for plr in pairs(self.Tags) do
+		self:Remove(plr)
+	end
 end
 
 function Nametag:ApplyPlayer(player, data)
-    if not player then return end
-    if not data then
-        self:Remove(player)
-        return
-    end
-    self:Create(player, data)
+	if not player or not player.Parent then return end
+	self.PlayerData[tostring(player.UserId)] = data
+	if player.Character then
+		self:Create(player, data)
+	end
 end
 
 function Nametag:SyncFromMap(tagMap)
-    tagMap = tagMap or {}
-    -- merge into cache
-    for uid, data in pairs(tagMap) do
-        self.PlayerData[tostring(uid)] = {
-            tag = data.tag,
-            rank = data.rank,
-            color = data.color or data.tagColor,
-            style = data.style,
-        }
-    end
-    -- apply / remove for everyone in server
-    for _, plr in ipairs(Players:GetPlayers()) do
-        local uid = tostring(plr.UserId)
-        local d = self.PlayerData[uid]
-        local allow = (plr == LocalPlayer and self.ShowSelf) or (plr ~= LocalPlayer and self.ShowOthers)
-        if d and allow then
-            task.spawn(function()
-                self:ApplyPlayer(plr, d)
-            end)
-        else
-            self:Remove(plr)
-        end
-    end
+	tagMap = tagMap or {}
+	for uid, data in pairs(tagMap) do
+		self.PlayerData[tostring(uid)] = {
+			tag = data.tag,
+			rank = data.rank,
+			color = data.color or data.tagColor,
+			style = data.style,
+		}
+	end
+	for _, plr in ipairs(Players:GetPlayers()) do
+		local uid = tostring(plr.UserId)
+		local d = self.PlayerData[uid]
+		local allow = (plr == LocalPlayer and self.ShowSelf) or (plr ~= LocalPlayer and self.ShowOthers)
+		if d and allow then
+			task.spawn(function()
+				self:ApplyPlayer(plr, d)
+			end)
+		else
+			self:Remove(plr)
+		end
+	end
 end
 
 function Nametag:FetchAndSync()
-    if self._refreshing then return end
-    self._refreshing = true
-    task.spawn(function()
-        local ids = {}
-        for _, plr in ipairs(Players:GetPlayers()) do
-            table.insert(ids, plr.UserId)
-        end
-        if #ids == 0 then
-            self._refreshing = false
-            return
-        end
+	if self._refreshing then return end
+	self._refreshing = true
+	task.spawn(function()
+		local ids = {}
+		for _, plr in ipairs(Players:GetPlayers()) do
+			table.insert(ids, plr.UserId)
+		end
+		if #ids == 0 then
+			self._refreshing = false
+			return
+		end
 
-        local result = httpPost(API_URL .. "/api/nametags", { userIds = ids })
-        if result and result.success and type(result.tags) == "table" then
-            -- ensure we always have ourselves if MyData exists (offline edge)
-            local map = {}
-            for uid, d in pairs(result.tags) do
-                map[tostring(uid)] = d
-            end
-            if self.MyData then
-                local me = tostring(LocalPlayer.UserId)
-                if not map[me] then
-                    map[me] = self.MyData
-                end
-            end
-            self:SyncFromMap(map)
-        elseif self.MyData then
-            -- API fail → at least show own tag
-            self.PlayerData[tostring(LocalPlayer.UserId)] = self.MyData
-            self:ApplyPlayer(LocalPlayer, self.MyData)
-        end
-        self._refreshing = false
-    end)
+		local result = httpPost(API_URL .. "/api/nametags", { userIds = ids })
+		if result and result.success and type(result.tags) == "table" then
+			local map = {}
+			for uid, d in pairs(result.tags) do
+				map[tostring(uid)] = d
+			end
+			if self.MyData then
+				local me = tostring(LocalPlayer.UserId)
+				if not map[me] then
+					map[me] = self.MyData
+				end
+			end
+			self:SyncFromMap(map)
+		elseif self.MyData then
+			self.PlayerData[tostring(LocalPlayer.UserId)] = self.MyData
+			self:ApplyPlayer(LocalPlayer, self.MyData)
+		end
+		self._refreshing = false
+	end)
 end
 
 function Nametag:SetMyData(data)
-    self.MyData = data
-    if data then
-        self.PlayerData[tostring(LocalPlayer.UserId)] = data
-    end
-    self:FetchAndSync()
+	self.MyData = data
+	if data then
+		self.PlayerData[tostring(LocalPlayer.UserId)] = data
+	end
+	self:FetchAndSync()
 end
 
 function Nametag:Start()
-    if self._started then return end
-    self._started = true
+	if self._started then return end
+	self._started = true
 
-    Players.PlayerAdded:Connect(function(plr)
-        task.delay(1.5, function()
-            self:FetchAndSync()
-        end)
-    end)
+	Players.PlayerAdded:Connect(function(plr)
+		task.delay(1.5, function()
+			self:FetchAndSync()
+		end)
+	end)
 
-    Players.PlayerRemoving:Connect(function(plr)
-        self:Remove(plr)
-        self.PlayerData[tostring(plr.UserId)] = nil
-    end)
+	Players.PlayerRemoving:Connect(function(plr)
+		self:Remove(plr)
+		self.PlayerData[tostring(plr.UserId)] = nil
+	end)
 
-    LocalPlayer.CharacterAdded:Connect(function()
-        task.wait(1)
-        if self.MyData and self.ShowSelf then
-            self:ApplyPlayer(LocalPlayer, self.MyData)
-        end
-    end)
+	LocalPlayer.CharacterAdded:Connect(function()
+		task.wait(1)
+		if self.MyData and self.ShowSelf then
+			self:ApplyPlayer(LocalPlayer, self.MyData)
+		end
+	end)
 
-    -- periodic refresh so tag edits on the website appear in-game
-    task.spawn(function()
-        while self._started do
-            task.wait(self.RefreshSeconds)
-            if self.MyData then
-                self:FetchAndSync()
-            end
-        end
-    end)
+	task.spawn(function()
+		while self._started do
+			task.wait(self.RefreshSeconds)
+			if self.MyData then
+				self:FetchAndSync()
+			end
+		end
+	end)
 
-    task.defer(function()
-        self:FetchAndSync()
-    end)
+	task.defer(function()
+		self:FetchAndSync()
+	end)
 end
 
 local function showKeyUI(onSuccess)
