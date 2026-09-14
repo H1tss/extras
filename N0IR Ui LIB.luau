@@ -3430,12 +3430,6 @@ function N0IR:MountUtilities(Window)
 
     Home:CreateSection("Quick actions")
     Home:CreateButton({
-        Name = "Notify test",
-        Callback = function()
-            N0IR:Notify({ Title = "NØIR", Content = "Everything is running.", Duration = 2 })
-        end,
-    })
-    Home:CreateButton({
         Name = "Rejoin server",
         Callback = function()
             pcall(function()
@@ -3621,6 +3615,144 @@ function N0IR:MountUtilities(Window)
                 pcall(_G._N0IR_SetInfBaseplate, true, true)
             end
         end)
+    end
+
+    -- Persistent map / anti-stream unload (client-side best effort)
+    World:CreateSection("Map streaming")
+    World:CreateParagraph({
+        Content = "Keeps already-loaded map chunks in memory and continuously requests the area around you so the client is less likely to freeze/pause when the network stutters.",
+    })
+
+    if not _G._N0IR_StreamState then
+        _G._N0IR_StreamState = { on = false, conn = nil, last = 0 }
+    end
+
+    local function applyStreamSettings()
+        -- push radii as high as the client will allow
+        pcall(function()
+            if typeof(workspace.StreamingMinRadius) == "number" then
+                workspace.StreamingMinRadius = math.max(workspace.StreamingMinRadius or 0, 2048)
+            end
+        end)
+        pcall(function()
+            if typeof(workspace.StreamingTargetRadius) == "number" then
+                workspace.StreamingTargetRadius = math.max(workspace.StreamingTargetRadius or 0, 4096)
+            end
+        end)
+        -- try disable streaming (usually server-locked; ignore failure)
+        pcall(function()
+            workspace.StreamingEnabled = false
+        end)
+        -- prefer higher integrity mode when available
+        pcall(function()
+            if workspace.ModelStreamingMode ~= nil then
+                workspace.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
+            end
+        end)
+    end
+
+    local function requestAround(pos)
+        if not pos then return end
+        pcall(function()
+            if LocalPlayer.RequestStreamAroundAsync then
+                LocalPlayer:RequestStreamAroundAsync(pos)
+            end
+        end)
+    end
+
+    local function setPersistentMap(on, silent)
+        local st = _G._N0IR_StreamState
+        on = on and true or false
+        st.on = on
+        N0IR.Flags = N0IR.Flags or {}
+        N0IR.Flags.PersistentMap = on
+        if st.conn then
+            pcall(function() st.conn:Disconnect() end)
+            st.conn = nil
+        end
+        if not on then
+            if not silent and not _G._N0IR_SilentCmd then
+                N0IR:Notify({ Title = "Persistent Map", Content = "Off", Duration = 1.2 })
+            end
+            return
+        end
+
+        applyStreamSettings()
+
+        -- one-shot load around current position + a small ring so more stays warm
+        task.spawn(function()
+            local char = LocalPlayer.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            local origin = hrp and hrp.Position or Vector3.zero
+            requestAround(origin)
+            local offsets = {
+                Vector3.new(256, 0, 0), Vector3.new(-256, 0, 0),
+                Vector3.new(0, 0, 256), Vector3.new(0, 0, -256),
+                Vector3.new(512, 0, 0), Vector3.new(-512, 0, 0),
+                Vector3.new(0, 0, 512), Vector3.new(0, 0, -512),
+            }
+            for _, off in ipairs(offsets) do
+                if not st.on then break end
+                requestAround(origin + off)
+                task.wait(0.08)
+            end
+        end)
+
+        st.last = 0
+        st.conn = RunService.Heartbeat:Connect(function()
+            if not st.on then return end
+            local now = os.clock()
+            if now - (st.last or 0) < 0.75 then return end
+            st.last = now
+            applyStreamSettings()
+            local char = LocalPlayer.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                requestAround(hrp.Position)
+            end
+        end)
+
+        if not silent and not _G._N0IR_SilentCmd then
+            N0IR:Notify({ Title = "Persistent Map", Content = "On · keeping map loaded", Duration = 1.6 })
+        end
+    end
+    _G._N0IR_SetPersistentMap = setPersistentMap
+
+    World:CreateToggle({
+        Name = "Persistent Map",
+        Description = "Keep streamed map loaded · reduce freeze when network dips",
+        Flag = "PersistentMap",
+        Default = false,
+        Callback = function(on)
+            setPersistentMap(on, false)
+        end,
+    })
+    World:CreateButton({
+        Name = "Force load around me now",
+        Callback = function()
+            applyStreamSettings()
+            local char = LocalPlayer.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            local origin = hrp and hrp.Position or Vector3.zero
+            requestAround(origin)
+            task.spawn(function()
+                for _, off in ipairs({
+                    Vector3.new(300, 0, 0), Vector3.new(-300, 0, 0),
+                    Vector3.new(0, 0, 300), Vector3.new(0, 0, -300),
+                    Vector3.new(600, 0, 0), Vector3.new(-600, 0, 0),
+                    Vector3.new(0, 0, 600), Vector3.new(0, 0, -600),
+                    Vector3.new(300, 0, 300), Vector3.new(-300, 0, -300),
+                }) do
+                    requestAround(origin + off)
+                    task.wait(0.06)
+                end
+                N0IR:Notify({ Title = "Persistent Map", Content = "Forced load around you", Duration = 1.4 })
+            end)
+        end,
+    })
+
+    if N0IR.Flags and N0IR.Flags.PersistentMap then
+        task.defer(function() setPersistentMap(true, true) end)
     end
 
     -- player tab
@@ -6040,6 +6172,37 @@ local BUILTIN_EMOTES = {
                 _G._N0IR_SetInfBaseplate(false, _G._N0IR_SilentCmd and true or false)
             end
             notify("Inf Baseplate", "Off")
+            return
+        elseif cmd == "persistentmap" or cmd == "keepmap" or cmd == "fullmap" or cmd == "antistream" then
+            if type(_G._N0IR_SetPersistentMap) == "function" then
+                _G._N0IR_SetPersistentMap(true, _G._N0IR_SilentCmd and true or false)
+            end
+            notify("Persistent Map", "On")
+            return
+        elseif cmd == "unpersistentmap" or cmd == "unkeepmap" or cmd == "unfullmap" or cmd == "unantistream" then
+            if type(_G._N0IR_SetPersistentMap) == "function" then
+                _G._N0IR_SetPersistentMap(false, _G._N0IR_SilentCmd and true or false)
+            end
+            notify("Persistent Map", "Off")
+            return
+        elseif cmd == "forcemap" or cmd == "loadmap" then
+            pcall(function()
+                if typeof(workspace.StreamingMinRadius) == "number" then
+                    workspace.StreamingMinRadius = math.max(workspace.StreamingMinRadius or 0, 2048)
+                end
+                if typeof(workspace.StreamingTargetRadius) == "number" then
+                    workspace.StreamingTargetRadius = math.max(workspace.StreamingTargetRadius or 0, 4096)
+                end
+            end)
+            local char = LocalPlayer.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            local origin = hrp and hrp.Position or Vector3.zero
+            pcall(function()
+                if LocalPlayer.RequestStreamAroundAsync then
+                    LocalPlayer:RequestStreamAroundAsync(origin)
+                end
+            end)
+            notify("Persistent Map", "Forced load")
             return
         elseif cmd == "noclip" then
             N0IR.Flags.Noclip = true
@@ -8552,12 +8715,6 @@ local BUILTIN_EMOTES = {
         Callback = function()
             if _G._N0IR_SaveSettings then _G._N0IR_SaveSettings() end
             N0IR:Notify({ Title = "Settings", Content = "Saved to N0IR/settings.json", Duration = 2 })
-        end,
-    })
-    Settings:CreateButton({
-        Name = "Notify Test",
-        Callback = function()
-            N0IR:Notify({ Title = "NØIR", Content = "Library is alive.", Duration = 2 })
         end,
     })
 
