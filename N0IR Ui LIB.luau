@@ -8974,11 +8974,14 @@ function N0IR:CreateWatermark(window)
     gui.Parent = host
 
     -- Bind the watermark to the actual main NØIR ScreenGui.
-    -- Do not remove it for minimize/toggle/visibility changes; only destroy it
-    -- when the main script's ScreenGui itself is destroyed.
+    -- CreateWindow returns the Window API table, so the ScreenGui is exposed
+    -- through window.Screen. Do not remove the watermark for minimize/toggle;
+    -- only destroy it when the main ScreenGui itself is destroyed.
     local mainScreen = nil
     pcall(function()
-        if window and window:IsA("ScreenGui") then
+        if window and typeof(window) == "table" and window.Screen then
+            mainScreen = window.Screen
+        elseif window and window:IsA("ScreenGui") then
             mainScreen = window
         elseif window and window:IsA("GuiObject") then
             mainScreen = window:FindFirstAncestorOfClass("ScreenGui")
@@ -9166,27 +9169,86 @@ function N0IR:CreateWatermark(window)
     end)
 
     -- drag watermark
+    -- Only the watermark background/logo is draggable. Interactive buttons
+    -- (Menu / My Tag) must never start a drag, and the bar is clamped on-screen.
     do
         local dragging, start, origin
-        bar.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1
-                or input.UserInputType == Enum.UserInputType.Touch then
-                dragging = true
-                start = input.Position
-                origin = bar.Position
+        local activeInputType = nil
+
+        local function pointInside(guiObject, point)
+            local pos = guiObject.AbsolutePosition
+            local size = guiObject.AbsoluteSize
+            return point.X >= pos.X
+                and point.X <= pos.X + size.X
+                and point.Y >= pos.Y
+                and point.Y <= pos.Y + size.Y
+        end
+
+        local function beginDrag(input)
+            if input.UserInputType ~= Enum.UserInputType.MouseButton1
+                and input.UserInputType ~= Enum.UserInputType.Touch then
+                return
             end
-        end)
+
+            -- Don't steal clicks/holds from the two watermark controls.
+            if pointInside(menuBtn, input.Position) or pointInside(tagBtn, input.Position) then
+                return
+            end
+
+            dragging = true
+            activeInputType = input.UserInputType
+            start = input.Position
+            origin = bar.Position
+        end
+
+        bar.InputBegan:Connect(beginDrag)
+
         UserInputService.InputChanged:Connect(function(input)
             if not dragging then return end
-            if input.UserInputType ~= Enum.UserInputType.MouseMovement
-                and input.UserInputType ~= Enum.UserInputType.Touch then return end
+            if activeInputType == Enum.UserInputType.MouseButton1
+                and input.UserInputType ~= Enum.UserInputType.MouseMovement then
+                return
+            end
+            if activeInputType == Enum.UserInputType.Touch
+                and input.UserInputType ~= Enum.UserInputType.Touch then
+                return
+            end
+
             local d = input.Position - start
-            bar.Position = UDim2.new(origin.X.Scale, origin.X.Offset + d.X, origin.Y.Scale, origin.Y.Offset + d.Y)
+            local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize
+            if not viewport then
+                bar.Position = UDim2.new(
+                    origin.X.Scale, origin.X.Offset + d.X,
+                    origin.Y.Scale, origin.Y.Offset + d.Y
+                )
+                return
+            end
+
+            local barSize = bar.AbsoluteSize
+            local x = origin.X.Offset + d.X
+            local y = origin.Y.Offset + d.Y
+
+            -- Keep the watermark fully visible on-screen.
+            local minX = math.floor((barSize.X * 0.5) - viewport.X * 0.5 + 6)
+            local maxX = math.ceil(viewport.X * 0.5 - (barSize.X * 0.5) + viewport.X * 0.5 - 6)
+            local minY = 6
+            local maxY = math.max(minY, viewport.Y - barSize.Y - 6)
+
+            -- Since the bar uses a centered X anchor, convert the clamp to
+            -- the corresponding X offset around the screen center.
+            local centeredMinX = minX
+            local centeredMaxX = maxX
+            x = math.clamp(x, centeredMinX - viewport.X * 0.5, centeredMaxX - viewport.X * 0.5)
+            y = math.clamp(y, minY, maxY)
+
+            bar.Position = UDim2.new(0.5, x, 0, y)
         end)
+
         UserInputService.InputEnded:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1
                 or input.UserInputType == Enum.UserInputType.Touch then
                 dragging = false
+                activeInputType = nil
             end
         end)
     end
