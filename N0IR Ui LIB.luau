@@ -1243,7 +1243,10 @@ function Nametag:Create(player, data)
 	local isSelf = player == LocalPlayer
 	local sc = S.scale
 
-	local displayName = S.displayName ~= "" and S.displayName or player.DisplayName
+	-- Prefer explicit overrides from studio, then tag (e.g. "HITS | OWNER"), then live player name
+	local displayName = S.displayName ~= "" and S.displayName
+		or (S.tag ~= "" and S.tag ~= "NØIR" and S.tag)
+		or player.DisplayName
 	local username = S.username ~= "" and S.username or ("@" .. player.Name)
 	local customText = S.customText
 
