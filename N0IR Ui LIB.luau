@@ -33,16 +33,18 @@ utility.dropkick.AnimationId = "rbxassetid://133566007754001"
 
 -- NØIR palette
 local N = {
-    bg = Color3.fromRGB(10, 10, 10),
-    bg2 = Color3.fromRGB(16, 16, 16),
-    bg3 = Color3.fromRGB(22, 22, 22),
-    bg4 = Color3.fromRGB(30, 30, 30),
-    stroke = Color3.fromRGB(48, 48, 48),
-    text = Color3.fromRGB(245, 245, 245),
-    text2 = Color3.fromRGB(160, 160, 160),
-    text3 = Color3.fromRGB(110, 110, 110),
+    -- Shared NØIR palette for the small companion GUIs (key panel, dropkick UI, etc.).
+    -- Keep these tokens visually aligned with the main library below.
+    bg = Color3.fromRGB(11, 11, 12),
+    bg2 = Color3.fromRGB(21, 21, 22),
+    bg3 = Color3.fromRGB(27, 27, 29),
+    bg4 = Color3.fromRGB(34, 34, 36),
+    stroke = Color3.fromRGB(43, 43, 46),
+    text = Color3.fromRGB(238, 238, 240),
+    text2 = Color3.fromRGB(170, 170, 174),
+    text3 = Color3.fromRGB(108, 108, 113),
     white = Color3.fromRGB(255, 255, 255),
-    active = Color3.fromRGB(255, 255, 255),
+    active = Color3.fromRGB(232, 232, 235),
     activeText = Color3.fromRGB(10, 10, 10),
 }
 
@@ -1007,7 +1009,7 @@ local Nametag = {
 	Tags = {},          -- [Player] = { bb = BillboardGui, near = Frame, far = Frame, conn = RBXScriptConnection }
 	PlayerData = {},    -- [UserId string] = style data
 	MyData = nil,
-	ShowSelf = true,
+	ShowSelf = false,
 	ShowOthers = true,
 	RefreshSeconds = 12,
 	_refreshing = false,
@@ -1150,42 +1152,37 @@ end
 local function startFlipbook(img, opts)
 	if not img or not img.Parent then return nil end
 	opts = opts or {}
-	local frames = opts.frames or 1
-	local cols = opts.cols or frames
-	local rows = opts.rows or 1
-	local fps = opts.fps or 12
+	local frames = math.max(tonumber(opts.frames) or 1, 1)
+	local cols = math.max(tonumber(opts.cols) or frames, 1)
+	local rows = math.max(tonumber(opts.rows) or 1, 1)
+	local fps = math.max(tonumber(opts.fps) or 12, 1)
 	local frameW = opts.frameW or (img.AbsoluteSize.X > 0 and img.AbsoluteSize.X or 64)
 	local frameH = opts.frameH or frameW
 
-	-- If no frame data, just show the image (static or engine-handled)
 	if frames <= 1 and not opts.force then
 		return nil
 	end
 
 	local idx = 0
-	local conn
-	conn = game:GetService("RunService").Heartbeat:Connect(function()
+	local running = true
+	local function updateFrame()
 		if not img or not img.Parent then
-			if conn then conn:Disconnect() end
+			running = false
 			return
 		end
 		idx = (idx + 1) % frames
 		local col = idx % cols
 		local row = math.floor(idx / cols)
+		if row >= rows then row = row % rows end
 		img.ImageRectSize = Vector2.new(frameW, frameH)
 		img.ImageRectOffset = Vector2.new(col * frameW, row * frameH)
-	end)
-	-- better timed version
+	end
+
 	task.spawn(function()
-		while img and img.Parent do
-			idx = (idx + 1) % frames
-			local col = idx % cols
-			local row = math.floor(idx / cols)
-			img.ImageRectSize = Vector2.new(frameW, frameH)
-			img.ImageRectOffset = Vector2.new(col * frameW, row * frameH)
+		while running and img and img.Parent do
+			updateFrame()
 			task.wait(1 / fps)
 		end
-		if conn then conn:Disconnect() end
 	end)
 	return true
 end
@@ -1633,7 +1630,11 @@ function Nametag:FetchAndSync()
 			self:SyncFromMap(map)
 		elseif self.MyData then
 			self.PlayerData[tostring(LocalPlayer.UserId)] = self.MyData
-			self:ApplyPlayer(LocalPlayer, self.MyData)
+			if self.ShowSelf then
+				self:ApplyPlayer(LocalPlayer, self.MyData)
+			else
+				self:Remove(LocalPlayer)
+			end
 		end
 		self._refreshing = false
 	end)
@@ -2676,7 +2677,9 @@ function N0IR:CreateWindow(opts)
 
     local isMin = false
     local fullSize = UDim2.fromOffset(width, height)
+    local minSize = UDim2.fromOffset(math.min(width, 420), 52)
     local bodyVisible = true
+    local minimizeTween
 
     -- Tab strip
     local tabStrip = Instance.new("ScrollingFrame")
@@ -2715,17 +2718,35 @@ function N0IR:CreateWindow(opts)
         screen:Destroy()
     end)
 
-    minBtn.MouseButton1Click:Connect(function()
-        isMin = not isMin
-        if isMin then
+    local function setMinimized(state)
+        if isMin == state then return end
+        isMin = state
+
+        if minimizeTween then
+            pcall(function() minimizeTween:Cancel() end)
+        end
+
+        local info = TweenInfo.new(0.24, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+
+        if state then
             tabStrip.Visible = false
             contentHost.Visible = false
-            win.Size = UDim2.fromOffset(width, 52)
+            minimizeTween = TweenService:Create(win, info, {
+                Size = minSize,
+            })
+            minimizeTween:Play()
         else
-            win.Size = fullSize
             tabStrip.Visible = true
             contentHost.Visible = true
+            minimizeTween = TweenService:Create(win, info, {
+                Size = fullSize,
+            })
+            minimizeTween:Play()
         end
+    end
+
+    minBtn.MouseButton1Click:Connect(function()
+        setMinimized(not isMin)
     end)
 
     local Window = {
@@ -3366,12 +3387,15 @@ function N0IR:CreateWindow(opts)
     end
 
     local function setWindowVisible(vis)
-        -- instant poof open/close
         if vis then
             screen.Enabled = true
-            win.Size = UDim2.fromOffset(width, height)
-            win.BackgroundTransparency = 0.04
             win.Visible = true
+            if isMin then
+                win.Size = minSize
+            else
+                win.Size = fullSize
+            end
+            win.BackgroundTransparency = 0.04
         else
             win.Visible = false
         end
@@ -7383,6 +7407,27 @@ local BUILTIN_EMOTES = {
 
     Cmds:CreateSection("All commands")
 
+    local commandSearch = ""
+    local commandRows = {}
+
+    local searchBox = Cmds:CreateInput({
+        Name = "Search commands",
+        Placeholder = "Search by name, alias, or description...",
+        Default = "",
+        Callback = function(text)
+            commandSearch = tostring(text or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
+            for _, item in ipairs(commandRows) do
+                local e = item.entry
+                local hay = table.concat({
+                    tostring(e.cmd or ""),
+                    tostring(e.label or ""),
+                    tostring(e.desc or ""),
+                }, " "):lower()
+                item.row.Visible = commandSearch == "" or hay:find(commandSearch, 1, true) ~= nil
+            end
+        end,
+    })
+
     local function makeCmdRow(entry)
         Cmds._order = (Cmds._order or 0) + 1
         local page = Cmds.Page
@@ -7452,6 +7497,8 @@ local BUILTIN_EMOTES = {
         run.Parent = row
         corner(run, 6)
 
+        table.insert(commandRows, { entry = entry, row = row })
+
         run.MouseEnter:Connect(function()
             tween(run, { BackgroundTransparency = 0.15 }, 0.12)
         end)
@@ -7502,6 +7549,7 @@ local BUILTIN_EMOTES = {
     cmdGui.ResetOnSpawn = false
     cmdGui.DisplayOrder = 200
     cmdGui.Parent = getHost()
+    pcall(function() N0IR:StyleGui(cmdGui) end)
 
     local bar = Instance.new("Frame")
     bar.AnchorPoint = Vector2.new(0.5, 1)
@@ -8514,19 +8562,48 @@ local BUILTIN_EMOTES = {
         end,
     })
     Settings:CreateSection("Nametags")
-    Settings:CreateToggle({
+
+    local function syncOwnTag(on, source)
+        on = on and true or false
+        if Nametag then
+            if Nametag.SetShowSelf then
+                pcall(Nametag.SetShowSelf, Nametag, on)
+            else
+                Nametag.ShowSelf = on
+            end
+        end
+
+        N0IR.Flags = N0IR.Flags or {}
+        N0IR.Flags.NametagShowSelf = on
+        _G._N0IR_ShowSelfTag = on
+
+        if _G._N0IR_RefreshWatermarkTag then
+            pcall(_G._N0IR_RefreshWatermarkTag, on)
+        end
+        if source ~= "settings" and _G._N0IR_SetWatermarkTagState then
+            pcall(_G._N0IR_SetWatermarkTagState, on)
+        end
+        if _G._N0IR_SaveSettings then
+            task.defer(_G._N0IR_SaveSettings)
+        end
+    end
+
+    local showSelfTagToggle = Settings:CreateToggle({
         Name = "Show my tag",
         Description = "Display your own NØIR nametag above your head",
         Flag = "NametagShowSelf",
-        Default = true,
+        Default = false,
         Callback = function(on)
-            if Nametag and Nametag.SetShowSelf then
-                Nametag:SetShowSelf(on)
-            else
-                Nametag.ShowSelf = on and true or false
-            end
+            syncOwnTag(on, "settings")
         end,
     })
+    _G._N0IR_SetSelfTagToggle = function(on)
+        if showSelfTagToggle and showSelfTagToggle.Set then
+            showSelfTagToggle:Set(on)
+        else
+            syncOwnTag(on, "settings")
+        end
+    end
     Settings:CreateToggle({
         Name = "Show other users",
         Description = "Display nametags for other players running NØIR with a valid key",
@@ -8998,9 +9075,9 @@ function N0IR:CreateWatermark(window)
 
     local bar = Instance.new("Frame")
     bar.Name = "Bar"
-    bar.AnchorPoint = Vector2.new(0, 1)
-    bar.Position = UDim2.new(0, 14, 1, -14)
-    bar.Size = UDim2.fromOffset(168, 34)
+    bar.AnchorPoint = Vector2.new(0.5, 0)
+    bar.Position = UDim2.new(0.5, 0, 0, 10)
+    bar.Size = UDim2.fromOffset(190, 34)
     bar.BackgroundColor3 = T.bg0
     bar.BackgroundTransparency = 0.12
     bar.BorderSizePixel = 0
@@ -9042,13 +9119,28 @@ function N0IR:CreateWatermark(window)
     tagBtn.Parent = bar
     corner(tagBtn, 6)
 
-    local function refreshTagBtn()
-        local on = Nametag and Nametag.ShowSelf
-        tagBtn.Text = on and "My Tag · on" or "My Tag · off"
+    local function refreshTagBtn(forcedState)
+        local on
+        if forcedState ~= nil then
+            on = forcedState and true or false
+        else
+            on = Nametag and Nametag.ShowSelf or false
+        end
+        tagBtn.Text = on and "My Tag  ·  ON" or "My Tag  ·  OFF"
         tagBtn.BackgroundColor3 = on and T.accent or T.bg3
         tagBtn.TextColor3 = on and Color3.fromRGB(10, 10, 10) or T.text
     end
-    refreshTagBtn()
+
+    local function setWatermarkTagState(on)
+        on = on and true or false
+        refreshTagBtn(on)
+        _G._N0IR_ShowSelfTag = on
+    end
+
+    local initialTagState = (_G._N0IR_ShowSelfTag ~= nil and _G._N0IR_ShowSelfTag) or (Nametag and Nametag.ShowSelf) or false
+    setWatermarkTagState(initialTagState)
+    _G._N0IR_RefreshWatermarkTag = setWatermarkTagState
+    _G._N0IR_SetWatermarkTagState = setWatermarkTagState
 
     menuBtn.MouseButton1Click:Connect(function()
         if window and window.Toggle then
@@ -9059,17 +9151,24 @@ function N0IR:CreateWatermark(window)
     end)
 
     tagBtn.MouseButton1Click:Connect(function()
-        if not Nametag then return end
-        local nextOn = not Nametag.ShowSelf
-        if Nametag.SetShowSelf then
-            Nametag:SetShowSelf(nextOn)
+        local current = ((_G._N0IR_ShowSelfTag ~= nil and _G._N0IR_ShowSelfTag) or (Nametag and Nametag.ShowSelf)) and true or false
+        local nextOn = not current
+        if _G._N0IR_SetSelfTagToggle then
+            pcall(_G._N0IR_SetSelfTagToggle, nextOn)
         else
-            Nametag.ShowSelf = nextOn
+            _G._N0IR_ShowSelfTag = nextOn
+            if Nametag then
+                if Nametag.SetShowSelf then
+                    pcall(Nametag.SetShowSelf, Nametag, nextOn)
+                else
+                    Nametag.ShowSelf = nextOn
+                end
+            end
+            if _G._N0IR_RefreshWatermarkTag then
+                pcall(_G._N0IR_RefreshWatermarkTag, nextOn)
+            end
         end
-        N0IR.Flags = N0IR.Flags or {}
-        N0IR.Flags.NametagShowSelf = nextOn
-        if _G._N0IR_SaveSettings then task.defer(_G._N0IR_SaveSettings) end
-        refreshTagBtn()
+        refreshTagBtn(nextOn)
         N0IR:Notify({
             Title = "Nametag",
             Content = nextOn and "Showing your tag" or "Hidden your tag",
@@ -9104,6 +9203,36 @@ function N0IR:CreateWatermark(window)
     end
 
     return gui
+end
+
+-- Theme helper for companion GUIs created by NØIR modules.
+-- Call N0IR:StyleGui(root) after creating a custom GUI to keep it visually consistent.
+function N0IR:StyleGui(root)
+    if not root then return end
+    local accent = T.accent
+    local function walk(obj)
+        for _, child in ipairs(obj:GetChildren()) do
+            if child:IsA("Frame") then
+                if child.BackgroundTransparency < 1 and child.Name ~= "Accent" then
+                    child.BackgroundColor3 = child.BackgroundColor3:Lerp(T.bg1, 0.35)
+                end
+            elseif child:IsA("TextButton") or child:IsA("TextBox") or child:IsA("TextLabel") then
+                if child.Name ~= "Logo" then
+                    child.Font = child:IsA("TextLabel") and Enum.Font.Gotham or Enum.Font.GothamMedium
+                    child.TextColor3 = T.text
+                end
+                if child:IsA("TextButton") then
+                    child.AutoButtonColor = false
+                end
+            elseif child:IsA("ScrollingFrame") then
+                child.ScrollBarImageColor3 = accent
+                child.ScrollBarThickness = 3
+            end
+            walk(child)
+        end
+    end
+    walk(root)
+    return root
 end
 
 -- quick start helper
