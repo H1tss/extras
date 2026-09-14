@@ -8973,22 +8973,25 @@ function N0IR:CreateWatermark(window)
     gui.DisplayOrder = 250
     gui.Parent = host
 
-    -- The watermark is a companion to the main NØIR window. If the main
-    -- ScreenGui is destroyed (Close / full cleanup), remove the watermark too.
-    local watermarkAlive = true
-    if screen and screen.Destroying then
-        screen.Destroying:Connect(function()
-            watermarkAlive = false
+    -- Bind the watermark to the actual main NØIR ScreenGui.
+    -- Do not remove it for minimize/toggle/visibility changes; only destroy it
+    -- when the main script's ScreenGui itself is destroyed.
+    local mainScreen = nil
+    pcall(function()
+        if window and window:IsA("ScreenGui") then
+            mainScreen = window
+        elseif window and window:IsA("GuiObject") then
+            mainScreen = window:FindFirstAncestorOfClass("ScreenGui")
+        end
+    end)
+
+    if mainScreen and mainScreen.Destroying then
+        mainScreen.Destroying:Connect(function()
             pcall(function() gui:Destroy() end)
-            _G._N0IR_RefreshWatermarkTag = nil
-            _G._N0IR_SetWatermarkTagState = nil
-        end)
-    else
-        screen.AncestryChanged:Connect(function(_, parent)
-            if parent == nil and watermarkAlive then
-                watermarkAlive = false
-                pcall(function() gui:Destroy() end)
+            if _G._N0IR_RefreshWatermarkTag then
                 _G._N0IR_RefreshWatermarkTag = nil
+            end
+            if _G._N0IR_SetWatermarkTagState then
                 _G._N0IR_SetWatermarkTagState = nil
             end
         end)
@@ -9058,7 +9061,14 @@ function N0IR:CreateWatermark(window)
         _G._N0IR_ShowSelfTag = on
     end
 
-    local initialTagState = (_G._N0IR_ShowSelfTag ~= nil and _G._N0IR_ShowSelfTag) or (Nametag and Nametag.ShowSelf) or false
+    local initialTagState
+    if _G._N0IR_ShowSelfTag ~= nil then
+        initialTagState = _G._N0IR_ShowSelfTag and true or false
+    elseif Nametag then
+        initialTagState = Nametag.ShowSelf and true or false
+    else
+        initialTagState = false
+    end
     setWatermarkTagState(initialTagState)
     _G._N0IR_RefreshWatermarkTag = setWatermarkTagState
     _G._N0IR_SetWatermarkTagState = setWatermarkTagState
