@@ -9012,27 +9012,12 @@ function N0IR:CreateWatermark(window)
     corner(bar, 8)
     local barStroke = stroke(bar, T.border, 1, 0.35)
 
-    -- Lightweight watermark motion: one intro tween, plus event-driven hover/click
-    -- tweens. Nothing runs every frame, so the watermark stays cheap.
-    local barScale = Instance.new("UIScale")
-    barScale.Scale = 0.94
-    barScale.Parent = bar
-    bar.BackgroundTransparency = 1
-    if barStroke then
-        barStroke.Transparency = 1
-    end
-
+    -- No intro/click animations. The only animation on the watermark is hover.
     local function tweenGui(obj, props, duration, style, direction)
         local info = TweenInfo.new(duration or 0.16, style or Enum.EasingStyle.Quad, direction or Enum.EasingDirection.Out)
         local t = TweenService:Create(obj, info, props)
         t:Play()
         return t
-    end
-
-    tweenGui(barScale, { Scale = 1 }, 0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-    tweenGui(bar, { BackgroundTransparency = 0.12 }, 0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-    if barStroke then
-        tweenGui(barStroke, { Transparency = 0.35 }, 0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
     end
 
     local logo = Instance.new("ImageLabel")
@@ -9106,14 +9091,6 @@ function N0IR:CreateWatermark(window)
         on = on and true or false
         refreshTagBtn(on)
         _G._N0IR_ShowSelfTag = on
-        if on then
-            tweenGui(barStroke, { Transparency = 0.05 }, 0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-            task.delay(0.13, function()
-                if gui and gui.Parent and barStroke and barStroke.Parent then
-                    tweenGui(barStroke, { Transparency = 0.35 }, 0.24, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-                end
-            end)
-        end
     end
 
     local initialTagState
@@ -9129,19 +9106,11 @@ function N0IR:CreateWatermark(window)
     _G._N0IR_SetWatermarkTagState = setWatermarkTagState
 
     menuBtn.MouseButton1Click:Connect(function()
-        -- Menu has hover-only visual feedback; never resize/reposition it on press/release.
-        menuBtn.Size = UDim2.fromOffset(52, 24)
-        menuBtn.Position = UDim2.fromOffset(36, 5)
-
         if window and window.Toggle then
             window:Toggle()
         elseif window and window.SetVisible and window.Frame then
             window.SetVisible(not window.Frame.Visible)
         end
-
-        -- Keep the watermark Menu button at its original geometry after the click.
-        menuBtn.Size = UDim2.fromOffset(52, 24)
-        menuBtn.Position = UDim2.fromOffset(36, 5)
     end)
 
     tagBtn.MouseButton1Click:Connect(function()
