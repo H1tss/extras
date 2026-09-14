@@ -1165,10 +1165,11 @@ local function resolveStyle(data)
 		return def
 	end
 
-	local textColor = hexToColor3(pick("textColor", pick("color", DEFAULT_COLOR)))
+	-- legacy API uses nameColor/strokeColor/iconUrl — map both
+	local textColor = hexToColor3(pick("textColor", pick("nameColor", pick("color", DEFAULT_COLOR))))
 	local tagColor = hexToColor3(pick("tagColor", "#A0A0A0"))
-	local outlineColor = hexToColor3(pick("outlineColor", pick("stroke", "#E8E8E8")))
-	local textOutlineColor = hexToColor3(pick("textOutlineColor", "#000000"))
+	local outlineColor = hexToColor3(pick("outlineColor", pick("strokeColor", pick("stroke", "#E8E8E8"))))
+	local textOutlineColor = hexToColor3(pick("textOutlineColor", pick("textStrokeColor", "#000000")))
 
 	return {
 		tag = tostring(pick("tag", data.tag or DEFAULT_TAG)),
@@ -1180,10 +1181,10 @@ local function resolveStyle(data)
 		font = fontOf(pick("font", "GothamBold"), Enum.Font.GothamBold),
 		nameFont = fontOf(pick("nameFont", "GothamBold"), Enum.Font.GothamBold),
 		tagWidth = math.clamp(tonumber(pick("tagWidth", pick("width", 220))) or 220, 140, 420),
-		pillHeight = tonumber(pick("pillHeight", 44)) or 44,
-		cornerRadius = tonumber(pick("cornerRadius", 22)) or 22, -- full pill radius
-		strokeThickness = tonumber(pick("strokeThickness", 2.2)) or 2.2,
-		pfpSize = tonumber(pick("pfpSize", 32)) or 32,
+		pillHeight = math.clamp(tonumber(pick("pillHeight", 36)) or 36, 22, 72),
+		cornerRadius = math.clamp(tonumber(pick("cornerRadius", 12)) or 12, 0, 50),
+		strokeThickness = math.clamp(tonumber(pick("strokeThickness", 2)) or 2, 0, 6),
+		pfpSize = math.clamp(tonumber(pick("pfpSize", 28)) or 28, 12, 48),
 		pfpUrl = tostring(pick("pfpUrl", pick("iconUrl", "")) or ""),
 		iconType = tostring(pick("iconType", "pfp") or "pfp"):lower(),
 		bgUrl = tostring(pick("bgUrl", pick("bgImageUrl", "")) or ""),
@@ -1194,10 +1195,10 @@ local function resolveStyle(data)
 		scale = math.clamp(tonumber(pick("scale", 1)) or 1, 0.7, 1.6),
 		offsetY = tonumber(pick("offsetY", 3.4)) or 3.4,
 		nearMaxDistance = tonumber(pick("nearMaxDistance", 45)) or 45,
-		farMaxDistance = tonumber(pick("farMaxDistance", 200)) or 200,
+		farMaxDistance = tonumber(pick("farMaxDistance", pick("maxDistance", 200))) or 200,
 		alwaysOnTop = pick("alwaysOnTop", true) ~= false,
 		-- media
-		pfpIsGif = pick("pfpIsGif", false) == true,
+		pfpIsGif = (pick("pfpIsGif", false) == true) or (tostring(pick("iconType", "")):lower() == "gif"),
 		brandIsGif = pick("brandIsGif", false) == true,
 		pfpFrames = tonumber(pick("pfpFrames", 0)) or 0,
 		pfpCols = tonumber(pick("pfpCols", 0)) or 0,
