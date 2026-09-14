@@ -1873,20 +1873,20 @@ local N0IR = {
 
 -- theme
 local T = {
-    bg0       = Color3.fromRGB(8, 8, 8),
-    bg1       = Color3.fromRGB(14, 14, 14),
-    bg2       = Color3.fromRGB(20, 20, 20),
-    bg3       = Color3.fromRGB(28, 28, 28),
-    bg4       = Color3.fromRGB(36, 36, 36),
-    border    = Color3.fromRGB(42, 42, 42),
-    border2   = Color3.fromRGB(55, 55, 55),
-    text      = Color3.fromRGB(245, 245, 245),
-    text2     = Color3.fromRGB(180, 180, 180),
-    text3     = Color3.fromRGB(110, 110, 110),
-    accent    = Color3.fromRGB(255, 255, 255),
-    dim       = Color3.fromRGB(160, 160, 160),
-    danger    = Color3.fromRGB(200, 80, 80),
-    success   = Color3.fromRGB(80, 200, 120),
+    bg0       = Color3.fromRGB(11, 11, 12),
+    bg1       = Color3.fromRGB(16, 16, 17),
+    bg2       = Color3.fromRGB(21, 21, 22),
+    bg3       = Color3.fromRGB(27, 27, 29),
+    bg4       = Color3.fromRGB(34, 34, 36),
+    border    = Color3.fromRGB(43, 43, 46),
+    border2   = Color3.fromRGB(58, 58, 62),
+    text      = Color3.fromRGB(238, 238, 240),
+    text2     = Color3.fromRGB(170, 170, 174),
+    text3     = Color3.fromRGB(108, 108, 113),
+    accent    = Color3.fromRGB(232, 232, 235),
+    dim       = Color3.fromRGB(144, 144, 149),
+    danger    = Color3.fromRGB(200, 88, 88),
+    success   = Color3.fromRGB(96, 188, 122),
 }
 
 local function tween(obj, props, dur, style, dir)
@@ -2446,14 +2446,14 @@ function N0IR:Notify(opts)
     end
 
     local n = Instance.new("Frame")
-    n.Size = UDim2.fromOffset(280, content ~= "" and 56 or 40)
+    n.Size = UDim2.fromOffset(292, content ~= "" and 58 or 42)
     n.Position = UDim2.new(1, 20, 0, 20)
     n.BackgroundColor3 = T.bg1
     n.BackgroundTransparency = 0.05
     n.BorderSizePixel = 0
     n.Parent = holder
-    corner(n, 10)
-    stroke(n, T.border, 1, 0.3)
+    corner(n, 7)
+    stroke(n, T.border2, 1, 0.28)
 
     local bar = Instance.new("Frame")
     bar.Size = UDim2.new(0, 2, 0.55, 0)
@@ -2512,8 +2512,8 @@ function N0IR:CreateWindow(opts)
     opts = opts or {}
     local title = opts.Title or "NØIR"
     local subTitle = opts.SubTitle or opts.Subtitle or ""
-    local width = opts.Width or 520
-    local height = opts.Height or 420
+    local width = opts.Width or 560
+    local height = opts.Height or 460
 
     if opts.Loading ~= false then
         self:LoadingScreen({
@@ -2546,7 +2546,7 @@ function N0IR:CreateWindow(opts)
     win.BorderSizePixel = 0
     win.ClipsDescendants = true
     win.Parent = screen
-    corner(win, 12)
+    corner(win, 10)
     stroke(win, T.border, 1, 0.25)
     attachWindowBackground(win, 12)
 
@@ -2557,7 +2557,7 @@ function N0IR:CreateWindow(opts)
     -- Title bar
     local titleBar = Instance.new("Frame")
     titleBar.Name = "TitleBar"
-    titleBar.Size = UDim2.new(1, 0, 0, 48)
+    titleBar.Size = UDim2.new(1, 0, 0, 52)
     titleBar.BackgroundColor3 = T.bg1
     titleBar.BackgroundTransparency = 0.15
     titleBar.BorderSizePixel = 0
@@ -2578,8 +2578,8 @@ function N0IR:CreateWindow(opts)
     local titleLogo = Instance.new("ImageLabel")
     titleLogo.Name = "Logo"
     titleLogo.AnchorPoint = Vector2.new(0, 0.5)
-    titleLogo.Position = UDim2.new(0, 12, 0.5, 0)
-    titleLogo.Size = UDim2.fromOffset(42, 42)
+    titleLogo.Position = UDim2.new(0, 14, 0.5, 0)
+    titleLogo.Size = UDim2.fromOffset(38, 38)
     titleLogo.BackgroundTransparency = 1
     titleLogo.Image = ensureLogoAsset()
     titleLogo.ScaleType = Enum.ScaleType.Fit
@@ -2599,10 +2599,26 @@ function N0IR:CreateWindow(opts)
         subLbl.Parent = titleBar
     end
 
+    local statusPill = Instance.new("TextLabel")
+    statusPill.Name = "Status"
+    statusPill.AnchorPoint = Vector2.new(0, 0.5)
+    statusPill.Position = UDim2.new(0, 270, 0.5, 0)
+    statusPill.Size = UDim2.fromOffset(46, 20)
+    statusPill.BackgroundColor3 = T.bg2
+    statusPill.BackgroundTransparency = 0.15
+    statusPill.BorderSizePixel = 0
+    statusPill.Font = Enum.Font.GothamBold
+    statusPill.Text = "LIVE"
+    statusPill.TextSize = 9
+    statusPill.TextColor3 = T.text3
+    statusPill.Parent = titleBar
+    corner(statusPill, 5)
+    stroke(statusPill, T.border2, 1, 0.35)
+
     -- Window controls
     local closeBtn = Instance.new("TextButton")
     closeBtn.AnchorPoint = Vector2.new(1, 0.5)
-    closeBtn.Position = UDim2.new(1, -14, 0.5, 0)
+    closeBtn.Position = UDim2.new(1, -16, 0.5, 0)
     closeBtn.Size = UDim2.fromOffset(12, 12)
     closeBtn.BackgroundColor3 = Color3.fromRGB(160, 160, 160)
     closeBtn.BorderSizePixel = 0
@@ -2613,7 +2629,7 @@ function N0IR:CreateWindow(opts)
 
     local minBtn = Instance.new("TextButton")
     minBtn.AnchorPoint = Vector2.new(1, 0.5)
-    minBtn.Position = UDim2.new(1, -34, 0.5, 0)
+    minBtn.Position = UDim2.new(1, -38, 0.5, 0)
     minBtn.Size = UDim2.fromOffset(12, 12)
     minBtn.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
     minBtn.BorderSizePixel = 0
@@ -2627,7 +2643,7 @@ function N0IR:CreateWindow(opts)
     accentLine.Size = UDim2.new(1, 0, 0, 1)
     accentLine.Position = UDim2.new(0, 0, 1, 0)
     accentLine.BackgroundColor3 = T.accent
-    accentLine.BackgroundTransparency = 0.85
+    accentLine.BackgroundTransparency = 0.88
     accentLine.BorderSizePixel = 0
     accentLine.Parent = titleBar
 
@@ -2665,10 +2681,10 @@ function N0IR:CreateWindow(opts)
     -- Tab strip
     local tabStrip = Instance.new("ScrollingFrame")
     tabStrip.Name = "TabStrip"
-    tabStrip.Position = UDim2.fromOffset(0, 48)
-    tabStrip.Size = UDim2.new(1, 0, 0, 36)
+    tabStrip.Position = UDim2.fromOffset(0, 52)
+    tabStrip.Size = UDim2.new(1, 0, 0, 38)
     tabStrip.BackgroundColor3 = T.bg1
-    tabStrip.BackgroundTransparency = 0.4
+    tabStrip.BackgroundTransparency = 0.65
     tabStrip.BorderSizePixel = 0
     tabStrip.ScrollBarThickness = 0
     tabStrip.CanvasSize = UDim2.new(0, 0, 0, 0)
@@ -2678,9 +2694,9 @@ function N0IR:CreateWindow(opts)
     local tabLayout = Instance.new("UIListLayout")
     tabLayout.FillDirection = Enum.FillDirection.Horizontal
     tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    tabLayout.Padding = UDim.new(0, 6)
+    tabLayout.Padding = UDim.new(0, 3)
     tabLayout.Parent = tabStrip
-    padding(tabStrip, 4, 4, 6, 6)
+    padding(tabStrip, 7, 7, 10, 10)
     tabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
         tabStrip.CanvasSize = UDim2.fromOffset(tabLayout.AbsoluteContentSize.X + 20, 0)
     end)
@@ -2688,8 +2704,8 @@ function N0IR:CreateWindow(opts)
     -- Content host
     local contentHost = Instance.new("Frame")
     contentHost.Name = "Content"
-    contentHost.Position = UDim2.fromOffset(0, 84)
-    contentHost.Size = UDim2.new(1, 0, 1, -84)
+    contentHost.Position = UDim2.fromOffset(0, 90)
+    contentHost.Size = UDim2.new(1, 0, 1, -90)
     contentHost.BackgroundTransparency = 1
     contentHost.ClipsDescendants = true
     contentHost.Parent = win
@@ -2704,7 +2720,7 @@ function N0IR:CreateWindow(opts)
         if isMin then
             tabStrip.Visible = false
             contentHost.Visible = false
-            win.Size = UDim2.fromOffset(width, 48)
+            win.Size = UDim2.fromOffset(width, 52)
         else
             win.Size = fullSize
             tabStrip.Visible = true
@@ -2736,19 +2752,19 @@ function N0IR:CreateWindow(opts)
         local order = tabOpts.Order or (#self.Tabs + 1)
 
         -- Match reanim tab style: transparent fill + rounded outline + text color tween
-        local inactiveCol = Color3.fromRGB(100, 100, 108)
-        local hoverCol = Color3.fromRGB(180, 180, 185)
-        local activeCol = Color3.fromRGB(235, 235, 240)
+        local inactiveCol = Color3.fromRGB(118, 118, 124)
+        local hoverCol = Color3.fromRGB(190, 190, 194)
+        local activeCol = Color3.fromRGB(235, 235, 238)
 
         local btn = Instance.new("TextButton")
         btn.Size = UDim2.fromOffset(0, 22)
         btn.AutomaticSize = Enum.AutomaticSize.X
-        btn.BackgroundColor3 = Color3.fromRGB(18, 18, 20)
+        btn.BackgroundColor3 = T.bg3
         btn.BackgroundTransparency = 1
         btn.BorderSizePixel = 0
         btn.Font = Enum.Font.GothamBold
         btn.Text = "  " .. name .. "  "
-        btn.TextSize = 11
+        btn.TextSize = 10
         btn.TextColor3 = inactiveCol
         btn.AutoButtonColor = false
         btn.LayoutOrder = order
@@ -2763,11 +2779,11 @@ function N0IR:CreateWindow(opts)
             box.ZIndex = (btn.ZIndex or 1)
             box.Active = false
             local c = Instance.new("UICorner")
-            c.CornerRadius = UDim.new(0, 3)
+            c.CornerRadius = UDim.new(0, 5)
             c.Parent = box
             local s = Instance.new("UIStroke")
             s.Name = "Stroke"
-            s.Color = Color3.fromRGB(210, 210, 216)
+            s.Color = T.border2
             s.Transparency = 1
             s.Thickness = 1
             s.Parent = box
@@ -2787,9 +2803,9 @@ function N0IR:CreateWindow(opts)
 
         local list = Instance.new("UIListLayout")
         list.SortOrder = Enum.SortOrder.LayoutOrder
-        list.Padding = UDim.new(0, 8)
+        list.Padding = UDim.new(0, 6)
         list.Parent = page
-        padding(page, 12, 12, 14, 14)
+        padding(page, 14, 14, 16, 16)
         list:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
             page.CanvasSize = UDim2.new(0, 0, 0, list.AbsoluteContentSize.Y + 24)
         end)
@@ -2856,16 +2872,30 @@ function N0IR:CreateWindow(opts)
         function Tab:CreateSection(secOpts)
             secOpts = type(secOpts) == "string" and { Name = secOpts } or (secOpts or {})
             self._order = self._order + 1
+            local holder = Instance.new("Frame")
+            holder.BackgroundTransparency = 1
+            holder.Size = UDim2.new(1, 0, 0, 26)
+            holder.LayoutOrder = self._order
+            holder.Parent = page
+
+            local rule = Instance.new("Frame")
+            rule.Position = UDim2.fromOffset(0, 12)
+            rule.Size = UDim2.fromOffset(3, 10)
+            rule.BackgroundColor3 = T.accent
+            rule.BorderSizePixel = 0
+            rule.Parent = holder
+            corner(rule, 2)
+
             local lbl = Instance.new("TextLabel")
             lbl.BackgroundTransparency = 1
-            lbl.Size = UDim2.new(1, 0, 0, 20)
-            lbl.Font = Enum.Font.GothamBold
-            lbl.Text = secOpts.Name or "Section"
-            lbl.TextSize = 12
-            lbl.TextColor3 = T.text
+            lbl.Position = UDim2.fromOffset(10, 0)
+            lbl.Size = UDim2.new(1, -10, 1, 0)
+            lbl.Font = Enum.Font.GothamSemibold
+            lbl.Text = string.upper(secOpts.Name or "Section")
+            lbl.TextSize = 10
+            lbl.TextColor3 = T.text2
             lbl.TextXAlignment = Enum.TextXAlignment.Left
-            lbl.LayoutOrder = self._order
-            lbl.Parent = page
+            lbl.Parent = holder
             return lbl
         end
 
@@ -2892,20 +2922,20 @@ function N0IR:CreateWindow(opts)
             btnOpts = btnOpts or {}
             self._order = self._order + 1
             local b = Instance.new("TextButton")
-            b.Size = UDim2.new(1, 0, 0, 34)
+            b.Size = UDim2.new(1, 0, 0, 36)
             b.BackgroundColor3 = T.bg2
             b.BorderSizePixel = 0
             b.Font = Enum.Font.GothamMedium
             b.Text = btnOpts.Name or "Button"
-            b.TextSize = 12
+            b.TextSize = 11
             b.TextColor3 = T.text
             b.AutoButtonColor = false
             b.LayoutOrder = self._order
             b.Parent = page
-            corner(b, 8)
-            stroke(b, T.border, 1, 0.55)
+            corner(b, 6)
+            stroke(b, T.border, 1, 0.6)
             b.MouseEnter:Connect(function()
-                tween(b, { BackgroundColor3 = T.bg3 }, 0.12)
+                tween(b, { BackgroundColor3 = T.bg3 }, 0.10)
             end)
             b.MouseLeave:Connect(function()
                 tween(b, { BackgroundColor3 = T.bg2 }, 0.12)
@@ -2926,14 +2956,14 @@ function N0IR:CreateWindow(opts)
             if flag and N0IR.Flags[flag] ~= nil then state = N0IR.Flags[flag] end
 
             local row = Instance.new("Frame")
-            row.Size = UDim2.new(1, 0, 0, 44)
+            row.Size = UDim2.new(1, 0, 0, 48)
             row.BackgroundColor3 = T.bg1
             row.BackgroundTransparency = 0.25
             row.BorderSizePixel = 0
             row.LayoutOrder = self._order
             row.Parent = page
-            corner(row, 8)
-            stroke(row, T.border, 1, 0.65)
+            corner(row, 6)
+            stroke(row, T.border, 1, 0.7)
 
             local name = Instance.new("TextLabel")
             name.BackgroundTransparency = 1
@@ -3027,8 +3057,8 @@ function N0IR:CreateWindow(opts)
             row.BorderSizePixel = 0
             row.LayoutOrder = self._order
             row.Parent = page
-            corner(row, 8)
-            stroke(row, T.border, 1, 0.65)
+            corner(row, 6)
+            stroke(row, T.border, 1, 0.7)
 
             local name = Instance.new("TextLabel")
             name.BackgroundTransparency = 1
@@ -3129,8 +3159,8 @@ function N0IR:CreateWindow(opts)
             row.LayoutOrder = self._order
             row.ClipsDescendants = true
             row.Parent = page
-            corner(row, 8)
-            stroke(row, T.border, 1, 0.65)
+            corner(row, 6)
+            stroke(row, T.border, 1, 0.7)
 
             local name = Instance.new("TextLabel")
             name.BackgroundTransparency = 1
@@ -3242,8 +3272,8 @@ function N0IR:CreateWindow(opts)
             row.BorderSizePixel = 0
             row.LayoutOrder = self._order
             row.Parent = page
-            corner(row, 8)
-            stroke(row, T.border, 1, 0.65)
+            corner(row, 6)
+            stroke(row, T.border, 1, 0.7)
 
             local name = Instance.new("TextLabel")
             name.BackgroundTransparency = 1
@@ -3301,8 +3331,9 @@ function N0IR:CreateWindow(opts)
             lbl.TextWrapped = true
             lbl.LayoutOrder = self._order
             lbl.Parent = page
-            corner(lbl, 8)
-            padding(lbl, 10, 10, 12, 12)
+            corner(lbl, 6)
+            stroke(lbl, T.border, 1, 0.78)
+            padding(lbl, 11, 11, 12, 12)
             return lbl
         end
 
@@ -4938,7 +4969,7 @@ local BUILTIN_EMOTES = {
         tabs.Parent = win
         local tabLayout = Instance.new("UIListLayout")
         tabLayout.FillDirection = Enum.FillDirection.Horizontal
-        tabLayout.Padding = UDim.new(0, 6)
+        tabLayout.Padding = UDim.new(0, 3)
         tabLayout.Parent = tabs
         local tabPad = Instance.new("UIPadding")
         tabPad.PaddingLeft = UDim.new(0, 12)
@@ -7875,6 +7906,58 @@ local BUILTIN_EMOTES = {
     _G._N0IRDeleteTreehouse = deleteTreehouse
     _G._N0IRTeleportToTreehouse = teleportToTreehouse
 
+    -- Keep the streamed map around the player to reduce "Gameplay paused" while moving/teleporting.
+    -- Roblox controls StreamingEnabled on the server, so this cannot truly force the entire
+    -- world to stay loaded. This repeatedly asks the client to stream the area around you.
+    local keepMapLoaded = false
+    local keepMapLoadedConn = nil
+
+    local function stopKeepMapLoaded()
+        keepMapLoaded = false
+        if keepMapLoadedConn then
+            keepMapLoadedConn:Disconnect()
+            keepMapLoadedConn = nil
+        end
+    end
+
+    local function requestMapAroundPlayer()
+        local char = LocalPlayer.Character
+        local root = char and char:FindFirstChild("HumanoidRootPart")
+        if not root then return end
+        pcall(function()
+            LocalPlayer:RequestStreamAroundAsync(root.Position)
+        end)
+    end
+
+    local function startKeepMapLoaded()
+        if keepMapLoadedConn then return end
+        keepMapLoaded = true
+        requestMapAroundPlayer()
+        keepMapLoadedConn = RunService.Heartbeat:Connect(function()
+            if not keepMapLoaded then return end
+            local now = os.clock()
+            if not _G._N0IR_LastMapStreamRequest or now - _G._N0IR_LastMapStreamRequest >= 0.75 then
+                _G._N0IR_LastMapStreamRequest = now
+                requestMapAroundPlayer()
+            end
+        end)
+    end
+
+    Map:CreateToggle({
+        Name = "Keep Map Loaded",
+        Description = "Continuously request streaming around you to reduce gameplay pauses.",
+        Flag = "KeepMapLoaded",
+        Default = false,
+        Callback = function(on)
+            if on then
+                startKeepMapLoaded()
+            else
+                stopKeepMapLoaded()
+            end
+        end,
+    })
+
+    Map:CreateButton({ Name = "Preload Current Area", Callback = requestMapAroundPlayer })
     Map:CreateButton({ Name = "Spawn Treehouse", Callback = spawnTreehouse })
     Map:CreateButton({ Name = "Teleport to Treehouse", Callback = teleportToTreehouse })
     Map:CreateButton({ Name = "Delete Treehouse", Callback = deleteTreehouse })
