@@ -1167,7 +1167,7 @@ local function resolveStyle(data)
 
 	local textColor = hexToColor3(pick("textColor", pick("color", DEFAULT_COLOR)))
 	local tagColor = hexToColor3(pick("tagColor", "#A0A0A0"))
-	local outlineColor = hexToColor3(pick("outlineColor", pick("stroke", "#FF0000")))
+	local outlineColor = hexToColor3(pick("outlineColor", pick("stroke", "#E8E8E8")))
 	local textOutlineColor = hexToColor3(pick("textOutlineColor", "#000000"))
 
 	return {
@@ -1179,11 +1179,11 @@ local function resolveStyle(data)
 		textOutlineColor = textOutlineColor,
 		font = fontOf(pick("font", "GothamBold"), Enum.Font.GothamBold),
 		nameFont = fontOf(pick("nameFont", "GothamBold"), Enum.Font.GothamBold),
-		tagWidth = math.clamp(tonumber(pick("tagWidth", pick("width", 280))) or 280, 120, 500),
-		pillHeight = tonumber(pick("pillHeight", 52)) or 52,
-		cornerRadius = tonumber(pick("cornerRadius", 12)) or 12,
-		strokeThickness = tonumber(pick("strokeThickness", 2.5)) or 2.5,
-		pfpSize = tonumber(pick("pfpSize", 40)) or 40,
+		tagWidth = math.clamp(tonumber(pick("tagWidth", pick("width", 220))) or 220, 140, 420),
+		pillHeight = tonumber(pick("pillHeight", 44)) or 44,
+		cornerRadius = tonumber(pick("cornerRadius", 22)) or 22, -- full pill radius
+		strokeThickness = tonumber(pick("strokeThickness", 2.2)) or 2.2,
+		pfpSize = tonumber(pick("pfpSize", 32)) or 32,
 		pfpUrl = tostring(pick("pfpUrl", pick("iconUrl", "")) or ""),
 		bgUrl = tostring(pick("bgUrl", pick("bgImageUrl", "")) or ""),
 		brandUrl = tostring(pick("brandUrl", pick("farUrl", "")) or ""),
@@ -1255,7 +1255,7 @@ function Nametag:Create(player, data)
 	bb.Name = "N0IR_Tag_" .. player.Name
 	bb.Adornee = head
 	bb.AlwaysOnTop = S.alwaysOnTop
-	bb.Size = UDim2.fromOffset(math.floor(S.tagWidth * sc + 40), math.floor(120 * sc))
+	bb.Size = UDim2.fromOffset(math.floor(math.max(S.tagWidth, 200) * sc + 24), math.floor(90 * sc))
 	bb.StudsOffset = Vector3.new(0, S.offsetY, 0)
 	bb.MaxDistance = S.farMaxDistance
 	bb.Parent = self.Folder
@@ -1271,17 +1271,19 @@ function Nametag:Create(player, data)
 	uiScale.Parent = root
 
 	-- ========== NEAR MODE (pill) ==========
+	-- Matches designed tag: compact dark pill, thick outline, circular pfp, title + @user
 	local near = Instance.new("Frame")
 	near.Name = "Near"
 	near.AnchorPoint = Vector2.new(0.5, 0.5)
 	near.Position = UDim2.fromScale(0.5, 0.5)
-	near.Size = UDim2.fromOffset(S.tagWidth, S.pillHeight)
-	near.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
-	near.BackgroundTransparency = 0.08
+	near.AutomaticSize = Enum.AutomaticSize.X
+	near.Size = UDim2.fromOffset(0, S.pillHeight)
+	near.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+	near.BackgroundTransparency = 0.05
 	near.BorderSizePixel = 0
 	near.Visible = true
 	near.Parent = root
-	Instance.new("UICorner", near).CornerRadius = UDim.new(0, S.cornerRadius)
+	Instance.new("UICorner", near).CornerRadius = UDim.new(1, 0) -- full capsule
 
 	local nearStroke = Instance.new("UIStroke")
 	nearStroke.Name = "Outline"
@@ -1300,7 +1302,7 @@ function Nametag:Create(player, data)
 		bg.ScaleType = Enum.ScaleType.Crop
 		bg.ZIndex = 0
 		bg.Parent = near
-		Instance.new("UICorner", bg).CornerRadius = UDim.new(0, S.cornerRadius)
+		Instance.new("UICorner", bg).CornerRadius = UDim.new(1, 0)
 		task.spawn(function()
 			local a = resolveImageAsset(S.bgUrl, isSelf)
 			if a and bg.Parent then bg.Image = a end
@@ -1308,16 +1310,18 @@ function Nametag:Create(player, data)
 	end
 
 	local pad = Instance.new("UIPadding")
-	pad.PaddingLeft = UDim.new(0, 8)
-	pad.PaddingRight = UDim.new(0, 12)
-	pad.PaddingTop = UDim.new(0, 6)
-	pad.PaddingBottom = UDim.new(0, 6)
+	pad.PaddingLeft = UDim.new(0, 6)
+	pad.PaddingRight = UDim.new(0, 14)
+	pad.PaddingTop = UDim.new(0, 5)
+	pad.PaddingBottom = UDim.new(0, 5)
 	pad.Parent = near
 
 	local hlist = Instance.new("UIListLayout")
 	hlist.FillDirection = Enum.FillDirection.Horizontal
 	hlist.VerticalAlignment = Enum.VerticalAlignment.Center
-	hlist.Padding = UDim.new(0, 10)
+	hlist.HorizontalAlignment = Enum.HorizontalAlignment.Left
+	hlist.Padding = UDim.new(0, 8)
+	hlist.SortOrder = Enum.SortOrder.LayoutOrder
 	hlist.Parent = near
 
 	-- PFP (circular)
@@ -1331,13 +1335,11 @@ function Nametag:Create(player, data)
 	local pfp = Instance.new("ImageLabel")
 	pfp.Name = "Pfp"
 	pfp.Size = UDim2.fromScale(1, 1)
-	pfp.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	pfp.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
 	pfp.BorderSizePixel = 0
 	pfp.ScaleType = Enum.ScaleType.Crop
 	pfp.Parent = pfpHolder
 	Instance.new("UICorner", pfp).CornerRadius = UDim.new(1, 0)
-	Instance.new("UIStroke", pfp).Color = Color3.fromRGB(40, 40, 40)
-	Instance.new("UIStroke", pfp).Thickness = 1
 
 	-- default headshot
 	local thumb = string.format("rbxthumb://type=AvatarHeadShot&id=%d&w=150&h=150", player.UserId)
@@ -1363,56 +1365,62 @@ function Nametag:Create(player, data)
 	local textCol = Instance.new("Frame")
 	textCol.Name = "TextCol"
 	textCol.BackgroundTransparency = 1
-	textCol.Size = UDim2.new(1, -S.pfpSize - 20, 1, 0)
+	textCol.AutomaticSize = Enum.AutomaticSize.XY
+	textCol.Size = UDim2.fromOffset(0, 0)
 	textCol.LayoutOrder = 2
 	textCol.Parent = near
 
 	local vlist = Instance.new("UIListLayout")
 	vlist.FillDirection = Enum.FillDirection.Vertical
 	vlist.VerticalAlignment = Enum.VerticalAlignment.Center
+	vlist.HorizontalAlignment = Enum.HorizontalAlignment.Left
 	vlist.Padding = UDim.new(0, 1)
+	vlist.SortOrder = Enum.SortOrder.LayoutOrder
 	vlist.Parent = textCol
 
 	local nameLbl = Instance.new("TextLabel")
 	nameLbl.Name = "DisplayName"
 	nameLbl.BackgroundTransparency = 1
-	nameLbl.Size = UDim2.new(1, 0, 0, 18)
+	nameLbl.AutomaticSize = Enum.AutomaticSize.X
+	nameLbl.Size = UDim2.fromOffset(0, 16)
 	nameLbl.Font = S.nameFont
-	nameLbl.TextSize = 15
+	nameLbl.TextSize = 14
 	nameLbl.TextColor3 = S.textColor
 	nameLbl.TextXAlignment = Enum.TextXAlignment.Left
-	nameLbl.TextTruncate = Enum.TextTruncate.AtEnd
-	nameLbl.Text = string.upper(displayName)
+	nameLbl.TextYAlignment = Enum.TextYAlignment.Center
+	nameLbl.Text = tostring(displayName)
+	nameLbl.LayoutOrder = 1
 	nameLbl.Parent = textCol
-	if S.textOutlineColor then
-		nameLbl.TextStrokeColor3 = S.textOutlineColor
-		nameLbl.TextStrokeTransparency = 0.35
-	end
+	nameLbl.TextStrokeColor3 = S.textOutlineColor
+	nameLbl.TextStrokeTransparency = 0.55
 
 	local userLbl = Instance.new("TextLabel")
 	userLbl.Name = "Username"
 	userLbl.BackgroundTransparency = 1
-	userLbl.Size = UDim2.new(1, 0, 0, 14)
+	userLbl.AutomaticSize = Enum.AutomaticSize.X
+	userLbl.Size = UDim2.fromOffset(0, 13)
 	userLbl.Font = Enum.Font.Gotham
 	userLbl.TextSize = 11
 	userLbl.TextColor3 = S.tagColor
 	userLbl.TextXAlignment = Enum.TextXAlignment.Left
-	userLbl.TextTruncate = Enum.TextTruncate.AtEnd
-	userLbl.Text = username
+	userLbl.TextYAlignment = Enum.TextYAlignment.Center
+	userLbl.Text = tostring(username)
 	userLbl.Visible = S.showUsername
+	userLbl.LayoutOrder = 2
 	userLbl.Parent = textCol
 
 	if customText ~= "" and S.showCustomText then
 		local sub = Instance.new("TextLabel")
 		sub.Name = "CustomText"
 		sub.BackgroundTransparency = 1
-		sub.Size = UDim2.new(1, 0, 0, 12)
+		sub.AutomaticSize = Enum.AutomaticSize.X
+		sub.Size = UDim2.fromOffset(0, 11)
 		sub.Font = Enum.Font.Gotham
 		sub.TextSize = 10
-		sub.TextColor3 = Color3.fromRGB(160, 160, 160)
+		sub.TextColor3 = Color3.fromRGB(140, 140, 140)
 		sub.TextXAlignment = Enum.TextXAlignment.Left
-		sub.TextTruncate = Enum.TextTruncate.AtEnd
 		sub.Text = customText
+		sub.LayoutOrder = 3
 		sub.Parent = textCol
 	end
 
