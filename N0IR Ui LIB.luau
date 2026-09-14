@@ -868,9 +868,58 @@ function utility:CreateUI()
                     panel.Size = UDim2.fromOffset(188, 0)
                     self:ResizePanel()
                 else
-                    panel:TweenSize(UDim2.fromOffset(188, 0), Enum.EasingDirection.In, Enum.EasingStyle.Quad, 0.15, true)
-                    task.delay(0.16, function()
-                        if not self.menuOpen then panel.Visible = false end
+                    -- Windows-style close: shrink slightly, then fade away.
+                    local originalSize = panel.Size
+                    local scale = panel:FindFirstChild("CloseScale")
+                    if not scale then
+                        scale = Instance.new("UIScale")
+                        scale.Name = "CloseScale"
+                        scale.Scale = 1
+                        scale.Parent = panel
+                    end
+
+                    local shrink = TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+                    local fade = TweenInfo.new(0.10, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+
+                    self.TweenService:Create(scale, shrink, {Scale = 0.94}):Play()
+
+                    local fadeObjects = {}
+                    local function addFadeObject(obj)
+                        if obj:IsA("GuiObject") then
+                            if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
+                                fadeObjects[obj] = {TextTransparency = obj.TextTransparency}
+                            elseif obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
+                                fadeObjects[obj] = {ImageTransparency = obj.ImageTransparency}
+                            end
+                            fadeObjects[obj] = fadeObjects[obj] or {}
+                            fadeObjects[obj].BackgroundTransparency = obj.BackgroundTransparency
+                        elseif obj:IsA("UIStroke") then
+                            fadeObjects[obj] = {Transparency = obj.Transparency}
+                        end
+                    end
+
+                    addFadeObject(panel)
+                    for _, obj in ipairs(panel:GetDescendants()) do
+                        addFadeObject(obj)
+                    end
+
+                    for obj, properties in pairs(fadeObjects) do
+                        self.TweenService:Create(obj, fade, properties):Play()
+                    end
+
+                    task.delay(0.15, function()
+                        if not self.menuOpen then
+                            panel.Visible = false
+                            panel.Size = originalSize
+                            scale.Scale = 1
+                            for obj, properties in pairs(fadeObjects) do
+                                if obj and obj.Parent then
+                                    for property, value in pairs(properties) do
+                                        obj[property] = value
+                                    end
+                                end
+                            end
+                        end
                     end)
                 end
             end
@@ -1299,7 +1348,7 @@ function Nametag:Create(player, data)
 	uiScale.Scale = sc
 	uiScale.Parent = root
 
-	-- NEAR MODE (pill)
+	-- ========== NEAR MODE (pill) ==========
 	local near = Instance.new("Frame")
 	near.Name = "Near"
 	near.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -1445,7 +1494,7 @@ function Nametag:Create(player, data)
 		sub.Parent = textCol
 	end
 
-	-- FAR MODE (circular brand)
+	-- ========== FAR MODE (circular brand) ==========
 	local far = Instance.new("Frame")
 	far.Name = "Far"
 	far.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -7991,7 +8040,7 @@ function N0IR:MountUtilities(Window)
     startFriendLeft()
 
     -- autoexec
-    -- NØIR Chat
+    -- ========== NØIR Chat (users only — no message filter; wire your own) ==========
     local ChatTab = Window:CreateTab({ Name = "Chat" })
     ChatTab:CreateSection("NØIR users")
     ChatTab:CreateParagraph({
