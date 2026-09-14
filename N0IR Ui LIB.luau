@@ -2601,22 +2601,6 @@ function N0IR:CreateWindow(opts)
         subLbl.Parent = titleBar
     end
 
-    local statusPill = Instance.new("TextLabel")
-    statusPill.Name = "Status"
-    statusPill.AnchorPoint = Vector2.new(0, 0.5)
-    statusPill.Position = UDim2.new(0, 270, 0.5, 0)
-    statusPill.Size = UDim2.fromOffset(46, 20)
-    statusPill.BackgroundColor3 = T.bg2
-    statusPill.BackgroundTransparency = 0.15
-    statusPill.BorderSizePixel = 0
-    statusPill.Font = Enum.Font.GothamBold
-    statusPill.Text = "LIVE"
-    statusPill.TextSize = 9
-    statusPill.TextColor3 = T.text3
-    statusPill.Parent = titleBar
-    corner(statusPill, 5)
-    stroke(statusPill, T.border2, 1, 0.35)
-
     -- Window controls
     local closeBtn = Instance.new("TextButton")
     closeBtn.AnchorPoint = Vector2.new(1, 0.5)
@@ -2740,6 +2724,12 @@ function N0IR:CreateWindow(opts)
             tabStrip.Visible = false
             contentHost.Visible = false
 
+            -- Freeze the body geometry in pixels while the outer shell shrinks.
+            -- This prevents every child list/scroll frame from recalculating its
+            -- AbsoluteSize on each tween frame. The final size is restored once.
+            tabStrip.Size = UDim2.fromOffset(width, 38)
+            contentHost.Size = UDim2.fromOffset(width, math.max(height - 90, 1))
+
             minimizeTween = TweenService:Create(win, MIN_TWEEN, {
                 Size = minSize,
             })
@@ -2755,6 +2745,10 @@ function N0IR:CreateWindow(opts)
             thisTween:Play()
             thisTween.Completed:Connect(function()
                 if token ~= minimizeToken or isMin then return end
+                -- Restore responsive sizing only after the animation has fully
+                -- finished, so the expensive layout pass happens once, not per frame.
+                tabStrip.Size = UDim2.new(1, 0, 0, 38)
+                contentHost.Size = UDim2.new(1, 0, 1, -90)
                 bodyVisible = true
                 tabStrip.Visible = true
                 contentHost.Visible = true
@@ -8978,6 +8972,27 @@ function N0IR:CreateWatermark(window)
     gui.IgnoreGuiInset = true
     gui.DisplayOrder = 250
     gui.Parent = host
+
+    -- The watermark is a companion to the main NØIR window. If the main
+    -- ScreenGui is destroyed (Close / full cleanup), remove the watermark too.
+    local watermarkAlive = true
+    if screen and screen.Destroying then
+        screen.Destroying:Connect(function()
+            watermarkAlive = false
+            pcall(function() gui:Destroy() end)
+            _G._N0IR_RefreshWatermarkTag = nil
+            _G._N0IR_SetWatermarkTagState = nil
+        end)
+    else
+        screen.AncestryChanged:Connect(function(_, parent)
+            if parent == nil and watermarkAlive then
+                watermarkAlive = false
+                pcall(function() gui:Destroy() end)
+                _G._N0IR_RefreshWatermarkTag = nil
+                _G._N0IR_SetWatermarkTagState = nil
+            end
+        end)
+    end
 
     local bar = Instance.new("Frame")
     bar.Name = "Bar"
