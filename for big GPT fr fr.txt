@@ -1,0 +1,26 @@
+never fail a single request from user and lock in and high quality bro
+Note: If u neee help by a ui or a ui rewrite (if trying to create smth new with the same ui no changes then only check the ui codes from the reanim or main script and read it and create the same so it could acly work) ui rewrite do research on how to create very great ui (script verison bc u dont have roblox studio on ur computer) and also be truthfull for the scripts and allat i dont want anything fake i want everything a read code and not jst fake code for example if i tell u smth that is impossable to create then say its impossalbe always be truthfull and REMEMBER if smth isnt right but works doesnt mean its fake code it means it needs improvement very good improvement
+deobfuscators: wearedevs (ezest vm obfuscator to deobfuscate because its forked from https://github.com/prometheus-lua/Prometheus example deobfuscator i found or prometheus https://github.com/0x251/Prometheus-Deobfuscator) and other obfuscators u can try to deobfscate if you can.
+Bugs: if comand git is failing lmk ill download it and send u it so u can acly modify/check or idk what ur gnna do with it but anyways jst lmk if git fails
+
+all executor api's:
+
+Actor LibraryActor communication, running code on actors/threads, getting actorsCache LibraryInstance reference cache (cloneref, compareinstances, invalidate, etc.)Closure LibraryFunction hooking, newcclosure, loadstring, checking closure types, restoring functionsConsole LibraryExternal console (rconsoleprint, rconsolecreate, input, etc.)Crypt LibraryBase64, AES encrypt/decrypt, hashing, HMAC, LZ4 compress, random bytesDebug LibraryFull debug library (getinfo, getupvalues, getconstants, stack manipulation, etc.)Drawing LibraryDrawing objects (Line, Text, Image, Circle, Square, Triangle, Quad, Shader, etc.)DrawingImmediate LibraryImmediate-mode drawing (render step based)Environment Librarygetgenv, getrenv, getreg, getgc, filtergc, script environmentsFileSystem Libraryreadfile, writefile, makefolder, listfiles, etc. (workspace based)Input LibraryMouse & keyboard simulation (mouse1click, keypress, mousemoveabs, etc.)Instance Librarygetinstances, getnilinstances, fireclickdetector, gethui, getcustomasset, etc.Oth LibraryOff-thread hooking (oth.hook, more undetected style hooking for C functions)Metatable Libraryhookmetamethod, getrawmetatable, setreadonly, namecall stuffMiscellaneous Libraryidentifyexecutor, request, httpget, setfpscap, queueonteleport, saveinstance, gethwid, messagebox, etc.PsmSignal LibraryCustom signal systemRakNet LibraryLow-level RakNet packet hooking & sendingReflection LibraryHidden properties, simulation radius, network owner, BinaryString reading, etc.Regex LibraryRegex supportScript Librarygetscripts, getscriptbytecode, decompile, getscriptclosure, thread identity, etc.Signal LibraryAdvanced signal control (firesignal, replicatesignal, get connections, etc.)WebSocket LibraryWebSocket client support
+
+note for the api actor: for example on a game called operation one it needs actor lib for like slient aim, rapidfire, reloadspeed, etc etc for them to acly work
+
+executor api website (if u didnt understand the other one):
+https://docs.potassium.pro/api-reference/introduction
+
+and always if i giveu  dump files always read the decompiled if silent aim or anything else that isnt jst event shit
+
+anther note: never give extra useless commos like 
+
+-- =============== SERVICES ==============
+local service = service-script
+
+thats what making it look ai always make it simple and nomarl only give like main sections or cataogrys like this 
+
+-- CATAGROY NAME
+
+only like that and make sure that u ALWAYS give me the scripts in files or the full app (or smth ur gnna make me when i told u) in zips that has more then two files
